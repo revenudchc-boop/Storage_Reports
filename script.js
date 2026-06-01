@@ -43,6 +43,90 @@ let nextIdStrge6 = strgePeriods6.length > 0 ? Math.max(...strgePeriods6.map(p =>
 let nextIdExprt6 = exprtPeriods6.length > 0 ? Math.max(...exprtPeriods6.map(p => p.id)) + 1 : 1;
 
 let selectedColumnsTab6 = JSON.parse(localStorage.getItem("selectedColumns_tab6")) || [];
+
+// قائمة رئيسية موحدة للخطوط (مخزنة في LocalStorage)
+// قائمة رئيسية موحدة للخطوط (تحديث تلقائي للقائمة الافتراضية)
+let defaultLinesList = ["MSC", "ZIM", "VALOR", "YM", "MAERSK", "CMA-CGM", "HAPAG-LLOYD", "COSCO", "EVERGREEN", "ONE", "HMM"];
+let savedList = localStorage.getItem("masterLinesList");
+if (savedList) {
+    masterLinesList = JSON.parse(savedList);
+    // دمج الخطوط الجديدة مع القديمة (اختياري)
+    defaultLinesList.forEach(line => {
+        if (!masterLinesList.includes(line)) masterLinesList.push(line);
+    });
+    saveMasterLinesList();
+} else {
+    masterLinesList = defaultLinesList;
+    saveMasterLinesList();
+}
+
+// دالة لحفظ القائمة الرئيسية
+function saveMasterLinesList() {
+    localStorage.setItem("masterLinesList", JSON.stringify(masterLinesList));
+}
+
+// دالة لإضافة خط جديد إلى القائمة الرئيسية
+function addNewLineToMasterList(lineName) {
+    if (!lineName || lineName.trim() === "") return false;
+    let trimmedName = lineName.trim();
+    if (!masterLinesList.includes(trimmedName)) {
+        masterLinesList.push(trimmedName);
+        saveMasterLinesList();
+        updateAllLineSelects();
+        return true;
+    }
+    return false;
+}
+
+// دالة لتحديث جميع القوائم المنسدلة
+function updateAllLineSelects() {
+    for (let i = 1; i <= 6; i++) {
+        let excludeSelect = document.getElementById(`excludeLine${i}`);
+        if (excludeSelect) {
+            let currentValue = excludeSelect.value;
+            updateSelectOptions(excludeSelect, masterLinesList);
+            excludeSelect.value = currentValue;
+        }
+        
+        let periodSelects = document.querySelectorAll(`.period-line-${i}`);
+        periodSelects.forEach(select => {
+            let currentValue = select.value;
+            updateSelectOptions(select, masterLinesList);
+            select.value = currentValue;
+        });
+    }
+}
+
+// دالة لتحديث خيارات الـ Select
+function updateSelectOptions(selectElement, optionsList) {
+    if (!selectElement) return;
+    let currentValue = selectElement.value;
+    selectElement.innerHTML = '';
+    
+    let allOption = document.createElement('option');
+    allOption.value = '*';
+    allOption.textContent = '* (الكل)';
+    selectElement.appendChild(allOption);
+    
+    optionsList.forEach(line => {
+        let option = document.createElement('option');
+        option.value = line;
+        option.textContent = line;
+        selectElement.appendChild(option);
+    });
+    
+    selectElement.value = currentValue;
+}
+
+// دالة لتهيئة جميع القوائم المنسدلة
+function initializeAllSelects() {
+    for (let i = 1; i <= 6; i++) {
+        let excludeSelect = document.getElementById(`excludeLine${i}`);
+        if (excludeSelect) {
+            updateSelectOptions(excludeSelect, masterLinesList);
+        }
+    }
+}
 // ========== دوال حفظ وتحميل الملف ==========
 function saveFileToLocalStorage(fileData, fileName) {
     try {
@@ -1765,13 +1849,10 @@ function displayPeriodsList(containerId, periods, tabId) {
         html += `<tr>
             <td><span class="category-badge ${catClass}">${period.category}</span></td>
             <td>
-                <select class="period-line-${tabId}" data-id="${period.id}" data-cat="${period.category}" style="padding:6px 10px; border-radius:6px;">
-                    <option value="*" ${period.lineId === "*" ? "selected" : ""}>*</option>
-                    <option value="MSC" ${period.lineId === "MSC" ? "selected" : ""}>MSC</option>
-                    <option value="ZIM" ${period.lineId === "ZIM" ? "selected" : ""}>ZIM</option>
-                    <option value="VALOR" ${period.lineId === "VALOR" ? "selected" : ""}>VALOR</option>
-                    <option value="YM" ${period.lineId === "YM" ? "selected" : ""}>YM</option>
-                </select>
+<select class="period-line-${tabId}" data-id="${period.id}" data-cat="${period.category}" style="padding:6px 10px; border-radius:6px;">
+    <option value="*" ${period.lineId === "*" ? "selected" : ""}>* (الكل)</option>
+    ${masterLinesList.map(line => `<option value="${line}" ${period.lineId === line ? "selected" : ""}>${line}</option>`).join('')}
+</select>
             </td>
             <td>
                 <select class="period-dray-${tabId}" data-id="${period.id}" data-cat="${period.category}" style="padding:6px 10px; border-radius:6px;">
@@ -1964,6 +2045,24 @@ function addNewPeriod(tabId, category) {
     setPeriodsArray(tabId, category, periodsArray);
     refreshPeriodsDisplay(tabId);
 }
+
+// إضافة خط جديد لجميع التبويبات
+document.getElementById("addGlobalLineBtn")?.addEventListener("click", () => {
+    let newLine = document.getElementById("newGlobalLineName")?.value.trim();
+    if (newLine) {
+        if (addNewLineToMasterList(newLine)) {
+            document.getElementById("newGlobalLineName").value = "";
+            alert(`✅ تم إضافة الخط "${newLine}" بنجاح لجميع التبويبات`);
+        } else {
+            alert(`⚠️ الخط "${newLine}" موجود مسبقاً`);
+        }
+    } else {
+        alert("❌ الرجاء كتابة اسم الخط");
+    }
+});
+
+// تهيئة القوائم عند تحميل الصفحة
+initializeAllSelects();
 
 function displayExcludeList(containerId, excludes, tabId) {
     let html = '<div style="display:flex; flex-wrap:wrap; gap:10px;">';
