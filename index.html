@@ -156,17 +156,38 @@
             cursor: pointer;
         }
 
-        /* أنماط الطباعة */
-        @media print {
-            body { background: white; padding: 0; margin: 0; }
-            .container { box-shadow: none; border-radius: 0; }
-            .upload-area, .tabs, .settings-btn, .filters, .btn-container, .export-btn, .print-btn, .footer, .note, .settings-panel, .modal {
-                display: none !important;
-            }
-            .table-wrapper { overflow: visible; max-height: none; }
-            th { background: #0a3d62; color: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            td { border: 1px solid #ddd; }
-        }
+/* أنماط الطباعة */
+@media print {
+    body { background: white; padding: 0; margin: 0; }
+    .container { box-shadow: none; border-radius: 0; }
+    
+    /* إخفاء عناصر التحكم عند الطباعة */
+    .upload-area, .tabs, .settings-btn, .filters, .btn-container, .export-btn, .print-btn, .footer, .note, .settings-panel, .modal, .file-label, .export-all-btn, #currentFileName, .no-print {
+        display: none !important;
+    }
+    
+    /* إظهار التوقيعات عند الطباعة فقط */
+    .signatures {
+        display: flex !important;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        padding: 10px 20px;
+        border-top: 2px solid #0a3d62;
+        z-index: 100;
+    }
+    
+    .table-wrapper { overflow: visible; max-height: none; }
+    th { background: #0a3d62; color: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    td { border: 1px solid #ddd; }
+}
+
+/* إخفاء التوقيعات في الشاشة العادية */
+.signatures {
+    display: none;
+}
 
         /* زر تصدير جميع التبويبات */
         .export-all-btn {
@@ -209,6 +230,8 @@
     </div>
     <button id="exportAllBtn" class="export-all-btn">📥 تصدير جميع التبويبات</button>
 </div>
+
+
 
 <!-- قسم إدارة الخطوط العامة -->
 <div style="background: #e8f4f8; margin: 0 25px 15px 25px; padding: 12px 20px; border-radius: 12px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
@@ -704,6 +727,7 @@
         </table>
     </div>
 </div>
+
 
     <div class="footer" id="footerMsg"></div>
 </div>  <!-- نهاية container -->

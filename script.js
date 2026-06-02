@@ -2592,40 +2592,74 @@ function printReport(tabId, title) {
         <head>
             <meta charset="UTF-8">
             <title>${title}</title>
-            <style>
-                * { font-family: 'Segoe UI', sans-serif; }
-                body { padding: 20px; margin: 0; background: white; }
-                .report-header { 
-                    text-align: center; 
-                    margin-bottom: 20px; 
-                    border-bottom: 2px solid #0a3d62;
-                    background: white;
-                }
-                .report-header h1 { color: #0a3d62; margin: 0; font-size: 1.5rem; }
-                .report-header p { color: #666; margin: 5px 0 0; }
-                .report-date { text-align: left; font-size: 12px; color: #6c757d; margin-bottom: 15px; }
-                table { width: 100%; border-collapse: collapse; font-size: 10px; direction: ltr; }
-                th { background: #0a3d62; color: white; padding: 6px 4px; border: 1px solid #0a3d62; }
-                td { padding: 4px 4px; border: 1px solid #dee2e6; text-align: center; }
-                .stats { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-                .stat-card { border: 1px solid #dee2e6; border-radius: 8px; padding: 8px; text-align: center; flex: 1; min-width: 100px; }
-                .stat-card .number { font-size: 20px; font-weight: bold; color: #0a3d62; }
-                .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #6c757d; border-top: 1px solid #dee2e6; padding-top: 10px; }
-                
-                /* ========== إعدادات تكرار الـ Header في كل صفحة ========== */
-                thead {
-                    display: table-header-group;
-                }
-                
-                tr {
-                    break-inside: avoid;
-                }
-                
+<style>
+    * { font-family: 'Segoe UI', sans-serif; }
+    body { padding: 20px; margin: 0; background: white; }
+.report-header { 
+    text-align: center; 
+    margin-bottom: 10px;  /* تم التخفيض من 20px */
+    border-bottom: 1px solid #0a3d62;  /* تم التخفيض من 2px */
+    background: white;
+    padding: 5px 0;  /* إضافة مسافة داخلية صغيرة */
+}
+.report-header h1 { 
+    color: #0a3d62; 
+    margin: 0; 
+    font-size: 1rem;  /* تم التخفيض من 1.5rem */
+}
+.report-header p { 
+    color: #666; 
+    margin: 2px 0 0;  /* تم التخفيض من 5px */
+    font-size: 10px;  /* إضافة حجم خط أصغر */
+}
+.report-date { 
+    text-align: left; 
+    font-size: 9px;  /* تم التخفيض من 12px */
+    color: #6c757d; 
+    margin-bottom: 8px;  /* تم التخفيض من 15px */
+}
+table { width: 100%; border-collapse: collapse; font-size: 9px; direction: ltr; }  /* تم التخفيض من 10px */
+th { background: #0a3d62; color: white; padding: 4px 3px; border: 1px solid #0a3d62; }  /* تم التخفيض من 6px 4px */
+td { padding: 3px 3px; border: 1px solid #dee2e6; text-align: center; }  /* تم التخفيض من 4px 4px */
+.stats { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }  /* تم التخفيض من 10px و 20px */
+.stat-card { border: 1px solid #dee2e6; border-radius: 8px; padding: 6px; text-align: center; flex: 1; min-width: 80px; }  /* تم التخفيض من 8px و 100px */
+.stat-card .number { font-size: 16px; font-weight: bold; color: #0a3d62; }  /* تم التخفيض من 20px */
+.stat-card h3 { font-size: 10px; margin: 0; }  /* إضافة تصغير للعنوان */
+.footer { 
+    margin-top: 15px;  /* تم التخفيض من 20px */
+    text-align: center; 
+    font-size: 8px;  /* تم التخفيض من 10px */
+    color: #6c757d; 
+    border-top: 1px solid #dee2e6; 
+    padding-top: 5px;  /* تم التخفيض من 10px */
+}
+
+/* ========== إعدادات تكرار الـ Header في كل صفحة ========== */
+thead {
+    display: table-header-group;
+}
+
+tr {
+    break-inside: avoid;
+}
+
+/* إخفاء التوقيعات في الشاشة العادية */
+.signatures {
+    display: none;
+}
+
 @media print {
-    body { margin: 0; padding: 5px; }
+    body { margin: 0; padding: 0; }
     .no-print { display: none; }
     
-    /* تكرار رأس التقرير في كل صفحة */
+    /* إخفاء عناصر التحكم */
+    .upload-area, .tabs, .settings-btn, .filters, .btn-container, 
+    .export-btn, .print-btn, .note, .settings-panel, .modal, 
+    .file-label, .export-all-btn, #currentFileName, .footer {
+        display: none !important;
+    }
+    
+    /* تثبيت الرأس */
     .report-header {
         position: fixed;
         top: 0;
@@ -2633,36 +2667,46 @@ function printReport(tabId, title) {
         right: 0;
         background: white;
         z-index: 100;
-        padding-bottom: 10px;
+        padding: 2px 5px;
+        border-bottom: 1px solid #0a3d62;
+        font-size: 8px;
     }
     
-    /* إضافة مسافة أكبر في أعلى الصفحة */
+    /* تثبيت التوقيعات */
+    .signatures {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        display: flex !important;
+        justify-content: space-between;
+        padding: 3px 10px;
+        border-top: 1px solid #0a3d62;
+        font-size: 7px;
+        z-index: 100;
+    }
+    
+    /* إنشاء مسافة بين الرأس والجدول */
+    .stats, .report-date {
+        margin-top: 1.2cm !important;
+        padding-top: 0.3cm !important;
+    }
+    
     @page {
-        margin-top: 4cm;
+        margin-top: 0.5cm;
+        margin-bottom: 1.2cm;
     }
     
-    /* إضافة مسافة للصفحة الأولى فقط */
-    body {
-        margin-top: 3.5cm;
-    }
-    
-    /* تكرار رأس الجدول */
     thead {
         display: table-header-group;
     }
     
-    /* منع كسر الصف بين صفحات */
     tr {
         break-inside: avoid;
     }
-    
-    /* إضافة فاصل صفحة قبل الإحصائيات إذا لزم الأمر */
-    .stats {
-        page-break-before: avoid;
-        page-break-inside: avoid;
-    }
 }
-            </style>
+</style>
         </head>
         <body>
             <div class="report-header">
@@ -2677,7 +2721,36 @@ function printReport(tabId, title) {
             <div class="report-date">تاريخ الطباعة: ${new Date().toLocaleString('ar-EG')}</div>
             <div id="statsPrint"></div>
             <div id="tablePrint"></div>
-            <div class="footer">تم إنشاؤه بواسطة نظام  - تقرير تلقائي</div>
+
+            <!-- التوقيعات -->
+<div class="signatures" style="display: flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; border-top: 2px solid #0a3d62;">
+    <div style="text-align: center; flex: 1;">
+        <div style="height: 40px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
+        <div><strong>Signature :</strong></div>
+        <div style="font-size: 11px; color: #666;">                  </div>
+        <div><strong>             </strong></div>
+        <div style="font-size: 11px;">                                 </div>
+        <div style="font-size: 11px; margin-top: 5px;"><strong>Head of Operations Sector</strong></div>
+    </div>
+    <div style="text-align: center; flex: 1;">
+        <div style="height: 40px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
+        <div><strong>Signature :</strong></div>
+        <div style="font-size: 11px; color: #666;">                                 </div>
+        <div><strong>             </strong></div>
+        <div style="font-size: 11px;">                                 </div>
+        <div style="font-size: 11px; margin-top: 5px;"><strong>Document Auditor</strong></div>
+    </div>
+    <div style="text-align: center; flex: 1;">
+        <div style="height: 40px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
+        <div><strong>Signature :</strong></div>
+        <div style="font-size: 11px; color: #666;">                                 </div>
+        <div><strong>             </strong></div>
+        <div style="font-size: 11px;">                             </div>
+        <div style="font-size: 11px; margin-top: 5px;"><strong>Line Clerk</strong></div>
+    </div>
+</div>
+
+<div class="footer">تم إنشاؤه بواسطة نظام  - تقرير تلقائي</div>
             <script>
                 window.onload = function() {
                     window.print();
