@@ -1261,10 +1261,11 @@ console.log("TRSHP Flex String 04:", tr["Flex String 04"]);
 				"Is Bundled": isBundled, "Is Hazardous": isHazardous, "IMDG Class": imdgClass,
 				"Type": type, "Line ID": lineName, "طريقة الحساب": method,
 				"Flex String 01": flexString01,  // ←←← أضف هذا
+				"Vessel Name": vesselName,
 				"TRSHP Start": trStart, "TRSHP End": trEnd, "TRSHP Days": trDaysAfterOverlap + overlapDays, "Overlap": overlapDays,
 				"TRSHP After Overlap": trDaysAfterOverlap, "TRSHP Free": trFree, "TRSHP Net": resultCalc.net1,
 				"EXPRT Start": exStart, "EXPRT End": exEnd, "EXPRT Days": exDays, "EXPRT Free": exFree, "EXPRT Net": resultCalc.net2,
-				"Total Net": resultCalc.total,"Vessel Name": vesselName
+				"Total Net": resultCalc.total
 			});
         }
     }
