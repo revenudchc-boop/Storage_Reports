@@ -926,71 +926,71 @@ cellFlex04.textContent = item["flex_04"] || "—";
             cell11.textContent = "—";
         }
         
-        // 12. Vessel Name
-        let cell12 = row.insertCell();
-        cell12.textContent = item["Vessel Name"] || "—";
-        
-        // 13. TRSHP Start
-        let cell13 = row.insertCell();
-        cell13.textContent = item["TRSHP Start"] || "—";
-        
-        // 14. TRSHP End
-        let cell14 = row.insertCell();
-        cell14.textContent = item["TRSHP End"] || "—";
-        
-        // 15. TRSHP Days
-        let cell15 = row.insertCell();
-        cell15.textContent = item["TRSHP Days"] || "—";
-        cell15.style.background = "#e3f2fd";
-        
-        // 16. Overlap
-        let cell16 = row.insertCell();
-        cell16.textContent = item["Overlap"] || "—";
-        cell16.style.background = "#f8d7da";
-        
-        // 17. TRSHP After Overlap
-        let cell17 = row.insertCell();
-        cell17.textContent = item["TRSHP After Overlap"] || "—";
-        cell17.style.background = "#fff3cd";
-        
-        // 18. TRSHP Free
-        let cell18 = row.insertCell();
-        cell18.textContent = item["TRSHP Free"] || "—";
-        cell18.style.background = "#fff3cd";
-        
-        // 19. TRSHP Net
-        let cell19 = row.insertCell();
-        cell19.textContent = item["TRSHP Net"] || "—";
-        cell19.style.background = "#d4edda";
-        
-        // 20. EXPRT Start
-        let cell20 = row.insertCell();
-        cell20.textContent = item["EXPRT Start"] || "—";
-        
-        // 21. EXPRT End
-        let cell21 = row.insertCell();
-        cell21.textContent = item["EXPRT End"] || "—";
-        
-        // 22. EXPRT Days
-        let cell22 = row.insertCell();
-        cell22.textContent = item["EXPRT Days"] || "—";
-        cell22.style.background = "#e3f2fd";
-        
-        // 23. EXPRT Free
-        let cell23 = row.insertCell();
-        cell23.textContent = item["EXPRT Free"] || "—";
-        cell23.style.background = "#fff3cd";
-        
-        // 24. EXPRT Net
-        let cell24 = row.insertCell();
-        cell24.textContent = item["EXPRT Net"] || "—";
-        cell24.style.background = "#d4edda";
-        
-        // 25. Total Net
-        let cell25 = row.insertCell();
-        cell25.textContent = item["Total Net"] || "—";
-        cell25.style.background = "#cce5ff";
-        cell25.style.fontWeight = "bold";
+// 12. TRSHP Start (انتقلت من 13 إلى 12)
+let cell12 = row.insertCell();
+cell12.textContent = item["TRSHP Start"] || "—";
+
+// 13. TRSHP End
+let cell13 = row.insertCell();
+cell13.textContent = item["TRSHP End"] || "—";
+
+// 14. TRSHP Days
+let cell14 = row.insertCell();
+cell14.textContent = item["TRSHP Days"] || "—";
+cell14.style.background = "#e3f2fd";
+
+// 15. Overlap
+let cell15 = row.insertCell();
+cell15.textContent = item["Overlap"] || "—";
+cell15.style.background = "#f8d7da";
+
+// 16. TRSHP After Overlap
+let cell16 = row.insertCell();
+cell16.textContent = item["TRSHP After Overlap"] || "—";
+cell16.style.background = "#fff3cd";
+
+// 17. TRSHP Free
+let cell17 = row.insertCell();
+cell17.textContent = item["TRSHP Free"] || "—";
+cell17.style.background = "#fff3cd";
+
+// 18. TRSHP Net
+let cell18 = row.insertCell();
+cell18.textContent = item["TRSHP Net"] || "—";
+cell18.style.background = "#d4edda";
+
+// 19. EXPRT Start
+let cell19 = row.insertCell();
+cell19.textContent = item["EXPRT Start"] || "—";
+
+// 20. EXPRT End
+let cell20 = row.insertCell();
+cell20.textContent = item["EXPRT End"] || "—";
+
+// 21. EXPRT Days
+let cell21 = row.insertCell();
+cell21.textContent = item["EXPRT Days"] || "—";
+cell21.style.background = "#e3f2fd";
+
+// 22. EXPRT Free
+let cell22 = row.insertCell();
+cell22.textContent = item["EXPRT Free"] || "—";
+cell22.style.background = "#fff3cd";
+
+// 23. EXPRT Net
+let cell23 = row.insertCell();
+cell23.textContent = item["EXPRT Net"] || "—";
+cell23.style.background = "#d4edda";
+
+// 24. Total Net
+let cell24 = row.insertCell();
+cell24.textContent = item["Total Net"] || "—";
+cell24.style.background = "#cce5ff";
+cell24.style.fontWeight = "bold";
+
+// 25. Vessel Name (آخر عمود)
+let cell25 = row.insertCell();
+cell25.textContent = item["Vessel Name"] || "—";
     }
     
     // إظهار العناصر
