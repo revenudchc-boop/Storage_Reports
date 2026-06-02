@@ -1477,11 +1477,11 @@ function processAndDisplay4() {
                 });
             }
             let data = tempMap.get(id);
-            data.strgeList.push({
-                start: convertDate(container.strge["Start Time"] || ""),
-                end: convertDate(container.strge["End Time"] || ""),
-                rawData: container.strge
-            });
+			data.strgeList.push({
+				start: convertDate(container.strge["Rule Start Time"] || ""),
+				end: convertDate(container.strge["Rule End Time"] || ""),
+				rawData: container.strge
+			});
         }
     }
     
