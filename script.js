@@ -1485,16 +1485,27 @@ function processAndDisplay4() {
         }
     }
     
-    for (let [id, container] of containersMap.entries()) {
-        if (tempMap.has(id) && container.imprt) {
-            let data = tempMap.get(id);
-	data.imprt = {
-		start: convertDate(container.imprt["Start Time"] || ""),
-		end: convertDate(container.imprt["End Time"] || ""),
-		rawData: container.imprt
-	};
-        }
+for (let [id, container] of containersMap.entries()) {
+    if (!tempMap.has(id)) continue;
+    
+    let data = tempMap.get(id);
+    let imprtSource = null;
+    
+    //優先 استخدام IMPRT، وإذا لم يوجد استخدم TRSHP RETURN
+    if (container.imprt) {
+        imprtSource = container.imprt;
+    } else if (container.trshpReturn) {
+        imprtSource = container.trshpReturn;
     }
+    
+    if (imprtSource) {
+        data.imprt = {
+            start: convertDate(imprtSource["Start Time"] || ""),
+            end: convertDate(imprtSource["End Time"] || ""),
+            rawData: imprtSource
+        };
+    }
+}
     
 for (let [id, data] of tempMap.entries()) {
     // ←←← تعريف imStart و imEnd أولاً ←←←
