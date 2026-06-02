@@ -729,25 +729,25 @@ function renderAdvancedStats(data) {
     let flexTrue40Net = flexTrue40.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
     
     return `
-        <div style="display: flex; gap: 15px; margin: 0 25px 20px 25px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 10px; margin: 0 25px 15px 25px; flex-wrap: wrap;">
             
             <!-- بطاقة 1: TRSHP -->
-            <div style="flex: 1; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 12px; padding: 15px; text-align: center; color: white;">
-                <div style="font-size: 14px;">🚛 إجمالي TRSHP</div>
-                <div style="font-size: 28px; font-weight: bold;">${totalTrshpNet}</div>
-                <div style="font-size: 12px;">صافي أيام الترانزيت</div>
-                <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 12px;">
+            <div style="flex: 1; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 8px; padding: 8px 12px; text-align: center; color: white;">
+                <div style="font-size: 11px;">🚛 إجمالي TRSHP</div>
+                <div style="font-size: 22px; font-weight: bold;">${totalTrshpNet}</div>
+                <div style="font-size: 9px;">صافي أيام الترانزيت</div>
+                <div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 9px;">
                     <div>📦 20 قدم: ${size20TrshpNet} يوم</div>
                     <div>📦 40 قدم: ${size40TrshpNet} يوم</div>
                 </div>
             </div>
             
             <!-- بطاقة 2: EXPRT (بعد خصم Flex TRUE) مع إضافة OOG و Hazardous -->
-            <div style="flex: 1; background: linear-gradient(135deg, #f093fb, #f5576c); border-radius: 12px; padding: 15px; text-align: center; color: white;">
-                <div style="font-size: 14px;">📤 إجمالي EXPRT (بعد الخصم)</div>
-                <div style="font-size: 28px; font-weight: bold;">${totalExprtNetAfterDeduction}</div>
-                <div style="font-size: 12px;">صافي أيام التصدير</div>
-                <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 12px;">
+            <div style="flex: 1; background: linear-gradient(135deg, #f093fb, #f5576c); border-radius: 8px; padding: 8px 12px; text-align: center; color: white;">
+                <div style="font-size: 11px;">📤 إجمالي EXPRT (بعد الخصم)</div>
+                <div style="font-size: 22px; font-weight: bold;">${totalExprtNetAfterDeduction}</div>
+                <div style="font-size: 9px;">صافي أيام التصدير</div>
+                <div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 9px;">
                     <div style="font-weight: bold;">📋 بدون Dray Status:</div>
                     <div>📦 20 قدم: ${size20NoDrayNet} يوم</div>
                     <div>📦 40 قدم: ${size40NoDrayNet} يوم</div>
@@ -762,32 +762,32 @@ function renderAdvancedStats(data) {
             </div>
             
             <!-- بطاقة 3: Dray Status & Flex String (منفصلة) -->
-            <div style="flex: 1; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <div style="background: #ff6b6b; color: white; padding: 12px; text-align: center; font-weight: bold;">
+            <div style="flex: 1; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1);">
+                <div style="background: #ff6b6b; color: white; padding: 6px; text-align: center; font-weight: bold; font-size: 10px;">
                     📊 تفاصيل Dray Status & Flex String
                 </div>
-                <div style="padding: 15px;">
+                <div style="padding: 8px;">
                     <!-- قسم Dray Status -->
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-weight: bold; color: #333; margin-bottom: 8px;">🚚 Dray Status:</div>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <div style="flex: 1; background: #fef3c7; border-radius: 8px; padding: 8px; text-align: center;">
-                                <div style="font-size: 12px; color: #666;">🚚 مع Dray</div>
-                                <div style="font-size: 20px; font-weight: bold; color: #ffc107;">${exprtWithDrayNet}</div>
-                                <div style="font-size: 11px;">(${exprtWithDrayCount} حاوية)</div>
+                    <div style="margin-bottom: 8px;">
+                        <div style="font-weight: bold; color: #333; margin-bottom: 4px; font-size: 10px;">🚚 Dray Status:</div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <div style="flex: 1; background: #fef3c7; border-radius: 6px; padding: 5px; text-align: center;">
+                                <div style="font-size: 10px; color: #666;">🚚 مع Dray</div>
+                                <div style="font-size: 16px; font-weight: bold; color: #ffc107;">${exprtWithDrayNet}</div>
+                                <div style="font-size: 9px;">(${exprtWithDrayCount} حاوية)</div>
                             </div>
                         </div>
                     </div>
                     
                     <!-- قسم Flex String 01 -->
                     <div>
-                        <div style="font-weight: bold; color: #333; margin-bottom: 8px;">⭐ Flex String 01:</div>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <div style="flex: 1; background: #ffebee; border-radius: 8px; padding: 8px; text-align: center;">
-                                <div style="font-size: 12px; color: #666;">⭐ TRUE (خاص)</div>
-                                <div style="font-size: 20px; font-weight: bold; color: #ff6b6b;">${flexTrueExprtNet}</div>
-                                <div style="font-size: 11px;">${flexTrueCount} حاوية</div>
-                                <div style="font-size: 10px; color: #888;">20:${flexTrue20Net} | 40:${flexTrue40Net}</div>
+                        <div style="font-weight: bold; color: #333; margin-bottom: 4px; font-size: 10px;">⭐ Flex String 01:</div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <div style="flex: 1; background: #ffebee; border-radius: 6px; padding: 5px; text-align: center;">
+                                <div style="font-size: 10px; color: #666;">⭐ TRUE (خاص)</div>
+                                <div style="font-size: 16px; font-weight: bold; color: #ff6b6b;">${flexTrueExprtNet}</div>
+                                <div style="font-size: 9px;">${flexTrueCount} حاوية</div>
+                                <div style="font-size: 8px; color: #888;">20:${flexTrue20Net} | 40:${flexTrue40Net}</div>
                             </div>
 
                         </div>
@@ -796,22 +796,22 @@ function renderAdvancedStats(data) {
             </div>
             
             <!-- بطاقة 4: EXPRT ثلاجه -->
-            <div style="flex: 1; background: linear-gradient(135deg, #4facfe, #00f2fe); border-radius: 12px; padding: 15px; text-align: center; color: white;">
-                <div style="font-size: 14px;">❄️ أيام EXPRT (ثلاجه)</div>
-                <div style="font-size: 28px; font-weight: bold;">${rfExprtDays}</div>
-                <div style="font-size: 12px;">للحاويات ثلاجه فقط</div>
-                <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 12px;">
+            <div style="flex: 1; background: linear-gradient(135deg, #4facfe, #00f2fe); border-radius: 8px; padding: 8px 12px; text-align: center; color: white;">
+                <div style="font-size: 11px;">❄️ أيام EXPRT (ثلاجه)</div>
+                <div style="font-size: 22px; font-weight: bold;">${rfExprtDays}</div>
+                <div style="font-size: 9px;">للحاويات ثلاجه فقط</div>
+                <div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 9px;">
                     <div>📦 إجمالي العدد: ${refrigeratedContainers.length} حاوية</div>
                     <div>📦 40 قدم: ${refrigerated40Count} حاوية (${refrigerated40Days} يوم)</div>
                 </div>
             </div>
             
             <!-- بطاقة 5: إجمالي الحاويات -->
-            <div style="flex: 1; background: linear-gradient(135deg, #43e97b, #38f9d7); border-radius: 12px; padding: 15px; text-align: center; color: white;">
-                <div style="font-size: 14px;">📦 إجمالي الحاويات</div>
-                <div style="font-size: 28px; font-weight: bold;">${totalCount}</div>
-                <div style="font-size: 12px;">حاوية</div>
-                <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 12px;">
+            <div style="flex: 1; background: linear-gradient(135deg, #43e97b, #38f9d7); border-radius: 8px; padding: 8px 12px; text-align: center; color: white;">
+                <div style="font-size: 11px;">📦 إجمالي الحاويات</div>
+                <div style="font-size: 22px; font-weight: bold;">${totalCount}</div>
+                <div style="font-size: 9px;">حاوية</div>
+                <div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 9px;">
                     <div>📦 20 قدم: ${size20Count} حاوية</div>
                     <div>📦 40 قدم: ${size40Count} حاوية</div>
 
