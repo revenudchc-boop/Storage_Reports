@@ -4726,24 +4726,21 @@ function updateHeaderFromDisplayData(tabId, displayData) {
         return;
     }
     
-// التبويب 5 (TRSHP فقط): خذ اسم السفينة من Vessel Name
+// التبويب 5 (TRSHP فقط) - خذ اسم السفينة من O/B Carrier Name في TRSHP
 if (tabId === '5') {
-    for (let item of displayData) {
-        if (carrierName === "—") {
-            carrierName = item["Vessel Name"] || "—";
-        }
-        let lineId = item["Line ID"];
-        if (lineId && lineId !== "") {
-            lineIds.add(lineId);
-        }
-    }
-    
-    // محاولة جلب تاريخ الشحن من بيانات TRSHP في الـ containersMap
     let displayedContainerIds = new Set(displayData.map(item => item["Container No."]));
+    
     for (let [id, container] of containersMap.entries()) {
         if (!displayedContainerIds.has(id)) continue;
         let trData = container.trshp;
         if (trData) {
+            if (carrierName === "—") {
+                carrierName = trData["O/B Carrier Name"] || "";
+                if (carrierName === "") {
+                    carrierName = trData["I/B Carrier Name"] || "—";
+                }
+            }
+            
             let atd = trData["O/B Carrier ATD"];
             if (atd && atd !== "") {
                 let convertedDate = convertDate(atd);
@@ -4752,6 +4749,23 @@ if (tabId === '5') {
                         maxDate = convertedDate;
                     }
                 }
+            }
+            
+            let lineId = trData["Line ID"];
+            if (lineId && lineId !== "") {
+                lineIds.add(lineId);
+            }
+        }
+    }
+    
+    if (carrierName === "—") {
+        for (let item of displayData) {
+            if (carrierName === "—") {
+                carrierName = item["Vessel Name"] || "—";
+            }
+            let lineId = item["Line ID"];
+            if (lineId && lineId !== "") {
+                lineIds.add(lineId);
             }
         }
     }
