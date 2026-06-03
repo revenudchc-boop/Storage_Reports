@@ -3603,7 +3603,7 @@ function processAndDisplay5() {
         let imdgClass = firstTr ? (firstTr["IMDG Class"] || "") : "";
         let flexString01 = firstTr ? (firstTr["Flex String 01"] || "") : "";
         let flexString04 = firstTr ? (firstTr["Flex String 04"] || "") : "";
-		let vesselName = firstTr ? (firstTr["O/B Carrier Name"] || "") : "";
+		let vesselName = firstTr ? (firstTr["I/B Carrier Name"] || "") : "";
         let method = isExcl ? "🚫 سماح مستقل" : "🔄 سماح متسلسل";
         
         // بناء نص لعرض الفترات المتعددة (للتصحيح)
