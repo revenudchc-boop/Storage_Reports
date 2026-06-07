@@ -3596,6 +3596,7 @@ function processAndDisplay5() {
         // استخدام بيانات من أول فترة للحصول على الخصائص (من TRSHP نفسه)
         let firstTr = data.trshpList[0]?.rawData;
         let isRefrigerated = firstTr ? (firstTr["Is Refrigerated"] || "") : "";
+        let ibLocType = firstTr ? (firstTr["I/B Loc Type"] || "") : "";  // ← جديد
         let type = (isRefrigerated === "true" || equipType.includes("R1")) ? "RF" : "GP";
         let isOOG = firstTr ? (firstTr["Is OOG"] || "") : "";
         let isBundled = firstTr ? (firstTr["Is Bundled"] || "") : "";
@@ -3603,7 +3604,7 @@ function processAndDisplay5() {
         let imdgClass = firstTr ? (firstTr["IMDG Class"] || "") : "";
         let flexString01 = firstTr ? (firstTr["Flex String 01"] || "") : "";
         let flexString04 = firstTr ? (firstTr["Flex String 04"] || "") : "";
-		let vesselName = firstTr ? (firstTr["I/B Carrier Name"] || "") : "";
+        let vesselName = firstTr ? (firstTr["I/B Carrier Name"] || "") : "";
         let method = isExcl ? "🚫 سماح مستقل" : "🔄 سماح متسلسل";
         
         // بناء نص لعرض الفترات المتعددة (للتصحيح)
@@ -3614,32 +3615,46 @@ function processAndDisplay5() {
             if (i < periodsData.length - 1) periodsText += " ثم ";
         }
         
-        // ========== شرط العرض: مبرد (RF) أو GP مع صافي أيام > 0 ==========
-        if (type === "RF" || totalDays > 0) {
-			result.push({
-				"Container No.": id,
-				"Size": size,
-				"Is OOG": isOOG,
-				"Is Refrigerated": isRefrigerated,
-				"Is Bundled": isBundled,
-				"Is Hazardous": isHazardous,
-				"IMDG Class": imdgClass,
-				"Type": type,
-				"Line ID": lineId,
-				"طريقة الحساب": method,
-				"Flex String 01": flexString01,
-				"flex_04": flexString04,
-				"TRSHP Start": periodsData[0]?.start || "—",
-				"TRSHP End": periodsData[periodsData.length - 1]?.end || "—",
-				"TRSHP Days": periodsData.reduce((s, p) => s + p.days, 0),
-				"TRSHP Free": periodsData.reduce((s, p) => s + p.free, 0),
-				"TRSHP Net": totalDays,
-				"Total Net": totalDays,
-				"Vessel Name": vesselName,
-				"_periods": periodsText // للاستخدام الداخلي في التصحيح
+        // ========== شرط العرض ==========
+        // TRUCK (إلغاء تخصيص): يظهر دائماً
+        // RF (مبرد): يظهر دائماً
+        // GP (عام): يظهر فقط إذا totalDays > 0
+        let isTruck = (ibLocType === "TRUCK");
+        let shouldShow = isTruck || (type === "RF") || (type === "GP" && totalDays > 0);
+        
+        if (shouldShow) {
+            result.push({
+                "Container No.": id,
+                "Size": size,
+                "Is OOG": isOOG,
+                "Is Refrigerated": isRefrigerated,
+                "I/B Loc Type": ibLocType,  // ← أضف هذا الحقل للترتيب
+                "Is Bundled": isBundled,
+                "Is Hazardous": isHazardous,
+                "IMDG Class": imdgClass,
+                "Type": type,
+                "Line ID": lineId,
+                "طريقة الحساب": method,
+                "Flex String 01": flexString01,
+                "flex_04": flexString04,
+                "TRSHP Start": periodsData[0]?.start || "—",
+                "TRSHP End": periodsData[periodsData.length - 1]?.end || "—",
+                "TRSHP Days": periodsData.reduce((s, p) => s + p.days, 0),
+                "TRSHP Free": periodsData.reduce((s, p) => s + p.free, 0),
+                "TRSHP Net": totalDays,
+                "Total Net": totalDays,
+                "Vessel Name": vesselName,
+                "_periods": periodsText
             });
         }
     }
+    
+    // ترتيب النتائج: TRUCK أولاً، ثم الباقي
+    result.sort((a, b) => {
+        let aIsTruck = (a["I/B Loc Type"] === "TRUCK") ? -1 : 1;
+        let bIsTruck = (b["I/B Loc Type"] === "TRUCK") ? -1 : 1;
+        return aIsTruck - bIsTruck;
+    });
     
     currentData5 = result;
     console.log("عدد النتائج النهائية في currentData5:", currentData5.length);
