@@ -3613,7 +3613,9 @@ function processAndDisplay5() {
             periodsText += `${p.start} → ${p.end} (${p.days} يوم، سماح:${p.free}، صافي:${p.net})`;
             if (i < periodsData.length - 1) periodsText += " ثم ";
         }
-        
+                // ========== شرط العرض: مبرد (RF) أو GP مع صافي أيام > 0 ==========
+        if (type === "RF" || totalDays > 0) {
+		
         result.push({
             "Container No.": id,
             "Size": size,
