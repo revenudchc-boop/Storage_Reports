@@ -3639,6 +3639,8 @@ function processAndDisplay5() {
             "_periods": periodsText // للاستخدام الداخلي في التصحيح
         });
     }
+	}
+	
     
     currentData5 = result;
     console.log("عدد النتائج النهائية في currentData5:", currentData5.length);
