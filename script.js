@@ -2579,6 +2579,14 @@ function printReport(tabId, title) {
     let statsContent = statsClone ? statsClone.cloneNode(true) : null;
     let tableContent = tableClone.cloneNode(true);
     
+    // ========== إزالة sticky من الجدول المنسوخ لمنع تداخل الرأس ==========
+    if (tableContent) {
+        let thead = tableContent.querySelector('thead');
+        let allTh = tableContent.querySelectorAll('th');
+        if (thead) thead.style.position = 'static';
+        allTh.forEach(th => th.style.position = 'static');
+    }
+    
     // إنشاء نافذة طباعة جديدة
     let printWindow = window.open('', '_blank', 'width=1200,height=800');
     if (!printWindow) {
@@ -2595,43 +2603,77 @@ function printReport(tabId, title) {
 <style>
     * { font-family: 'Segoe UI', sans-serif; }
     body { padding: 20px; margin: 0; background: white; }
+    
 .report-header { 
     text-align: center; 
-    margin-bottom: 10px;  /* تم التخفيض من 20px */
-    border-bottom: 1px solid #0a3d62;  /* تم التخفيض من 2px */
+    margin-bottom: 10px;
+    border-bottom: 1px solid #0a3d62;
     background: white;
-    padding: 5px 0;  /* إضافة مسافة داخلية صغيرة */
+    padding: 5px 0;
 }
 .report-header h1 { 
     color: #0a3d62; 
     margin: 0; 
-    font-size: 1rem;  /* تم التخفيض من 1.5rem */
+    font-size: 1rem;
 }
 .report-header p { 
     color: #666; 
-    margin: 2px 0 0;  /* تم التخفيض من 5px */
-    font-size: 10px;  /* إضافة حجم خط أصغر */
+    margin: 2px 0 0;
+    font-size: 10px;
 }
 .report-date { 
     text-align: left; 
-    font-size: 9px;  /* تم التخفيض من 12px */
+    font-size: 9px;
     color: #6c757d; 
-    margin-bottom: 8px;  /* تم التخفيض من 15px */
+    margin-bottom: 8px;
 }
-table { width: 100%; border-collapse: collapse; font-size: 9px; direction: ltr; }  /* تم التخفيض من 10px */
-th { background: #0a3d62; color: white; padding: 4px 3px; border: 1px solid #0a3d62; }  /* تم التخفيض من 6px 4px */
-td { padding: 3px 3px; border: 1px solid #dee2e6; text-align: center; }  /* تم التخفيض من 4px 4px */
-.stats { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }  /* تم التخفيض من 10px و 20px */
-.stat-card { border: 1px solid #dee2e6; border-radius: 8px; padding: 6px; text-align: center; flex: 1; min-width: 80px; }  /* تم التخفيض من 8px و 100px */
-.stat-card .number { font-size: 16px; font-weight: bold; color: #0a3d62; }  /* تم التخفيض من 20px */
-.stat-card h3 { font-size: 10px; margin: 0; }  /* إضافة تصغير للعنوان */
-.footer { 
-    margin-top: 15px;  /* تم التخفيض من 20px */
+table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    font-size: 9px; 
+    direction: ltr;
+}
+th { 
+    background: #0a3d62; 
+    color: white; 
+    padding: 4px 3px; 
+    border: 1px solid #0a3d62;
+}
+td { 
+    padding: 3px 3px; 
+    border: 1px solid #dee2e6; 
+    text-align: center;
+}
+.stats { 
+    display: flex; 
+    gap: 8px; 
+    margin-bottom: 15px; 
+    flex-wrap: wrap;
+}
+.stat-card { 
+    border: 1px solid #dee2e6; 
+    border-radius: 8px; 
+    padding: 6px; 
     text-align: center; 
-    font-size: 8px;  /* تم التخفيض من 10px */
+    flex: 1; 
+    min-width: 80px;
+}
+.stat-card .number { 
+    font-size: 16px; 
+    font-weight: bold; 
+    color: #0a3d62;
+}
+.stat-card h3 { 
+    font-size: 10px; 
+    margin: 0;
+}
+.footer { 
+    margin-top: 15px;
+    text-align: center; 
+    font-size: 8px;
     color: #6c757d; 
     border-top: 1px solid #dee2e6; 
-    padding-top: 5px;  /* تم التخفيض من 10px */
+    padding-top: 5px;
 }
 
 /* ========== إعدادات تكرار الـ Header في كل صفحة ========== */
@@ -2643,7 +2685,7 @@ tr {
     break-inside: avoid;
 }
 
-/* إخفاء التوقيعات في الشاشة العادية */
+/* التوقيعات - تظهر فقط عند الطباعة */
 .signatures {
     display: none;
 }
@@ -2659,7 +2701,9 @@ tr {
         display: none !important;
     }
     
-    /* تثبيت الرأس */
+    /* ========== التعديلات الرئيسية لحل مشكلة المسافة ========== */
+    
+    /* الرأس - يظهر في أعلى كل صفحة مع مسافة مناسبة */
     .report-header {
         position: fixed;
         top: 0;
@@ -2667,12 +2711,11 @@ tr {
         right: 0;
         background: white;
         z-index: 100;
-        padding: 2px 5px;
+        padding: 5px 5px;
         border-bottom: 1px solid #0a3d62;
-        font-size: 8px;
     }
     
-    /* تثبيت التوقيعات */
+    /* التوقيعات - تظهر في أسفل كل صفحة */
     .signatures {
         position: fixed;
         bottom: 0;
@@ -2681,21 +2724,31 @@ tr {
         background: white;
         display: flex !important;
         justify-content: space-between;
-        padding: 3px 10px;
+        padding: 5px 10px;
         border-top: 1px solid #0a3d62;
-        font-size: 7px;
+        font-size: 8px;
         z-index: 100;
     }
     
-    /* إنشاء مسافة بين الرأس والجدول */
-    .stats, .report-date {
-        margin-top: 1.2cm !important;
-        padding-top: 0.3cm !important;
+    /* ========== زيادة المسافة بين أول سطر بيانات ورؤوس الأعمدة ========== */
+    /* هذه القيمة تتحكم في المسافة - جرب 2.5cm أو 3cm حسب الحاجة */
+    .stats, .report-date, #tablePrint {
+        margin-top: 2.2cm !important;
+    }
+    
+    /* مسافة إضافية خاصة بالجدول */
+    #tablePrint {
+        margin-top: 2.5cm !important;
+    }
+    
+    /* مسافة أسفل الصفحة قبل التوقيعات */
+    #tablePrint {
+        margin-bottom: 1.8cm !important;
     }
     
     @page {
-        margin-top: 0.5cm;
-        margin-bottom: 1.2cm;
+        margin-top: 0.8cm;
+        margin-bottom: 1.5cm;
     }
     
     thead {
@@ -2712,10 +2765,10 @@ tr {
             <div class="report-header">
                 <h1>📦 تقرير أيام التخزين</h1>
                 <p>${title}</p>
-                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 12px; display: flex; justify-content: space-between; flex-wrap: wrap;">
-                    <div>🚢 <strong>سفينه الشحن (O/B Carrier Name):</strong> ${document.getElementById("headerCarrierName")?.innerText || "—"}</div>
-                    <div>📅 <strong>تاريخ الشحن (O/B Carrier ATD):</strong> ${document.getElementById("headerShippingDate")?.innerText || "—"}</div>
-                    <div>🏷️ <strong>الخط (Line ID):</strong> ${document.getElementById("headerLineId")?.innerText || "—"}</div>
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 11px; display: flex; justify-content: space-between; flex-wrap: wrap;">
+                    <div>🚢 <strong>سفينه الشحن:</strong> ${document.getElementById("headerCarrierName")?.innerText || "—"}</div>
+                    <div>📅 <strong>تاريخ الشحن:</strong> ${document.getElementById("headerShippingDate")?.innerText || "—"}</div>
+                    <div>🏷️ <strong>الخط:</strong> ${document.getElementById("headerLineId")?.innerText || "—"}</div>
                 </div>
             </div>
             <div class="report-date">تاريخ الطباعة: ${new Date().toLocaleString('ar-EG')}</div>
@@ -2723,34 +2776,25 @@ tr {
             <div id="tablePrint"></div>
 
             <!-- التوقيعات -->
-<div class="signatures" style="display: flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; border-top: 2px solid #0a3d62;">
-    <div style="text-align: center; flex: 1;">
-        <div style="height: 40px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
-        <div><strong>Signature :</strong></div>
-        <div style="font-size: 11px; color: #666;">                  </div>
-        <div><strong>             </strong></div>
-        <div style="font-size: 11px;">                                 </div>
-        <div style="font-size: 11px; margin-top: 5px;"><strong>Head of Operations Sector</strong></div>
-    </div>
-    <div style="text-align: center; flex: 1;">
-        <div style="height: 40px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
-        <div><strong>Signature :</strong></div>
-        <div style="font-size: 11px; color: #666;">                                 </div>
-        <div><strong>             </strong></div>
-        <div style="font-size: 11px;">                                 </div>
-        <div style="font-size: 11px; margin-top: 5px;"><strong>Document Auditor</strong></div>
-    </div>
-    <div style="text-align: center; flex: 1;">
-        <div style="height: 40px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
-        <div><strong>Signature :</strong></div>
-        <div style="font-size: 11px; color: #666;">                                 </div>
-        <div><strong>             </strong></div>
-        <div style="font-size: 11px;">                             </div>
-        <div style="font-size: 11px; margin-top: 5px;"><strong>Line Clerk</strong></div>
-    </div>
-</div>
+            <div class="signatures">
+                <div style="text-align: center; flex: 1;">
+                    <div style="height: 35px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
+                    <div><strong>Signature</strong></div>
+                    <div style="font-size: 10px; margin-top: 5px;"><strong>Head of Operations Sector</strong></div>
+                </div>
+                <div style="text-align: center; flex: 1;">
+                    <div style="height: 35px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
+                    <div><strong>Signature</strong></div>
+                    <div style="font-size: 10px; margin-top: 5px;"><strong>Document Auditor</strong></div>
+                </div>
+                <div style="text-align: center; flex: 1;">
+                    <div style="height: 35px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
+                    <div><strong>Signature</strong></div>
+                    <div style="font-size: 10px; margin-top: 5px;"><strong>Line Clerk</strong></div>
+                </div>
+            </div>
 
-<div class="footer">تم إنشاؤه بواسطة نظام  - تقرير تلقائي</div>
+            <div class="footer">تم إنشاؤه بواسطة نظام التخزين - تقرير تلقائي</div>
             <script>
                 window.onload = function() {
                     window.print();
