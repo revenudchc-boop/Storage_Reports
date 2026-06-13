@@ -3831,13 +3831,15 @@ function processAndDisplay5() {
         let trshpArray = container.trshpList || [];
         
         let hasTrshp = trshpArray.length > 0;
-        let hasExprt = (container.exprt !== null);
-        let hasStrge = (container.strge !== null);
-        let hasImprt = (container.imprt !== null);
-        let hasTrshpReturn = (container.trshpReturn !== null);
-        
+		let hasExprt = (container.exprt !== null && typeof container.exprt === "object" && container.exprt["Category"] === "EXPRT");
+		let hasStrge = (container.strge !== null && container.strge["Category"] === "STRGE");
+		let hasImprt = (container.imprt !== null && container.imprt["Category"] === "IMPRT");
+		let hasTrshpReturn = (container.trshpReturn !== null && container.trshpReturn["Category"] === "TRSHP" && container.trshpReturn["Dray Status"] === "RETURN");
+
+			
         if (!hasTrshp) continue;
         
+
         // شرط TRSHP نقية (بدون EXPRT/STRGE/IMPRT/RETURN)
         let isPureTrshp = !hasExprt && !hasStrge && !hasImprt && !hasTrshpReturn;
         if (!isPureTrshp) {
