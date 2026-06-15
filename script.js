@@ -3831,15 +3831,26 @@ function processAndDisplay5() {
         let trshpArray = container.trshpList || [];
         
         let hasTrshp = trshpArray.length > 0;
-		let hasExprt = (container.exprt !== null && typeof container.exprt === "object" && container.exprt["Category"] === "EXPRT");
-		let hasStrge = (container.strge !== null && container.strge["Category"] === "STRGE");
-		let hasImprt = (container.imprt !== null && container.imprt["Category"] === "IMPRT");
-		let hasTrshpReturn = (container.trshpReturn !== null && container.trshpReturn["Category"] === "TRSHP" && container.trshpReturn["Dray Status"] === "RETURN");
-
-			
+        
+        // ========== التعديل: التحقق من EXPRT مع Dray Status فارغ فقط ==========
+        let hasExprt = false;
+        if (container.exprtList && container.exprtList.length > 0) {
+            for (let ex of container.exprtList) {
+                let drayStatus = ex["Dray Status"] || "";
+                // إذا كان Dray Status فارغًا، نعتبر أن الحاوية بها EXPRT غير مسموح (تستبعد)
+                if (drayStatus === "") {
+                    hasExprt = true;
+                    break;
+                }
+            }
+        }
+        
+        let hasStrge = (container.strge !== null && container.strge["Category"] === "STRGE");
+        let hasImprt = (container.imprt !== null && container.imprt["Category"] === "IMPRT");
+        let hasTrshpReturn = (container.trshpReturn !== null && container.trshpReturn["Category"] === "TRSHP" && container.trshpReturn["Dray Status"] === "RETURN");
+        
         if (!hasTrshp) continue;
         
-
         // شرط TRSHP نقية (بدون EXPRT/STRGE/IMPRT/RETURN)
         let isPureTrshp = !hasExprt && !hasStrge && !hasImprt && !hasTrshpReturn;
         if (!isPureTrshp) {
@@ -5223,7 +5234,7 @@ else if (tabId === '4') {
         }
     }
 }
-    // التبويبات 1,2,3,6: خذ من بيانات EXPRT (O/B Carrier Name)
+    // التبويبات 1,2,3,6: خذ من بيانات EXPRT (O/B Carrier Name) - معدل لاستخدام exprtList
     else {
         // نبحث في containersMap عن EXPRT المرتبطة بالحاويات المعروضة
         let displayedContainerIds = new Set(displayData.map(item => item["Container No."]));
@@ -5231,7 +5242,14 @@ else if (tabId === '4') {
         for (let [id, container] of containersMap.entries()) {
             if (!displayedContainerIds.has(id)) continue;
             
-            let sourceData = container.exprt;
+            // ========== التعديل: استخدام exprtList (المصفوفة) أولاً ==========
+            let sourceData = null;
+            if (container.exprtList && container.exprtList.length > 0) {
+                sourceData = container.exprtList[0];  // نأخذ أول سجل EXPRT
+            } else if (container.exprt) {
+                sourceData = container.exprt;         // للتوافق مع الإصدارات القديمة
+            }
+            
             if (sourceData) {
                 if (carrierName === "—") {
                     carrierName = sourceData["O/B Carrier Name"] || "—";
@@ -5240,7 +5258,7 @@ else if (tabId === '4') {
                     }
                 }
                 
-                let atd = sourceData["O/B Carrier ATD"];
+                let atd = sourceData["O/B Carrier ATD"] || sourceData["O/B Carrier ATA"];
                 if (atd && atd !== "") {
                     let convertedDate = convertDate(atd);
                     if (convertedDate) {
