@@ -1605,35 +1605,58 @@ if (isReturnDray) {
 } // ← إغلاق الدالةAndDisplay2
 
 function processAndDisplay3() {
+    console.log("=== processAndDisplay3 ===");
+    console.log("containersMap size:", containersMap.size);
+    
     let result = [];
     
     for (let [id, container] of containersMap.entries()) {
+        console.log("فحص حاوية:", id);
+        
         let trshpArray = container.trshpList || [];
         let hasTrshp = trshpArray.length > 0;
+        console.log("  hasTrshp:", hasTrshp);
         
-        // ========== التعديل: استخدام exprtList بدلاً من exprt ==========
+        // ========== التحقق من exprtList ==========
         let exprtList = container.exprtList || [];
         let hasExprt = exprtList.length > 0;
+        console.log("  exprtList.length:", exprtList.length);
+        console.log("  hasExprt:", hasExprt);
         
         // التحقق من وجود STRGE أو IMPRT أو TRSHP RETURN
         let hasStrge = (container.strge !== null && container.strge["Category"] === "STRGE");
         let hasImprt = (container.imprt !== null && container.imprt["Category"] === "IMPRT");
         let hasTrshpReturn = (container.trshpReturn !== null && container.trshpReturn["Category"] === "TRSHP" && container.trshpReturn["Dray Status"] === "RETURN");
         
+        console.log("  hasStrge:", hasStrge);
+        console.log("  hasImprt:", hasImprt);
+        console.log("  hasTrshpReturn:", hasTrshpReturn);
+        
         // شرط EXPRT فقط (بدون TRSHP وبدون STRGE وبدون IMPRT وبدون RETURN)
         let hasOnlyExprt = hasExprt && !hasTrshp && !hasStrge && !hasImprt && !hasTrshpReturn;
+        console.log("  hasOnlyExprt:", hasOnlyExprt);
         
-        if (!hasOnlyExprt) continue;
+        if (!hasOnlyExprt) {
+            console.log(`  ❌ حاوية ${id} غير مؤهلة للتبويب 3`);
+            continue;
+        }
+        
+        console.log(`  ✅ حاوية ${id} مؤهلة للتبويب 3`);
         
         // ========== التكرار على كل EXPRT في المصفوفة ==========
         for (let ex of exprtList) {
+            console.log("    معالجة EXPRT:", ex["Rule Start Time"], "->", ex["Rule End Time"]);
+            
             let lineId = container.lineId || "";
             let isExcl = isExcluded(lineId, excludeLines3);
             
             let exStart = convertDate(ex["Rule Start Time"] || "");
             let exEnd = convertDate(ex["Rule End Time"] || "");
             
-            if (!exStart || !exEnd) continue;
+            if (!exStart || !exEnd) {
+                console.log("    ❌ تخطي: تواريخ غير صالحة");
+                continue;
+            }
             
             let exDays = diffDays(exStart, exEnd);
             let flexString01 = ex["Flex String 01"] || "";
@@ -1677,8 +1700,12 @@ function processAndDisplay3() {
                 "Vessel Name": vesselName,
                 "طريقة الحساب": method
             });
+            
+            console.log("    ✅ تم إضافة صف للنتائج");
         }
     }
+    
+    console.log("نتيجة النهائية:", result.length, "صف");
     
     currentData3 = result;
     renderTable3("bodyTab3", currentData3, "searchTab3", "typeTab3", "statsTab3");
