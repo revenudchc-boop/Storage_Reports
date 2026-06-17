@@ -658,7 +658,7 @@ function renderAdvancedStats(data) {
     // تصفية الصفوف الصالحة (التي تحتوي على EXPRT Net حقيقي)
     let validData = data.filter(item => {
         let exprNet = item["EXPRT Net"];
-        return typeof exprNet === "number" && !isNaN(exprNet) && exprNet !== 0;
+        return typeof exprNet === "number" && !isNaN(exprNet)
     });
     
     // إذا لم توجد بيانات صالحة، اعرض رسالة
