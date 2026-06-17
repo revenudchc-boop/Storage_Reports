@@ -1609,11 +1609,24 @@ function processAndDisplay3() {
     
     for (let [id, container] of containersMap.entries()) {
         let trshpArray = container.trshpList || [];
-let hasTrshp = trshpArray.length > 0;
-let hasOnlyExprt = (container.exprt && !hasTrshp && !container.strge && !container.imprt && !container.trshpReturn);
+        let hasTrshp = trshpArray.length > 0;
         
-        if (hasOnlyExprt) {
-            let ex = container.exprt;
+        // ========== التعديل: استخدام exprtList بدلاً من exprt ==========
+        let exprtList = container.exprtList || [];
+        let hasExprt = exprtList.length > 0;
+        
+        // التحقق من وجود STRGE أو IMPRT أو TRSHP RETURN
+        let hasStrge = (container.strge !== null && container.strge["Category"] === "STRGE");
+        let hasImprt = (container.imprt !== null && container.imprt["Category"] === "IMPRT");
+        let hasTrshpReturn = (container.trshpReturn !== null && container.trshpReturn["Category"] === "TRSHP" && container.trshpReturn["Dray Status"] === "RETURN");
+        
+        // شرط EXPRT فقط (بدون TRSHP وبدون STRGE وبدون IMPRT وبدون RETURN)
+        let hasOnlyExprt = hasExprt && !hasTrshp && !hasStrge && !hasImprt && !hasTrshpReturn;
+        
+        if (!hasOnlyExprt) continue;
+        
+        // ========== التكرار على كل EXPRT في المصفوفة ==========
+        for (let ex of exprtList) {
             let lineId = container.lineId || "";
             let isExcl = isExcluded(lineId, excludeLines3);
             
@@ -1635,7 +1648,7 @@ let hasOnlyExprt = (container.exprt && !hasTrshp && !container.strge && !contain
             let isRefrigerated = ex["Is Refrigerated"] || "";
             let size = equipType.toString().match(/^(\d+)/)?.[1] || "";
             let type = (isRefrigerated === "true" || equipType.includes("R1")) ? "RF" : "GP";
-            let vesselName = ex["I/B Carrier Name"] || "";
+            let vesselName = ex["O/B Carrier Name"] || ex["I/B Carrier Name"] || "";
             let method = isExcl ? "🚫 سماح مستقل" : "🔄 تداخل سماح";
             
             let isOOG = ex["Is OOG"] || "";
@@ -1643,23 +1656,33 @@ let hasOnlyExprt = (container.exprt && !hasTrshp && !container.strge && !contain
             let isHazardous = ex["Is Hazardous"] || "";
             let imdgClass = ex["IMDG Class"] || "";
             
-		result.push({
-			"Container No.": id, "Size": size,
-			"Is OOG": isOOG, "Is Refrigerated": isRefrigerated,
-			"flex_04": ex["Flex String 04"] || "",
-			"Is Bundled": isBundled, "Is Hazardous": isHazardous, "IMDG Class": imdgClass,
-			"Type": type, "Line ID": lineId,
-			"Flex String 01": flexString01,  // ← أضف هذا إذا أردت
-			"EXPRT Start": exStart, "EXPRT End": exEnd, "EXPRT Days": exDays,
-			"EXPRT Free": exFree, "EXPRT Net": exNet, "Total Net": exNet,
-			"Vessel Name": vesselName, "طريقة الحساب": method
-		});
+            result.push({
+                "Container No.": id,
+                "Size": size,
+                "Is OOG": isOOG,
+                "Is Refrigerated": isRefrigerated,
+                "flex_04": ex["Flex String 04"] || "",
+                "Is Bundled": isBundled,
+                "Is Hazardous": isHazardous,
+                "IMDG Class": imdgClass,
+                "Type": type,
+                "Line ID": lineId,
+                "Flex String 01": flexString01,
+                "EXPRT Start": exStart,
+                "EXPRT End": exEnd,
+                "EXPRT Days": exDays,
+                "EXPRT Free": exFree,
+                "EXPRT Net": exNet,
+                "Total Net": exNet,
+                "Vessel Name": vesselName,
+                "طريقة الحساب": method
+            });
         }
     }
     
     currentData3 = result;
-renderTable3("bodyTab3", currentData3, "searchTab3", "typeTab3", "statsTab3");
-updateHeaderFromDisplayData('3', currentData3);
+    renderTable3("bodyTab3", currentData3, "searchTab3", "typeTab3", "statsTab3");
+    updateHeaderFromDisplayData('3', currentData3);
 }
 
 function processAndDisplay4() {
