@@ -5100,37 +5100,41 @@ function updateHeaderInfo(tabId) {
         
         // تحديد مصدر البيانات حسب التبويب
         if (tabId === '1' || tabId === '2' || tabId === '3' || tabId === '6') {
-            // تبويب 1, 2, 3, 6: يأخذ من EXPRT
-            sourceData = container.exprt;
+            // ========== التعديل: استخدام exprtList (المصفوفة) أولاً ==========
+            if (container.exprtList && container.exprtList.length > 0) {
+                sourceData = container.exprtList[0];
+            } else if (container.exprt) {
+                sourceData = container.exprt;
+            }
         } 
         else if (tabId === '4') {
-            // تبويب 4: يأخذ من STRGE
             sourceData = container.strge;
         }
         else if (tabId === '5') {
-            // تبويب 5: يأخذ من TRSHP
-            sourceData = container.trshp;
+            // ========== التعديل: استخدام trshpList (المصفوفة) أولاً ==========
+            if (container.trshpList && container.trshpList.length > 0) {
+                sourceData = container.trshpList[0];
+            } else if (container.trshp) {
+                sourceData = container.trshp;
+            }
         }
         
         if (sourceData) {
             // O/B Carrier Name
             if (carrierName === "—") {
                 carrierName = sourceData["O/B Carrier Name"] || "—";
-                // إذا لم يوجد O/B Carrier Name، جرب I/B Carrier Name
                 if (carrierName === "—") {
                     carrierName = sourceData["I/B Carrier Name"] || "—";
                 }
             }
             
-            // O/B Carrier ATA (تاريخ الشحن) - فقط للتبويبات التي تحتوي على EXPRT أو TRSHP
-            if (tabId === '1' || tabId === '2' || tabId === '3' || tabId === '5' || tabId === '6') {
-				let ata = sourceData["O/B Carrier ATD"];
-                if (ata && ata !== "") {
-                    let convertedDate = convertDate(ata);
-                    if (convertedDate) {
-                        if (maxDate === "—" || convertedDate > maxDate) {
-                            maxDate = convertedDate;
-                        }
+            // O/B Carrier ATD (تاريخ الشحن)
+            let ata = sourceData["O/B Carrier ATD"] || sourceData["O/B Carrier ATA"] || sourceData["I/B Carrier ATA"];
+            if (ata && ata !== "") {
+                let convertedDate = convertDate(ata);
+                if (convertedDate) {
+                    if (maxDate === "—" || convertedDate > maxDate) {
+                        maxDate = convertedDate;
                     }
                 }
             }
