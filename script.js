@@ -1717,6 +1717,9 @@ function processAndDisplay4() {
     let tempMap = new Map();
     
     for (let [id, container] of containersMap.entries()) {
+		// ========== التعديل: استبعاد الحاويات التي لها EXPRT (بما فيها exprtList) ==========
+        let hasExprt = (container.exprtList && container.exprtList.length > 0) || container.exprt;
+        if (hasExprt) continue;
         if (container.strge && container.strge["Freight Kind"] === "MTY") {
             if (container.exprt) continue;
             
