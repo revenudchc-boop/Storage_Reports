@@ -60,11 +60,6 @@ if (savedList) {
     saveMasterLinesList();
 }
 
-// ========== متغيرات التبويب 7 (IMPRT + FORWARD) ==========
-let currentData7 = [];
-let imprtForwardPeriods7 = JSON.parse(localStorage.getItem("imprtForwardPeriodsTab7")) || [];
-let excludeLines7 = JSON.parse(localStorage.getItem("excludeLines7")) || [];
-let nextIdImprtForward7 = imprtForwardPeriods7.length > 0 ? Math.max(...imprtForwardPeriods7.map(p => p.id)) + 1 : 1;
 // دالة لحفظ القائمة الرئيسية
 function saveMasterLinesList() {
     localStorage.setItem("masterLinesList", JSON.stringify(masterLinesList));
@@ -156,8 +151,6 @@ function processExcelFile(file) {
             currentData4 = [];
             currentData5 = [];
             currentData6 = [];
-            currentData7 = [];  // ← أضف هذا
-
             containersMap.clear();
             
             let data = new Uint8Array(evt.target.result);
@@ -205,10 +198,8 @@ function processExcelFile(file) {
             processAndDisplay4();
             processAndDisplay5();
             processAndDisplay6();
-			processAndDisplay7();  // ← هنا المكان الصحيح
-
             
-            document.getElementById("footerMsg").innerHTML = `✅ تم تحميل: ${file.name} | TRSHP+EXPRT: ${currentData1.length} | STRGE+EXPRT+IMPRT: ${currentData2.length} | EXPRT فقط: ${currentData3.length} | STRGE فارغ: ${currentData4.length} | TRSHP فقط: ${currentData5.length} | STRGE+EXPRT فقط: ${currentData6.length} | IMPRT+FORWARD: ${currentData7.length}`;
+            document.getElementById("footerMsg").innerHTML = `✅ تم تحميل: ${file.name} | TRSHP+EXPRT: ${currentData1.length} | STRGE+EXPRT+IMPRT: ${currentData2.length} | EXPRT فقط: ${currentData3.length} | STRGE فارغ: ${currentData4.length} | TRSHP فقط: ${currentData5.length} | STRGE+EXPRT فقط: ${currentData6.length}`;
         } catch(err) {
             console.error(err);
             document.getElementById("footerMsg").innerHTML = `❌ خطأ: ${err.message}`;
@@ -224,8 +215,7 @@ let selectedColumns = {
     tab3: JSON.parse(localStorage.getItem("selectedColumns_tab3")) || [],
     tab4: JSON.parse(localStorage.getItem("selectedColumns_tab4")) || [],
     tab5: JSON.parse(localStorage.getItem("selectedColumns_tab5")) || [],
-    tab6: JSON.parse(localStorage.getItem("selectedColumns_tab6")) || [],
-    tab7: JSON.parse(localStorage.getItem("selectedColumns_tab7")) || []  // ← أضف هذا
+    tab6: JSON.parse(localStorage.getItem("selectedColumns_tab6")) || []
 };
 
 // تعريف الأعمدة المتاحة للتبويب 1
@@ -404,161 +394,6 @@ const availableColumnsTab6 = {
         { name: "Vessel Name", label: "اسم السفينة", default: false }
     ]
 };
-
-// ========== دوال اختيار الأعمدة لتبويب 7 ==========
-
-const availableColumnsTab7 = {
-    tab7: [
-        { name: "رقم الحاوية", label: "رقم الحاوية", default: true },
-        { name: "الحجم", label: "الحجم", default: true },
-        { name: "OOG", label: "OOG", default: false },
-        { name: "مبرد", label: "مبرد", default: false },
-        { name: "خطير", label: "خطير", default: false },
-        { name: "IMDG", label: "IMDG", default: false },
-        { name: "النوع", label: "النوع", default: true },
-        { name: "الخط", label: "الخط", default: true },
-        { name: "نوع", label: "نوع الحركة", default: true },
-        { name: "Start Time", label: "Start Time (الأصلي)", default: true },
-        { name: "PaidThruDate", label: "PaidThruDate", default: true },        // ← جديد
-        { name: "Start (Paid+1)", label: "Start (Paid+1)", default: true },    // ← جديد
-        { name: "End", label: "End", default: true },
-        { name: "Days", label: "عدد الأيام", default: true },
-        { name: "Free", label: "أيام السماح", default: true },
-        { name: "Net", label: "الصافي", default: true },
-        { name: "Vessel Name", label: "اسم السفينة", default: true }
-    ]
-};
-
-// دالة فتح نافذة اختيار الأعمدة لتبويب 7
-function openColumnModalTab7() {
-    let modal = document.getElementById('columnModal');
-    let body = document.getElementById('columnModalBody');
-    
-    // تهيئة selectedColumns.tab7 إذا لم تكن موجودة
-    if (!selectedColumns.tab7) {
-        selectedColumns.tab7 = availableColumnsTab7.tab7.filter(c => c.default).map(c => c.name);
-    }
-    
-    let html = `<div class="select-all">
-        <label style="display: flex; align-items: center; gap: 10px;">
-            <input type="checkbox" id="selectAllColumns"> <strong>تحديد الكل</strong>
-        </label>
-    </div>`;
-    
-    let cols = availableColumnsTab7.tab7;
-    if (cols) {
-        cols.forEach(col => {
-            let isChecked = selectedColumns.tab7.includes(col.name) || 
-                           (selectedColumns.tab7.length === 0 && col.default);
-            html += `
-                <div class="column-option">
-                    <input type="checkbox" class="col-checkbox" value="${col.name}" id="col_${col.name.replace(/ /g, '_')}" ${isChecked ? 'checked' : ''}>
-                    <label for="col_${col.name.replace(/ /g, '_')}">${col.label}</label>
-                </div>
-            `;
-        });
-    }
-    
-    body.innerHTML = html;
-    modal.classList.add('active');
-    
-    document.getElementById('selectAllColumns').onchange = (e) => {
-        document.querySelectorAll('.col-checkbox').forEach(cb => cb.checked = e.target.checked);
-    };
-    
-    document.getElementById('applyColumnSelection').onclick = () => {
-        let selected = [];
-        document.querySelectorAll('.col-checkbox:checked').forEach(cb => selected.push(cb.value));
-        selectedColumns.tab7 = selected;
-        localStorage.setItem(`selectedColumns_tab7`, JSON.stringify(selected));
-        closeColumnModal();
-        
-        // إعادة عرض الجدول مع الأعمدة المختارة
-        if (currentData7 && currentData7.length > 0) {
-            renderTable7WithSelectedColumns('bodyTab7', currentData7, 'searchTab7', 'typeTab7', 'statsTab7');
-        }
-    };
-}
-
-// دالة عرض جدول تبويب 7 مع الأعمدة المختارة
-function renderTable7WithSelectedColumns(tbodyId, data, searchId, typeId, statsId) {
-    let search = document.getElementById(searchId)?.value.toLowerCase() || "";
-    let type = document.getElementById(typeId)?.value || "";
-    
-    let filtered = data.filter(item => {
-        let matchSearch = item["رقم الحاوية"]?.toLowerCase().includes(search) || false;
-        let matchType = !type || item["النوع"] === type;
-        return matchSearch && matchType;
-    });
-    
-    let selected = selectedColumns.tab7;
-    if (!selected || selected.length === 0) {
-        selected = availableColumnsTab7.tab7.filter(c => c.default).map(c => c.name);
-    }
-    
-    // تحديث رأس الجدول
-    let thead = document.querySelector('#tableTab7 thead tr');
-    if (thead) {
-        thead.innerHTML = '';
-        selected.forEach(colName => {
-            let col = availableColumnsTab7.tab7.find(c => c.name === colName);
-            let th = document.createElement('th');
-            th.textContent = col ? col.label : colName;
-            thead.appendChild(th);
-        });
-    }
-    
-    let tbody = document.getElementById(tbodyId);
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    
-    if (filtered.length === 0) {
-        let colspan = selected.length;
-        tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; padding:40px;">⚠️ لا توجد بيانات</td></tr>`;
-        return;
-    }
-    
-    for (let item of filtered) {
-        let row = tbody.insertRow();
-        selected.forEach(colName => {
-            let cell = row.insertCell();
-            let value = item[colName];
-            
-            if (["OOG", "مبرد", "خطير"].includes(colName)) {
-                cell.textContent = value || "❌";
-            } else if (colName === "نوع") {
-                if (value === "IMPRT + FORWARD") {
-                    cell.innerHTML = '<span style="background:#ff6b6b; color:white; padding:2px 10px; border-radius:12px;">IMPRT + FORWARD</span>';
-                } else if (value === "TRSHP + FORWARD") {
-                    cell.innerHTML = '<span style="background:#ffa07a; color:#333; padding:2px 10px; border-radius:12px;">TRSHP + FORWARD</span>';
-                } else {
-                    cell.innerHTML = '<span style="background:#667eea; color:white; padding:2px 10px; border-radius:12px;">IMPRT (VESSEL)</span>';
-                }
-            } else if (colName === "رقم الحاوية") {
-                cell.textContent = value || "—";
-                cell.style.fontWeight = "bold";
-            } else if (colName === "النوع") {
-                cell.innerHTML = `<strong>${value || "—"}</strong>`;
-            } else if (["Days", "Free", "Net"].includes(colName)) {
-                cell.textContent = value || "—";
-                if (colName === "Days") cell.style.background = "#e3f2fd";
-                if (colName === "Free") cell.style.background = "#fff3cd";
-                if (colName === "Net") {
-                    cell.style.background = "#d4edda";
-                    cell.style.fontWeight = "bold";
-                }
-            } else {
-                cell.textContent = value || "—";
-            }
-        });
-    }
-    
-    let statsDiv = document.getElementById(statsId);
-    if (statsDiv && data.length > 0) {
-        statsDiv.innerHTML = renderAdvancedStatsTab7(data);
-        statsDiv.style.display = "flex";
-    }
-}
 // ========== دوال حفظ وتحميل الملف ==========
 function saveFileToLocalStorage(fileData, fileName) {
     try {
@@ -582,8 +417,6 @@ function loadLastFileFromStorage() {
         currentData4 = [];
         currentData5 = [];
         currentData6 = [];
-        currentData7 = [];  // ← أضف هذا
-
         containersMap.clear();
         
         updateFileNameDisplay(savedFileName);
@@ -638,8 +471,6 @@ function loadLastFileFromStorage() {
         processAndDisplay4();
         processAndDisplay5();
         processAndDisplay6();
-		processAndDisplay7();  // ← هنا المكان الصحيح
-
         updateHeaderInfo('1');
         
         setTimeout(function() {
@@ -1398,15 +1229,13 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
         processAndDisplay4();
         processAndDisplay5();
         processAndDisplay6();
-		        processAndDisplay7();  // ← هنا المكان الصحيح
-
         updateHeaderInfo('1');
         
         setTimeout(function() {
             applySavedColumnPreferences();
         }, 200);
         
-        document.getElementById("footerMsg").innerHTML = `✅ تم تحميل: ${file.name} | TRSHP+EXPRT: ${currentData1.length} | STRGE+EXPRT+IMPRT: ${currentData2.length} | EXPRT فقط: ${currentData3.length} | STRGE فارغ: ${currentData4.length} | TRSHP فقط: ${currentData5.length} | STRGE+EXPRT فقط: ${currentData6.length} | IMPRT+FORWARD: ${currentData7.length}`;
+        document.getElementById("footerMsg").innerHTML = `✅ تم تحميل: ${file.name} | TRSHP+EXPRT: ${currentData1.length} | STRGE+EXPRT+IMPRT: ${currentData2.length} | EXPRT فقط: ${currentData3.length} | STRGE فارغ: ${currentData4.length} | TRSHP فقط: ${currentData5.length} | STRGE+EXPRT فقط: ${currentData6.length}`;
     };
     reader.readAsArrayBuffer(file);
 });
@@ -1509,12 +1338,21 @@ function processAndDisplay1() {
                 
                 let trFree = periodFreeMap.get(tr) || 0;
                 
-                let exFree;
-                if (isReturnDray) {
-                    exFree = 0;
-                } else {
-                    exFree = getFreeDays(exprtPeriods1, lineId, exStart, flexString01, drayStatus);
-                }
+// ===================================================
+// التعديل 1: حساب EXPRT Free بناءً على O/B Loc Type
+// ===================================================
+let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
+let isTruck = (obLocType === "TRUCK");
+
+let exFree;
+if (isTruck) {
+    // O/B Loc Type = TRUCK → لا سماح
+    exFree = 0;
+} else {
+    // أي حالة أخرى (VESSEL) → يطبق السماح
+    exFree = getFreeDays(exprtPeriods1, lineId, exStart, flexString01, drayStatus);
+}
+// ===================================================
                 
                 let trDaysTotal = diffDays(trStart, trEnd);
                 let trNet = trDaysTotal - trFree;
@@ -2557,8 +2395,6 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
         else if (tabNumber === '4') updateHeaderFromDisplayData('4', currentData4);
         else if (tabNumber === '5') updateHeaderFromDisplayData('5', currentData5);
         else if (tabNumber === '6') updateHeaderFromDisplayData('6', currentData6);
-		else if (tabNumber === '7') updateHeaderFromDisplayData('7', currentData7);  // ← أضف هذا
-
     });
 });
 
@@ -2787,14 +2623,6 @@ document.getElementById("exportAllBtn").onclick = () => {
 			let ws6 = XLSX.utils.json_to_sheet([{ "ملاحظة": "لا توجد بيانات في هذا التبويب" }]);
 			XLSX.utils.book_append_sheet(wb, ws6, "STRGE_EXPRT_ONLY");
 		}
-		// تبويب 7
-if (currentData7 && currentData7.length > 0) {
-    let ws7 = XLSX.utils.json_to_sheet(currentData7);
-    XLSX.utils.book_append_sheet(wb, ws7, "IMPRT_FORWARD");
-} else {
-    let ws7 = XLSX.utils.json_to_sheet([{ "ملاحظة": "لا توجد بيانات في هذا التبويب" }]);
-    XLSX.utils.book_append_sheet(wb, ws7, "IMPRT_FORWARD");
-}
         
         // إحصائيات
         let statsData = [];
@@ -2854,16 +2682,6 @@ if (currentData7 && currentData7.length > 0) {
 				"إجمالي EXPRT": currentData6.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0),
 				"الإجمالي الكلي": currentData6.reduce((s, i) => s + (i["Total Net"] || 0), 0)
 			});
-			
-			if (currentData7.length > 0) {
-    statsData.push({
-        "التبويب": "IMPRT + FORWARD",
-        "عدد الحاويات": currentData7.length,
-        "إجمالي FORWARD": currentData7.filter(i => i["نوع"] === "FORWARD").reduce((s, i) => s + (i["Net"] || 0), 0),
-        "إجمالي IMPRT (VESSEL)": currentData7.filter(i => i["نوع"] === "IMPRT (VESSEL)").reduce((s, i) => s + (i["Net"] || 0), 0),
-        "الإجمالي الكلي": currentData7.reduce((s, i) => s + (i["Net"] || 0), 0)
-    });
-}
 }
         
         if (statsData.length > 0) {
@@ -4914,705 +4732,6 @@ renderTable6("bodyTab6", currentData6, "searchTab6", "typeTab6", "statsTab6");
 updateHeaderFromDisplayData('6', currentData6);
 }
 
-// ========== دالة معالجة تبويب 7 (IMPRT + FORWARD) ==========
-function processAndDisplay7() {
-    console.log("=== processAndDisplay7 (التشخيص الكامل) ===");
-    console.log("عدد الحاويات في containersMap:", containersMap.size);
-    
-    let result = [];
-    
-    for (let [id, container] of containersMap.entries()) {
-        let lineId = container.lineId || "";
-        let equipType = container.equipmentType || "";
-        let size = equipType.toString().match(/^(\d+)/)?.[1] || "";
-        
-        // ===== التحقق من وجود حالات أخرى =====
-        let hasImprt = container.imprt !== null;
-        let hasTrshp = (container.trshpList && container.trshpList.length > 0);
-        let hasExprt = (container.exprtList && container.exprtList.length > 0) || container.exprt;
-        let hasStrge = container.strge !== null;
-        let hasTrshpReturn = container.trshpReturn !== null;
-        
-        // ================================================
-        // المسار 1: IMPRT فقط (بدون حالات أخرى)
-        // مع Dray Status = FORWARD أو RETURN أو فارغ
-        // ================================================
-        if (hasImprt && !hasTrshp && !hasExprt && !hasStrge && !hasTrshpReturn) {
-            let drayStatus = container.imprt["Dray Status"] || "";
-            let obLocType = container.imprt["O/B Loc Type"] || "";
-            
-            // فقط FORWARD أو RETURN أو فارغ
-            if (drayStatus === "FORWARD" || drayStatus === "RETURN" || drayStatus === "") {
-                let startTime = container.imprt["Start Time"] || "";
-                let endTime = container.imprt["End Time"] || "";
-                let paidThruDate = container.imprt["PaidThruDate"] || "";
-                
-                if (startTime && endTime) {
-                    let startTimeFormatted = convertDate(startTime);
-                    let endDate = convertDate(endTime);
-                    
-                    if (startTimeFormatted && endDate) {
-                        let startFormatted;
-                        let paidDateFormatted = null;
-                        let hasPaidThruDate = false;
-                        
-                        if (paidThruDate && paidThruDate !== "") {
-                            hasPaidThruDate = true;
-                            let paidDate = convertDate(paidThruDate);
-                            paidDateFormatted = paidDate;
-                            let start = new Date(paidDate);
-                            start.setDate(start.getDate() + 1);
-                            startFormatted = start.toLocaleDateString('en-CA');
-                        } else {
-                            hasPaidThruDate = false;
-                            paidDateFormatted = "—";
-                            let start = new Date(startTimeFormatted);
-                            startFormatted = start.toLocaleDateString('en-CA');
-                        }
-                        
-                        let days = diffDays(startFormatted, endDate);
-                        if (days < 0) days = 0;
-                        
-                        let isExcl = isExcluded(lineId, excludeLines7);
-                        let flexString01 = container.imprt["Flex String 01"] || "";
-                        
-                        let freeDays;
-                        if (hasPaidThruDate) {
-                            freeDays = 0;
-                        } else {
-                            freeDays = getFreeDays(imprtForwardPeriods7, lineId, startFormatted, flexString01, drayStatus);
-                        }
-                        
-                        let net = days - freeDays;
-                        if (net < 0) net = 0;
-                        
-                        let isRefrigerated = container.imprt["Is Refrigerated"] || "";
-                        let isOOG = container.imprt["Is OOG"] || "";
-                        let isHazardous = container.imprt["Is Hazardous"] || "";
-                        let imdgClass = container.imprt["IMDG Class"] || "";
-                        let type = (isRefrigerated === "true" || equipType.includes("R1")) ? "RF" : "GP";
-                        let vesselName = container.imprt["I/B Carrier Name"] || container.imprt["O/B Carrier Name"] || "";
-                        let method = isExcl ? "🚫 سماح مستقل" : "🔄 سماح عادي";
-                        
-                        let typeLabel = "IMPRT (VESSEL)";
-                        if (drayStatus === "FORWARD") typeLabel = "IMPRT + FORWARD";
-                        if (drayStatus === "RETURN") typeLabel = "IMPRT + RETURN";
-                        
-                        result.push({
-                            "رقم الحاوية": id,
-                            "الحجم": size,
-                            "OOG": isOOG && isOOG.toLowerCase() === "true" ? "✅" : "❌",
-                            "مبرد": isRefrigerated && isRefrigerated.toLowerCase() === "true" ? "✅" : "❌",
-                            "خطير": isHazardous && isHazardous.toLowerCase() === "true" ? "✅" : "❌",
-                            "IMDG": imdgClass || "—",
-                            "النوع": type,
-                            "الخط": lineId,
-                            "نوع": typeLabel,
-                            "Start Time": startTimeFormatted,
-                            "PaidThruDate": paidDateFormatted,
-                            "Start (Paid+1)": startFormatted,
-                            "End": endDate,
-                            "Days": days,
-                            "Free": freeDays,
-                            "Net": net,
-                            "Vessel Name": vesselName || "—",
-                            "طريقة الحساب": method
-                        });
-                    }
-                }
-            }
-        }
-        
-        // ================================================
-        // المسار 2: TRSHP فقط (بدون حالات أخرى)
-        // مع Dray Status = FORWARD أو RETURN
-        // ================================================
-        if (hasTrshp && !hasImprt && !hasExprt && !hasStrge) {
-            let trshpArray = container.trshpList || [];
-            for (let tr of trshpArray) {
-                let drayStatus = tr["Dray Status"] || "";
-                
-                // ← هنا التعديل: إضافة RETURN
-                if (drayStatus === "FORWARD" || drayStatus === "RETURN") {
-                    let startTime = tr["Start Time"] || "";
-                    let endTime = tr["End Time"] || "";
-                    let paidThruDate = tr["PaidThruDate"] || "";
-                    
-                    if (startTime && endTime) {
-                        let startTimeFormatted = convertDate(startTime);
-                        let endDate = convertDate(endTime);
-                        
-                        if (startTimeFormatted && endDate) {
-                            let startFormatted;
-                            let paidDateFormatted = null;
-                            let hasPaidThruDate = false;
-                            
-                            if (paidThruDate && paidThruDate !== "") {
-                                hasPaidThruDate = true;
-                                let paidDate = convertDate(paidThruDate);
-                                paidDateFormatted = paidDate;
-                                let start = new Date(paidDate);
-                                start.setDate(start.getDate() + 1);
-                                startFormatted = start.toLocaleDateString('en-CA');
-                            } else {
-                                hasPaidThruDate = false;
-                                paidDateFormatted = "—";
-                                let start = new Date(startTimeFormatted);
-                                startFormatted = start.toLocaleDateString('en-CA');
-                            }
-                            
-                            let days = diffDays(startFormatted, endDate);
-                            if (days < 0) days = 0;
-                            
-                            let isExcl = isExcluded(lineId, excludeLines7);
-                            let flexString01 = tr["Flex String 01"] || "";
-                            
-                            let freeDays;
-                            if (hasPaidThruDate) {
-                                freeDays = 0;
-                            } else {
-                                freeDays = getFreeDays(imprtForwardPeriods7, lineId, startFormatted, flexString01, drayStatus);
-                            }
-                            
-                            let net = days - freeDays;
-                            if (net < 0) net = 0;
-                            
-                            let isRefrigerated = tr["Is Refrigerated"] || "";
-                            let isOOG = tr["Is OOG"] || "";
-                            let isHazardous = tr["Is Hazardous"] || "";
-                            let imdgClass = tr["IMDG Class"] || "";
-                            let type = (isRefrigerated === "true" || equipType.includes("R1")) ? "RF" : "GP";
-                            let vesselName = tr["I/B Carrier Name"] || tr["O/B Carrier Name"] || "";
-                            let method = isExcl ? "🚫 سماح مستقل" : "🔄 سماح عادي";
-                            
-                            let typeLabel = drayStatus === "FORWARD" ? "TRSHP + FORWARD" : "TRSHP + RETURN";
-                            
-                            result.push({
-                                "رقم الحاوية": id,
-                                "الحجم": size,
-                                "OOG": isOOG && isOOG.toLowerCase() === "true" ? "✅" : "❌",
-                                "مبرد": isRefrigerated && isRefrigerated.toLowerCase() === "true" ? "✅" : "❌",
-                                "خطير": isHazardous && isHazardous.toLowerCase() === "true" ? "✅" : "❌",
-                                "IMDG": imdgClass || "—",
-                                "النوع": type,
-                                "الخط": lineId,
-                                "نوع": typeLabel,
-                                "Start Time": startTimeFormatted,
-                                "PaidThruDate": paidDateFormatted,
-                                "Start (Paid+1)": startFormatted,
-                                "End": endDate,
-                                "Days": days,
-                                "Free": freeDays,
-                                "Net": net,
-                                "Vessel Name": vesselName || "—",
-                                "طريقة الحساب": method
-                            });
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    console.log("نتيجة تبويب 7:", result.length, "صف");
-    currentData7 = result;
-    
-    // ================================================
-    // إظهار التبويب 7 بالقوة
-    // ================================================
-    console.log("🔄 محاولة إظهار تبويب 7...");
-    
-    let statsDiv = document.getElementById("statsTab7");
-    if (statsDiv) {
-        if (currentData7.length > 0) {
-            statsDiv.innerHTML = renderAdvancedStatsTab7(currentData7);
-            statsDiv.style.display = "flex";
-            statsDiv.style.visibility = "visible";
-        }
-    }
-    
-    let filtersDiv = document.getElementById("filtersTab7");
-    if (filtersDiv) {
-        filtersDiv.style.display = "flex";
-        filtersDiv.style.visibility = "visible";
-    }
-    
-    let wrapperDiv = document.getElementById("wrapperTab7");
-    if (wrapperDiv) {
-        wrapperDiv.style.display = "block";
-        wrapperDiv.style.visibility = "visible";
-    }
-    
-    let tbody = document.getElementById("bodyTab7");
-    if (tbody) {
-        if (currentData7.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding:40px;">⚠️ لا توجد بيانات</td></tr>`;
-        } else {
-            tbody.innerHTML = "";
-            for (let item of currentData7) {
-                let row = tbody.insertRow();
-                
-                let typeBadge = "";
-                if (item["نوع"] === "IMPRT + FORWARD") {
-                    typeBadge = '<span style="background:#ff6b6b; color:white; padding:2px 10px; border-radius:12px;">IMPRT + FORWARD</span>';
-                } else if (item["نوع"] === "IMPRT + RETURN") {
-                    typeBadge = '<span style="background:#ffc107; color:#333; padding:2px 10px; border-radius:12px;">IMPRT + RETURN</span>';
-                } else if (item["نوع"] === "IMPRT (VESSEL)") {
-                    typeBadge = '<span style="background:#667eea; color:white; padding:2px 10px; border-radius:12px;">IMPRT (VESSEL)</span>';
-                } else if (item["نوع"] === "TRSHP + FORWARD") {
-                    typeBadge = '<span style="background:#ffa07a; color:#333; padding:2px 10px; border-radius:12px;">TRSHP + FORWARD</span>';
-                } else if (item["نوع"] === "TRSHP + RETURN") {
-                    typeBadge = '<span style="background:#ff9800; color:#333; padding:2px 10px; border-radius:12px;">TRSHP + RETURN</span>';
-                } else {
-                    typeBadge = '<span style="background:#667eea; color:white; padding:2px 10px; border-radius:12px;">IMPRT (VESSEL)</span>';
-                }
-                
-                row.innerHTML = `
-                    <td style="font-weight:bold;">${item["رقم الحاوية"] || "—"}</td>
-                    <td>${item["الحجم"] || "—"}</td>
-                    <td>${item["OOG"] || "❌"}</td>
-                    <td>${item["مبرد"] || "❌"}</td>
-                    <td>${item["خطير"] || "❌"}</td>
-                    <td>${item["IMDG"] || "—"}</td>
-                    <td><strong>${item["النوع"] || "—"}</strong></td>
-                    <td>${item["الخط"] || "—"}</td>
-                    <td>${typeBadge}</td>
-                    <td>${item["Start Time"] || "—"}</td>
-                    <td>${item["PaidThruDate"] || "—"}</td>
-                    <td>${item["Start (Paid+1)"] || "—"}</td>
-                    <td>${item["End"] || "—"}</td>
-                    <td style="background:#e3f2fd;">${item["Days"] || "—"}</td>
-                    <td style="background:#fff3cd;">${item["Free"] || "—"}</td>
-                    <td style="background:#d4edda; font-weight:bold;">${item["Net"] || "—"}</td>
-                    <td>${item["Vessel Name"] || "—"}</td>
-                `;
-            }
-        }
-    }
-    
-    let tab7Div = document.getElementById("tab7");
-    if (tab7Div) {
-        if (!tab7Div.classList.contains("active")) {
-            tab7Div.classList.add("active");
-            document.querySelectorAll(".tab-content").forEach(c => {
-                if (c.id !== "tab7") c.classList.remove("active");
-            });
-            document.querySelectorAll(".tab-btn").forEach(b => {
-                b.classList.remove("active");
-                if (b.dataset.tab === "tab7") b.classList.add("active");
-            });
-        }
-    }
-    
-    let footerMsg = document.getElementById("footerMsg");
-    if (footerMsg) {
-        let currentText = footerMsg.innerHTML;
-        let cleanText = currentText.replace(/\s*\|\s*IMPRT\+FORWARD:\s*\d+/, '');
-        footerMsg.innerHTML = cleanText + ` | IMPRT+FORWARD: ${currentData7.length}`;
-    }
-    
-    console.log("✅ processAndDisplay7 اكتمل");
-}
-// ========== دالة عرض جدول تبويب 7 ==========
-function renderTable7(tbodyId, data, searchId, typeId, statsId) {
-    console.log("=== renderTable7 ===");
-    console.log("data length:", data?.length || 0);
-    console.log("data sample:", data?.[0]);
-    
-    let search = document.getElementById(searchId)?.value.toLowerCase() || "";
-    let type = document.getElementById(typeId)?.value || "";
-    
-    let filtered = data.filter(item => {
-        let matchSearch = item["رقم الحاوية"]?.toLowerCase().includes(search) || false;
-        let matchType = !type || item["النوع"] === type;
-        return matchSearch && matchType;
-    });
-    
-    console.log("filtered length:", filtered.length);
-    
-    let statsDiv = document.getElementById(statsId);
-    if (statsDiv && data.length > 0) {
-        statsDiv.innerHTML = renderAdvancedStatsTab7(data);
-        statsDiv.style.display = "flex";
-    }
-    
-    let tbody = document.getElementById(tbodyId);
-    if (!tbody) {
-        console.error("❌ tbody غير موجود:", tbodyId);
-        return;
-    }
-    tbody.innerHTML = "";
-    
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding:40px;">⚠️ لا توجد بيانات</td></tr>`;
-        return;
-    }
-    
-    for (let item of filtered) {
-        let row = tbody.insertRow();
-        let methodClass = item["طريقة الحساب"] === "🚫 سماح مستقل" ? "exclude-badge" : "method-badge";
-        
-        let typeBadge = "";
-        if (item["نوع"] === "IMPRT + FORWARD") {
-            typeBadge = '<span style="background:#ff6b6b; color:white; padding:2px 10px; border-radius:12px;">IMPRT + FORWARD</span>';
-        } else if (item["نوع"] === "TRSHP + FORWARD") {
-            typeBadge = '<span style="background:#ffa07a; color:#333; padding:2px 10px; border-radius:12px;">TRSHP + FORWARD</span>';
-        } else {
-            typeBadge = '<span style="background:#667eea; color:white; padding:2px 10px; border-radius:12px;">IMPRT (VESSEL)</span>';
-        }
-        
-        row.innerHTML = `
-            <td style="font-weight:bold;">${item["رقم الحاوية"] || "—"}</td>
-            <td>${item["الحجم"] || "—"}</td>
-            <td>${item["OOG"] || "❌"}</td>
-            <td>${item["مبرد"] || "❌"}</td>
-            <td>${item["خطير"] || "❌"}</td>
-            <td>${item["IMDG"] || "—"}</td>
-            <td><strong>${item["النوع"] || "—"}</strong></td>
-            <td>${item["الخط"] || "—"}</td>
-            <td>${typeBadge}</td>
-            <td>${item["Start Time"] || "—"}</td>
-            <td>${item["PaidThruDate"] || "—"}</td>
-            <td>${item["Start (Paid+1)"] || "—"}</td>
-            <td>${item["End"] || "—"}</td>
-            <td style="background:#e3f2fd;">${item["Days"] || "—"}</td>
-            <td style="background:#fff3cd;">${item["Free"] || "—"}</td>
-            <td style="background:#d4edda; font-weight:bold;">${item["Net"] || "—"}</td>
-            <td>${item["Vessel Name"] || "—"}</td>
-        `;
-    }
-    
-    // إظهار العناصر
-    let filtersDiv = document.getElementById("filtersTab7");
-    let wrapperDiv = document.getElementById("wrapperTab7");
-    if (filtersDiv) filtersDiv.style.display = "flex";
-    if (wrapperDiv) wrapperDiv.style.display = "block";
-    
-    console.log("✅ renderTable7 completed, displayed:", filtered.length, "rows");
-}
-
-// ========== دالة إحصائيات تبويب 7 ==========
-function renderAdvancedStatsTab7(data) {
-    if (!data || data.length === 0) {
-        return `<div style="padding:20px; text-align:center;">لا توجد بيانات</div>`;
-    }
-    
-    // ===== إحصائيات حسب النوع =====
-    let totalImprtForward = data.filter(i => i["نوع"] === "IMPRT + FORWARD");
-    let totalImprtVessel = data.filter(i => i["نوع"] === "IMPRT (VESSEL)");
-    let totalTrshpForward = data.filter(i => i["نوع"] === "TRSHP + FORWARD");
-    
-    let imprtForwardNet = totalImprtForward.reduce((s, i) => s + (i["Net"] || 0), 0);
-    let imprtVesselNet = totalImprtVessel.reduce((s, i) => s + (i["Net"] || 0), 0);
-    let trshpForwardNet = totalTrshpForward.reduce((s, i) => s + (i["Net"] || 0), 0);
-    let totalNet = data.reduce((s, i) => s + (i["Net"] || 0), 0);
-    let totalCount = data.length;
-    
-    // ===== إحصائيات حسب النوع (RF / GP) =====
-    let rfContainers = data.filter(i => i["النوع"] === "RF");
-    let gpContainers = data.filter(i => i["النوع"] === "GP");
-    let rfNet = rfContainers.reduce((s, i) => s + (i["Net"] || 0), 0);
-    let gpNet = gpContainers.reduce((s, i) => s + (i["Net"] || 0), 0);
-    let rfCount = rfContainers.length;
-    let gpCount = gpContainers.length;
-    
-    // ===== إحصائيات OOG =====
-    let oogContainers = data.filter(i => i["OOG"] === "✅");
-    let oogNet = oogContainers.reduce((s, i) => s + (i["Net"] || 0), 0);
-    let oogCount = oogContainers.length;
-    
-    // ===== إحصائيات Hazardous =====
-    let hazardousContainers = data.filter(i => i["خطير"] === "✅");
-    let hazardousNet = hazardousContainers.reduce((s, i) => s + (i["Net"] || 0), 0);
-    let hazardousCount = hazardousContainers.length;
-    
-    // ===== إحصائيات Refrigerated =====
-    let refrigeratedContainers = data.filter(i => i["مبرد"] === "✅");
-    let refrigeratedNet = refrigeratedContainers.reduce((s, i) => s + (i["Net"] || 0), 0);
-    let refrigeratedCount = refrigeratedContainers.length;
-    
-    // ===== تفاصيل الحجم =====
-    let size20Containers = data.filter(i => i["الحجم"]?.toString().startsWith("2"));
-    let size40Containers = data.filter(i => i["الحجم"]?.toString().startsWith("4"));
-    let size20Count = size20Containers.length;
-    let size40Count = size40Containers.length;
-    let size20Net = size20Containers.reduce((s, i) => s + (i["Net"] || 0), 0);
-    let size40Net = size40Containers.reduce((s, i) => s + (i["Net"] || 0), 0);
-    
-    return `
-        <div style="display: flex; gap: 15px; margin: 0 25px 20px 25px; flex-wrap: wrap;">
-            
-            <!-- بطاقة 1: الإجمالي الكلي -->
-            <div style="flex: 1; background: linear-gradient(135deg, #43e97b, #38f9d7); border-radius: 12px; padding: 15px; text-align: center; color: white;">
-                <div style="font-size: 14px;">📦 الإجمالي الكلي</div>
-                <div style="font-size: 28px; font-weight: bold;">${totalNet}</div>
-                <div style="font-size: 12px;">صافي أيام</div>
-                <div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 11px;">
-                    ${totalCount} حاوية
-                </div>
-            </div>
-            
-            <!-- بطاقة 2: IMPRT + FORWARD -->
-            <div style="flex: 1; background: linear-gradient(135deg, #ff6b6b, #ee5a24); border-radius: 12px; padding: 15px; text-align: center; color: white;">
-                <div style="font-size: 14px;">📥 IMPRT + FORWARD</div>
-                <div style="font-size: 28px; font-weight: bold;">${imprtForwardNet}</div>
-                <div style="font-size: 12px;">صافي أيام</div>
-                <div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 11px;">
-                    ${totalImprtForward.length} حاوية
-                </div>
-            </div>
-            
-            <!-- بطاقة 3: IMPRT (VESSEL) -->
-            <div style="flex: 1; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 12px; padding: 15px; text-align: center; color: white;">
-                <div style="font-size: 14px;">📥 IMPRT (VESSEL)</div>
-                <div style="font-size: 28px; font-weight: bold;">${imprtVesselNet}</div>
-                <div style="font-size: 12px;">صافي أيام</div>
-                <div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 11px;">
-                    ${totalImprtVessel.length} حاوية
-                </div>
-            </div>
-            
-            <!-- بطاقة 4: TRSHP + FORWARD -->
-            <div style="flex: 1; background: linear-gradient(135deg, #ffa07a, #ff6b6b); border-radius: 12px; padding: 15px; text-align: center; color: white;">
-                <div style="font-size: 14px;">🚛 TRSHP + FORWARD</div>
-                <div style="font-size: 28px; font-weight: bold;">${trshpForwardNet}</div>
-                <div style="font-size: 12px;">صافي أيام</div>
-                <div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 11px;">
-                    ${totalTrshpForward.length} حاوية
-                </div>
-            </div>
-            
-            <!-- بطاقة 5: تفاصيل إضافية -->
-            <div style="flex: 1; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <div style="background: #0a3d62; color: white; padding: 8px; text-align: center; font-weight: bold; font-size: 12px;">
-                    📊 تفاصيل إضافية
-                </div>
-                <div style="padding: 10px; font-size: 11px;">
-
-                    <div style="display: flex; justify-content: space-between; padding: 3px 0;">
-                        <span>📦 20 قدم / 40 قدم</span>
-                        <span><strong>${size20Count}</strong> / <strong>${size40Count}</strong> حاوية</span>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// ========== دوال إدارة فترات السماح للتبويب 7 ==========
-function getPeriodsArray7() {
-    return imprtForwardPeriods7;
-}
-
-function setPeriodsArray7(periods) {
-    imprtForwardPeriods7 = periods;
-    localStorage.setItem("imprtForwardPeriodsTab7", JSON.stringify(imprtForwardPeriods7));
-}
-
-// ========== عرض قائمة الفترات للتبويب 7 ==========
-function displayPeriodsList7(containerId) {
-    let sorted = sortPeriods([...imprtForwardPeriods7]);
-    let html = `<table style="width:100%; font-size:12px; border:1px solid #ddd;">
-        <thead>
-            <tr style="background:#f1f3f5;">
-                <th>Line ID</th>
-                <th>تاريخ البدء</th>
-                <th>تاريخ النهاية</th>
-                <th>أيام السماح</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>`;
-    
-    sorted.forEach(period => {
-        let endDisplay = period.endDate || "مفتوحة";
-        
-        html += `<tr>
-            <td>
-                <select class="period-line-7" data-id="${period.id}" style="padding:6px 10px; border-radius:6px;">
-                    <option value="*" ${period.lineId === "*" ? "selected" : ""}>* (الكل)</option>
-                    ${masterLinesList.map(line => `<option value="${line}" ${period.lineId === line ? "selected" : ""}>${line}</option>`).join('')}
-                </select>
-            </td>
-            <td><input type="date" class="period-start-7" data-id="${period.id}" value="${period.startDate || ''}" style="width:130px;"></td>
-            <td style="background:#f8f9fa;">${endDisplay}</td>
-            <td><input type="number" class="period-days-7" data-id="${period.id}" value="${period.freeDays}" style="width:80px;"></td>
-            <td><button onclick="window.deletePeriod7(${period.id})" class="delete-btn">✖ حذف</button></td>
-        </tr>`;
-    });
-    
-    html += `</tbody></table>`;
-    document.getElementById(containerId).innerHTML = html;
-    
-    setTimeout(() => {
-        document.querySelectorAll('.period-line-7').forEach(sel => {
-            sel.onchange = function() {
-                let id = parseInt(this.dataset.id);
-                let p = imprtForwardPeriods7.find(p => p.id === id);
-                if (p) {
-                    p.lineId = this.value;
-                    setPeriodsArray7(imprtForwardPeriods7);
-                    displayPeriodsList7('imprtForwardPeriodsList7');
-                }
-            };
-        });
-        
-        document.querySelectorAll('.period-start-7').forEach(inp => {
-            inp.onchange = function() {
-                let id = parseInt(this.dataset.id);
-                let p = imprtForwardPeriods7.find(p => p.id === id);
-                if (p) {
-                    p.startDate = this.value;
-                    setPeriodsArray7(imprtForwardPeriods7);
-                    displayPeriodsList7('imprtForwardPeriodsList7');
-                }
-            };
-        });
-        
-        document.querySelectorAll('.period-days-7').forEach(inp => {
-            inp.onchange = function() {
-                let id = parseInt(this.dataset.id);
-                let p = imprtForwardPeriods7.find(p => p.id === id);
-                if (p) {
-                    p.freeDays = parseInt(this.value) || 0;
-                    setPeriodsArray7(imprtForwardPeriods7);
-                    this.value = p.freeDays;
-                }
-            };
-        });
-    }, 100);
-}
-
-// ========== حذف فترة للتبويب 7 ==========
-window.deletePeriod7 = function(periodId) {
-    imprtForwardPeriods7 = imprtForwardPeriods7.filter(p => p.id !== periodId);
-    let updated = updateEndDates(imprtForwardPeriods7);
-    setPeriodsArray7(updated);
-    displayPeriodsList7('imprtForwardPeriodsList7');
-    if (containersMap.size > 0) processAndDisplay7();
-};
-
-// ========== إضافة فترة جديدة للتبويب 7 ==========
-function addNewPeriod7() {
-    let newId = nextIdImprtForward7++;
-    let lastStart = new Date().toISOString().split('T')[0];
-    
-    let newPeriod = {
-        id: newId,
-        lineId: "*",
-        startDate: lastStart,
-        endDate: "",
-        freeDays: 0
-    };
-    
-    imprtForwardPeriods7.push(newPeriod);
-    setPeriodsArray7(imprtForwardPeriods7);
-    displayPeriodsList7('imprtForwardPeriodsList7');
-}
-
-// ========== عرض قائمة الاستثناءات للتبويب 7 ==========
-function displayExcludeList7() {
-    let html = '<div style="display:flex; flex-wrap:wrap; gap:10px;">';
-    excludeLines7.forEach((line, idx) => {
-        html += `<span class="exclude-badge">🚫 ${line} <button onclick="window.removeExclude7(${idx})" style="background:none; border:none; color:#721c24; cursor:pointer;">✖</button></span>`;
-    });
-    html += '</div>';
-    if (excludeLines7.length === 0) html = '<span style="color:#6c757d;">لا توجد خطوط مستثناة</span>';
-    document.getElementById('excludeList7').innerHTML = html;
-}
-
-// ========== حذف استثناء للتبويب 7 ==========
-window.removeExclude7 = function(idx) {
-    excludeLines7.splice(idx, 1);
-    localStorage.setItem("excludeLines7", JSON.stringify(excludeLines7));
-    displayExcludeList7();
-    if (containersMap.size > 0) processAndDisplay7();
-};
-
-// ========== أحداث تبويب 7 ==========
-
-// زر إعدادات السماح
-document.getElementById("settingsBtn7").onclick = function() {
-    document.getElementById("settingsPanel7").style.display = "block";
-    displayPeriodsList7('imprtForwardPeriodsList7');
-};
-
-// زر إغلاق الإعدادات
-document.getElementById("closeSettings7").onclick = function() {
-    document.getElementById("settingsPanel7").style.display = "none";
-};
-
-// زر إضافة فترة جديدة
-document.getElementById("addImprtForwardPeriodBtn7").onclick = function() {
-    addNewPeriod7();
-};
-
-// زر حفظ الإعدادات
-document.getElementById("savePeriodsBtn7").onclick = function() {
-    let updated = updateEndDates(imprtForwardPeriods7);
-    setPeriodsArray7(updated);
-    localStorage.setItem("excludeLines7", JSON.stringify(excludeLines7));
-    document.getElementById("settingsPanel7").style.display = "none";
-    if (containersMap.size > 0) processAndDisplay7();
-    document.getElementById("footerMsg").innerHTML = `✅ تم حفظ إعدادات IMPRT + FORWARD`;
-};
-
-// زر إضافة خط للاستثناء
-document.getElementById("addExcludeBtn7").onclick = function() {
-    let line = document.getElementById("excludeLine7").value;
-    if (line && !excludeLines7.includes(line)) {
-        excludeLines7.push(line);
-        localStorage.setItem("excludeLines7", JSON.stringify(excludeLines7));
-        displayExcludeList7();
-        if (containersMap.size > 0) processAndDisplay7();
-        document.getElementById("excludeLine7").value = "";
-    }
-};
-
-// زر الطباعة
-// طباعة تبويب 7
-document.getElementById("printBtn7").onclick = function() {
-    if (currentData7.length > 0) {
-        let carrier = document.getElementById("headerCarrierName")?.innerText || "—";
-        let date = document.getElementById("headerShippingDate")?.innerText || "—";
-        let line = document.getElementById("headerLineId")?.innerText || "—";
-        printReport('tab7', `📥 تقرير IMPRT + FORWARD | 🚢 ${carrier} | 📅 ${date} | 🏷️ ${line}`);
-    } else {
-        alert("لا توجد بيانات للطباعة");
-    }
-};
-
-// زر تصدير Excel
-document.getElementById("exportBtn7").onclick = function() {
-    if (currentData7.length > 0) {
-        let ws = XLSX.utils.json_to_sheet(currentData7);
-        let wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "IMPRT_FORWARD");
-        XLSX.writeFile(wb, `تقرير_IMPRT_FORWARD_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.xlsx`);
-    } else {
-        alert("لا توجد بيانات للتصدير");
-    }
-};
-
-// زر اختيار الأعمدة
-// ربط زر اختيار الأعمدة لتبويب 7
-document.getElementById("selectColumnsBtn7").onclick = function() {
-    openColumnModalTab7();
-};
-
-// البحث والفلترة
-document.getElementById("searchTab7")?.addEventListener("input", function() {
-    renderTable7("bodyTab7", currentData7, "searchTab7", "typeTab7", "statsTab7");
-});
-
-document.getElementById("typeTab7")?.addEventListener("change", function() {
-    renderTable7("bodyTab7", currentData7, "searchTab7", "typeTab7", "statsTab7");
-});
-
-// عرض قائمة الاستثناءات عند التحميل
-displayExcludeList7();
-
 function renderTable6(tbodyId, data, searchId, typeId, statsId) {
     let search = document.getElementById(searchId)?.value.toLowerCase() || "";
     let type = document.getElementById(typeId)?.value || "";
@@ -5992,7 +5111,7 @@ function updateHeaderInfo(tabId) {
         let sourceData = null;
         
         // تحديد مصدر البيانات حسب التبويب
-        if (tabId === '1' || tabId === '2' || tabId === '3' || tabId === '6' || tabId === '7') {
+        if (tabId === '1' || tabId === '2' || tabId === '3' || tabId === '6') {
             // ========== التعديل: استخدام exprtList (المصفوفة) أولاً ==========
             if (container.exprtList && container.exprtList.length > 0) {
                 sourceData = container.exprtList[0];
