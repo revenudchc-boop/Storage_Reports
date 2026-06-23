@@ -824,10 +824,15 @@ function calculateIndependent(days1, free1, days2, free2) {
 }
 
 function renderAdvancedStats(data) {
-    // تصفية الصفوف الصالحة (التي تحتوي على EXPRT Net حقيقي)
+    // ================================================
+    // استبعاد الحالات: O/B Loc Type = TRUCK
+    // ================================================
     let validData = data.filter(item => {
+        // استبعاد إذا كان O/B Loc Type = TRUCK
+        if (item["O/B Loc Type"] === "TRUCK") return false;
+        
         let exprNet = item["EXPRT Net"];
-        return typeof exprNet === "number" && !isNaN(exprNet)
+        return typeof exprNet === "number" && !isNaN(exprNet);
     });
     
     // إذا لم توجد بيانات صالحة، اعرض رسالة
@@ -1578,6 +1583,7 @@ function processAndDisplay1() {
                     "Line ID": lineName,
                     "طريقة الحساب": method,
                     "Flex String 01": flexString01,
+					"O/B Loc Type": ex["O/B Loc Type"] || "",  // ← أضف هذا
                     "Vessel Name": isReturnDray ? "RETURN" : vesselName,
                     "TRSHP Start": trStart,
                     "TRSHP End": trEnd,
