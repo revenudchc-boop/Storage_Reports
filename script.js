@@ -1509,12 +1509,21 @@ function processAndDisplay1() {
                 
                 let trFree = periodFreeMap.get(tr) || 0;
                 
-                let exFree;
-                if (isReturnDray) {
-                    exFree = 0;
-                } else {
-                    exFree = getFreeDays(exprtPeriods1, lineId, exStart, flexString01, drayStatus);
-                }
+				// ===================================================
+				// التعديل 1: حساب EXPRT Free بناءً على O/B Loc Type
+				// ===================================================
+				let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
+				let isTruck = (obLocType === "TRUCK");
+
+				let exFree;
+				if (isTruck) {
+					// O/B Loc Type = TRUCK → لا سماح
+					exFree = 0;
+				} else {
+					// أي حالة أخرى (VESSEL) → يطبق السماح
+					exFree = getFreeDays(exprtPeriods1, lineId, exStart, flexString01, drayStatus);
+				}
+				// ===================================================
                 
                 let trDaysTotal = diffDays(trStart, trEnd);
                 let trNet = trDaysTotal - trFree;
