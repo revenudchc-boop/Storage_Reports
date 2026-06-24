@@ -1530,9 +1530,13 @@ function processAndDisplay1() {
 				}
 				// ===================================================
                 
-                let trDaysTotal = diffDays(trStart, trEnd);
-                let trNet = trDaysTotal - trFree;
-                if (trNet < 0) trNet = 0;
+let trDaysTotal = diffDays(trStart, trEnd);
+let trNet = trDaysTotal - trFree;
+if (trNet < 0) trNet = 0;
+
+// ===== خصم الأيام المشتركة من TRSHP =====
+trNet = trNet - overlapDays;
+if (trNet < 0) trNet = 0;
                 
                 let exNet = exDays - exFree;
                 if (exNet < 0) exNet = 0;
