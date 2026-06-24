@@ -1512,7 +1512,7 @@ function processAndDisplay1() {
                 
                 let flexString01 = tr["Flex String 01"] || "";
                 
-                let trFree = periodFreeMap.get(tr) || 0;
+                let trFree = getFreeDays(trshpPeriods1, lineId, trStart, flexString01, drayStatus);
                 
 				// ===================================================
 				// التعديل 1: حساب EXPRT Free بناءً على O/B Loc Type
@@ -1531,15 +1531,30 @@ function processAndDisplay1() {
 				// ===================================================
                 
 let trDaysTotal = diffDays(trStart, trEnd);
-let trNet = trDaysTotal - trFree;
-if (trNet < 0) trNet = 0;
 
-// ===== خصم الأيام المشتركة من TRSHP =====
+let trNet = 0, exNet = 0;
+
+// ===================================================
+// حساب TRSHP و EXPRT Net باستخدام طريقة السماح المناسبة
+// ===================================================
+if (isExcl) {
+    // سماح مستقل
+    let indResult = calculateIndependent(trDaysTotal, trFree, exDays, exFree, overlapDays);
+    trNet = indResult.net1;
+    exNet = indResult.net2;
+} else {
+    // تداخل سماح
+    let overlapResultCalc = calculateWithOverlap(trDaysTotal, trFree, exDays, exFree);
+    trNet = overlapResultCalc.net1;
+    exNet = overlapResultCalc.net2;
+}
+
+// خصم الأيام المشتركة من كلا الجانبين
 trNet = trNet - overlapDays;
 if (trNet < 0) trNet = 0;
-                
-                let exNet = exDays - exFree;
-                if (exNet < 0) exNet = 0;
+exNet = exNet - overlapDays;
+if (exNet < 0) exNet = 0;
+// ===================================================
                 
                 let resultCalc = { net1: trNet, net2: exNet, total: trNet + exNet };
                 
@@ -4230,7 +4245,7 @@ for (let i = 0; i < sortedPeriods.length; i++) {
             "TRSHP Start": period.start,
             "TRSHP End": period.end,
             "TRSHP Days": days,
-            "TRSHP Free": deduction,
+            "TRSHP Free": freeDays,   // السماح الكلي من الإعدادات
             "TRSHP Net": netDays,
             "Total Net": netDays,
             "Vessel Name": period.vesselName,
@@ -4973,7 +4988,7 @@ function processAndDisplay7() {
             let obLocType = container.imprt["O/B Loc Type"] || "";
             
             // فقط FORWARD أو RETURN أو فارغ
-            if (drayStatus === "FORWARD" || drayStatus === "RETURN" || drayStatus === "") {
+            if (drayStatus === "FORWARD" || drayStatus === "RETURN") {
                 let startTime = container.imprt["Start Time"] || "";
                 let endTime = container.imprt["Rule End Time"] || "";
                 let paidThruDate = container.imprt["PaidThruDate"] || "";
