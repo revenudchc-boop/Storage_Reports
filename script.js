@@ -353,6 +353,7 @@ const availableColumnsTab5 = {
     tab5: [
         { name: "Container No.", label: "رقم الحاوية", default: true },
         { name: "Size", label: "الحجم", default: true },
+		{ name: "Freight Kind", label: "نوع الشحنة", default: true },  // ← أضف هذا
         { name: "Is OOG", label: "OOG", default: false },
         { name: "Is Refrigerated", label: "مبرد", default: false },
         { name: "O/B Loc Type", label: "نوع الموقع", default: true },  // ← تغيير من I/B إلى O/B
@@ -4222,8 +4223,25 @@ for (let i = 0; i < sortedPeriods.length; i++) {
     let displayType = period.obLocType || period.ibLocType || "—";
     
     // ========== أضف هذه الأسطر هنا ==========
-    let hasMultiplePeriods = (sortedPeriods.length > 1);
-    let shouldShow = (type === "RF") || hasMultiplePeriods || (type === "GP" && netDays > 0);
+let hasMultiplePeriods = (sortedPeriods.length > 1);
+
+// ===================================================
+// شرط إظهار الحاوية في تبويب 5
+// ===================================================
+// استخدم المتغيرات الموجودة (لا تعيد تعريفها)
+// ===================================================
+// isRefrigerated موجودة من الأعلى
+// type موجود من الأعلى
+// netDays موجود من الأعلى
+
+let freightKind = period.rawData["Freight Kind"] || "";
+
+// إذا كانت RF و Freight Kind = MTY و Is Refrigerated = false و netDays <= 0 → لا تظهر
+let isInvalidRF = (type === "RF" && freightKind === "MTY" && isRefrigerated === "false" && netDays <= 0);
+
+let shouldShow = (type === "RF" && !isInvalidRF) || hasMultiplePeriods || (type === "GP" && netDays > 0);
+// ===================================================
+// ===================================================
     // =====================================
     
     // لف result.push داخل شرط if
@@ -4231,6 +4249,7 @@ for (let i = 0; i < sortedPeriods.length; i++) {
         result.push({
             "Container No.": id,
             "Size": size,
+			"Freight Kind": period.rawData["Freight Kind"] || "",  // ← أضف هذا
             "Is OOG": isOOG,
             "Is Refrigerated": isRefrigerated,
             "O/B Loc Type": displayType,
@@ -4365,6 +4384,7 @@ function renderTable5(tbodyId, data, searchId, typeId, statsId) {
         row.innerHTML = `
             <td style="font-weight:bold;">${item["Container No."] || "—"}<\/td>
             <td>${item["Size"] || "—"}<\/td>
+			<td>${item["Freight Kind"] || "—"}</td>  <!-- ← أضف هذا -->
             <td>${item["Is OOG"] === "true" ? "✅" : "❌"}<\/td>
             <td>${item["Is Refrigerated"] === "true" ? "✅" : "❌"}<\/td>
             <td>${item["I/B Loc Type"] || "—"}<\/td>
