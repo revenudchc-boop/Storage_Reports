@@ -4971,7 +4971,7 @@ function processAndDisplay7() {
             // فقط FORWARD أو RETURN أو فارغ
             if (drayStatus === "FORWARD" || drayStatus === "RETURN" || drayStatus === "") {
                 let startTime = container.imprt["Start Time"] || "";
-                let endTime = container.imprt["End Time"] || "";
+                let endTime = container.imprt["Rule End Time"] || "";
                 let paidThruDate = container.imprt["PaidThruDate"] || "";
                 
                 if (startTime && endTime) {
