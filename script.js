@@ -1550,11 +1550,11 @@ if (isExcl) {
     exNet = overlapResultCalc.net2;
 }
 
-// خصم الأيام المشتركة من كلا الجانبين
+// خصم الأيام المشتركة من TRSHP فقط
 trNet = trNet - overlapDays;
 if (trNet < 0) trNet = 0;
-exNet = exNet - overlapDays;
-if (exNet < 0) exNet = 0;
+// لا تخصم الأيام المشتركة من EXPRT
+// ===================================================
 // ===================================================
                 
                 let resultCalc = { net1: trNet, net2: exNet, total: trNet + exNet };
