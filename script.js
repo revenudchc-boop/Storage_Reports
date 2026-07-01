@@ -1474,6 +1474,9 @@ function processAndDisplay1() {
         
         let orderedForDeduction = [...vesselPeriods, ...truckPeriods];
         
+        // ===================================================
+        // بناء periodFreeMap لتوزيع السماح على فترات TRSHP
+        // ===================================================
         let remainingFree = totalFreeDays;
         let periodFreeMap = new Map();
         
@@ -1481,11 +1484,44 @@ function processAndDisplay1() {
             let trStart = convertDate(tr["Start Time"]);
             let trEnd = convertDate(tr["End Time"]);
             let trDays = diffDays(trStart, trEnd);
+            let key = trStart + "|" + trEnd;
             
             let deduction = Math.min(trDays, remainingFree);
-            periodFreeMap.set(tr, deduction);
+            periodFreeMap.set(key, deduction);
             remainingFree -= deduction;
         }
+        // ===================================================
+        
+        // ===================================================
+        // حساب EXPRT Free من أول EXPRT (للخصم من السماح الكلي)
+        // ===================================================
+        let exFreeForDeduction = 0;
+        for (let ex of exprtList) {
+            let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
+            let isTruck = (obLocType === "TRUCK");
+            if (!isTruck) {
+                let exStart = convertDate(ex["Rule Start Time"] || "");
+                exFreeForDeduction = getFreeDays(exprtPeriods1, lineId, exStart, "", "");
+                break;
+            }
+        }
+        
+        // حساب إجمالي أيام EXPRT
+        let totalExprtDays = 0;
+        for (let ex of exprtList) {
+            let exStart = convertDate(ex["Rule Start Time"] || "");
+            let exEnd = convertDate(ex["Rule End Time"] || "");
+            totalExprtDays += diffDays(exStart, exEnd);
+        }
+        
+        // السماح المتبقي بعد خصم EXPRT
+        let remainingFreeForTrshp = totalFreeDays - Math.min(totalExprtDays, exFreeForDeduction);
+        // ===================================================
+        
+        // ===================================================
+        // توزيع السماح المتبقي على فترات TRSHP (يبدأ من أول فترة)
+        // ===================================================
+        let remainingFreeTrshp = remainingFreeForTrshp;
         
         for (let tr of trshpArray) {
             let drayStatus = tr ? (tr["Dray Status"] || "") : "";
@@ -1493,14 +1529,29 @@ function processAndDisplay1() {
             
             if (isReturn) continue;
             
+            // حساب trDaysTotal لهذه الفترة
+            let trStart = convertDate(tr["Start Time"] || "");
+            let trEnd = convertDate(tr["End Time"] || "");
+            let trDaysTotal = diffDays(trStart, trEnd);
+            
+            // خصم السماح المتبقي من هذه الفترة
+            let deduction = Math.min(trDaysTotal, remainingFreeTrshp);
+            let trNetPeriod = trDaysTotal - deduction;
+            remainingFreeTrshp -= deduction;
+            
+            // ===================================================
+            // الحصول على سماح TRSHP من periodFreeMap
+            // ===================================================
+            let key = trStart + "|" + trEnd;
+            let trFree = periodFreeMap.get(key) || 0;
+            // ===================================================
+            
             for (let ex of exprtList) {
                 let isExcl = isExcluded(lineId, excludeLines1);
                 
                 let exDrayStatus = ex["Dray Status"] || "";
                 let isReturnDray = (exDrayStatus === "RETURN");
                 
-                let trStart = convertDate(tr["Start Time"] || "");
-                let trEnd = convertDate(tr["End Time"] || "");
                 let exStart = convertDate(ex["Rule Start Time"] || "");
                 let exEnd = convertDate(ex["Rule End Time"] || "");
                 
@@ -1513,49 +1564,23 @@ function processAndDisplay1() {
                 
                 let flexString01 = tr["Flex String 01"] || "";
                 
-                let trFree = getFreeDays(trshpPeriods1, lineId, trStart, flexString01, drayStatus);
+                // حساب EXPRT Free
+                let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
+                let isTruck = (obLocType === "TRUCK");
+
+                let exFree;
+                if (isTruck) {
+                    exFree = 0;
+                } else {
+                    exFree = getFreeDays(exprtPeriods1, lineId, exStart, flexString01, drayStatus);
+                }
                 
-				// ===================================================
-				// التعديل 1: حساب EXPRT Free بناءً على O/B Loc Type
-				// ===================================================
-				let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
-				let isTruck = (obLocType === "TRUCK");
+// خصم الأيام المشتركة من TRSHP و EXPRT
+let exNet = exDays - Math.min(exDays, exFree) - overlapDays;
+if (exNet < 0) exNet = 0;
 
-				let exFree;
-				if (isTruck) {
-					// O/B Loc Type = TRUCK → لا سماح
-					exFree = 0;
-				} else {
-					// أي حالة أخرى (VESSEL) → يطبق السماح
-					exFree = getFreeDays(exprtPeriods1, lineId, exStart, flexString01, drayStatus);
-				}
-				// ===================================================
-                
-let trDaysTotal = diffDays(trStart, trEnd);
-
-let trNet = 0, exNet = 0;
-
-// ===================================================
-// حساب TRSHP و EXPRT Net باستخدام طريقة السماح المناسبة
-// ===================================================
-if (isExcl) {
-    // سماح مستقل
-    let indResult = calculateIndependent(trDaysTotal, trFree, exDays, exFree, overlapDays);
-    trNet = indResult.net1;
-    exNet = indResult.net2;
-} else {
-    // تداخل سماح
-    let overlapResultCalc = calculateWithOverlap(trDaysTotal, trFree, exDays, exFree);
-    trNet = overlapResultCalc.net1;
-    exNet = overlapResultCalc.net2;
-}
-
-// خصم الأيام المشتركة من TRSHP فقط
-trNet = trNet - overlapDays;
+let trNet = trNetPeriod - overlapDays;
 if (trNet < 0) trNet = 0;
-// لا تخصم الأيام المشتركة من EXPRT
-// ===================================================
-// ===================================================
                 
                 let resultCalc = { net1: trNet, net2: exNet, total: trNet + exNet };
                 
@@ -1575,8 +1600,6 @@ if (trNet < 0) trNet = 0;
                 
                 let isVessel = (tr["I/B Loc Type"] || "") === "VESSEL";
                 
-                // ========== شرط إخفاء بيانات EXPRT ==========
-                // إخفاء فقط إذا كانت VESSEL ويوجد فترات TRUCK أو TRSHP أخرى
                 let hasOtherPeriods = false;
                 for (let otherTr of trshpArray) {
                     if (otherTr !== tr) {
@@ -1603,7 +1626,7 @@ if (trNet < 0) trNet = 0;
                     "Line ID": lineName,
                     "طريقة الحساب": method,
                     "Flex String 01": flexString01,
-					"O/B Loc Type": ex["O/B Loc Type"] || "",  // ← أضف هذا
+                    "O/B Loc Type": ex["O/B Loc Type"] || "",
                     "Vessel Name": isReturnDray ? "RETURN" : vesselName,
                     "TRSHP Start": trStart,
                     "TRSHP End": trEnd,
@@ -1621,6 +1644,7 @@ if (trNet < 0) trNet = 0;
                 });
             }
         }
+        // ===================================================
     }
     
     currentData1 = result;
