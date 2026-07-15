@@ -1597,8 +1597,9 @@ function processAndDisplay1() {
                 // ===================================================
                 // خصم الأيام المشتركة من TRSHP و EXPRT
                 // ===================================================
-                let exNet = exDays - Math.min(exDays, exFree) - overlapDays;
-                if (exNet < 0) exNet = 0;
+				let exNet = exDays - Math.min(exDays, exFree);
+				if (exNet < 0) exNet = 0;
+				// لا نخصم overlapDays من EXPRT
 
                 let trNet = trNetPeriod - overlapDays;
                 if (trNet < 0) trNet = 0;
