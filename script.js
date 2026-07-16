@@ -46,7 +46,7 @@ let selectedColumnsTab6 = JSON.parse(localStorage.getItem("selectedColumns_tab6"
 
 // قائمة رئيسية موحدة للخطوط (مخزنة في LocalStorage)
 // قائمة رئيسية موحدة للخطوط (تحديث تلقائي للقائمة الافتراضية)
-let defaultLinesList = ["MSC", "ZIM", "VALOR", "YMl", "Msk", "CMA", "hlc", "COS", "coe", "ONE", "HMM"];
+let defaultLinesList = ["MSC", "ZIM", "ALP", "YML", "MSK", "CMA", "HLC", "COS", "COE", "ONE", "HMM", "KLN", "UAS", "ARK", "SJK", "HSD", "BMC", "LITC", "PLS", "MSL", "CSL", "OVP", "SID", "SLG", "WEC", "TCS", "TSM", "OOCL", "EMES", "MDK", "MKL", "VUX", "OWV", "NNS", "ARRC", "ADM", "HAI", "BWL", "LOT", "MED", "SLS", "VOL", "REL", "WSHI"];
 let savedList = localStorage.getItem("masterLinesList");
 if (savedList) {
     masterLinesList = JSON.parse(savedList);
