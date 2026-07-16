@@ -1425,6 +1425,9 @@ function processAndDisplay1() {
         let exprtList = container.exprtList || [];
         
         if (trshpArray.length === 0 || exprtList.length === 0) continue;
+		
+		 let hasReturnTrshp = trshpArray.some(tr => (tr["Dray Status"] || "") === "RETURN");
+    if (hasReturnTrshp) continue;
         
         // ترتيب فترات TRSHP حسب التاريخ
         let sortedTrshp = [...trshpArray].sort((a, b) => 
