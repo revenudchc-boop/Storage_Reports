@@ -1454,6 +1454,7 @@ function processAndDisplay1() {
             let drayStatus = firstTr["Dray Status"] || "";
             totalFreeDays = getFreeDays(trshpPeriods1, lineId, convertDate(firstTr["Start Time"]), flexString01, drayStatus);
         }
+
         
         // ترتيب الفترات حسب I/B Loc Type: VESSEL أولاً ثم TRUCK
         let vesselPeriods = [];
@@ -1504,16 +1505,17 @@ function processAndDisplay1() {
         // ===================================================
         // حساب EXPRT Free من أول EXPRT (للخصم من السماح الكلي)
         // ===================================================
-        let exFreeForDeduction = 0;
-        for (let ex of exprtList) {
-            let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
-            let isTruck = (obLocType === "TRUCK");
-            if (!isTruck) {
-                let exStart = convertDate(ex["Rule Start Time"] || "");
-                exFreeForDeduction = getFreeDays(exprtPeriods1, lineId, exStart, "", "");
-                break;
-            }
-        }
+		let exFreeForDeduction = 0;
+		for (let ex of exprtList) {
+			let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
+			let isTruck = (obLocType === "TRUCK");
+			if (!isTruck) {
+				let exStart = convertDate(ex["Rule Start Time"] || "");
+				let flexString01 = ex["Flex String 01"] || "";  // ← استخدم Flex من EXPRT
+				exFreeForDeduction = getFreeDays(exprtPeriods1, lineId, exStart, flexString01, "");
+				break;
+			}
+		}
         
         // حساب إجمالي أيام EXPRT
         let totalExprtDays = 0;
