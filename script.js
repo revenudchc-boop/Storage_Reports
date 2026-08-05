@@ -5893,8 +5893,8 @@ function renderAdvancedStatsTab6(data) {
             </div>
 			    <div style="flex: 1; background: linear-gradient(135deg, #4facfe, #00f2fe); border-radius: 12px; padding: 15px; text-align: center; color: white;">
                 <div style="font-size: 14px;">❄️ الحاويات المبردة (RF)</div>
-                <div style="font-size: 28px; font-weight: bold;">${refrigeratedCount}</div>
-                <div style="font-size: 12px;">عدد الحاويات</div>
+				<div style="font-size: 28px; font-weight: bold;">${refrigeratedStrgeNet + refrigeratedExprtNet}</div>
+				<div style="font-size: 12px;">إجمالي أيام المبردة</div>
                 <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 12px;">
                     <div>📦 إجمالي STRGE: ${refrigeratedStrgeNet} يوم</div>
                     <div>📤 إجمالي EXPRT: ${refrigeratedExprtNet} يوم</div>
