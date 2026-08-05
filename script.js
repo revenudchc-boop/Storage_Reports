@@ -5871,6 +5871,10 @@ function renderAdvancedStatsTab6(data) {
     let refrigeratedCount = refrigeratedContainers.length;
     let refrigeratedStrgeNet = refrigeratedContainers.reduce((s, i) => s + (i["STRGE Net"] || 0), 0);
     let refrigeratedExprtNet = refrigeratedContainers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
+	    // ========== أضف هذا السطر هنا ==========
+    let refrigeratedDays = refrigeratedContainers.reduce((s, i) => s + (i["EXPRT Days"] || 0), 0);
+    // =====================================
+
     
     let refrigerated20 = refrigeratedContainers.filter(i => i["Size"]?.toString().startsWith("2"));
     let refrigerated40 = refrigeratedContainers.filter(i => i["Size"]?.toString().startsWith("4"));
@@ -5893,8 +5897,8 @@ function renderAdvancedStatsTab6(data) {
             </div>
 			    <div style="flex: 1; background: linear-gradient(135deg, #4facfe, #00f2fe); border-radius: 12px; padding: 15px; text-align: center; color: white;">
                 <div style="font-size: 14px;">❄️ الحاويات المبردة (RF)</div>
-				<div style="font-size: 28px; font-weight: bold;">${refrigeratedStrgeNet + refrigeratedExprtNet}</div>
-				<div style="font-size: 12px;">إجمالي أيام المبردة</div>
+				<div style="font-size: 28px; font-weight: bold;">${refrigeratedDays}</div>
+				<div style="font-size: 12px;">إجمالي أيام EXPRT للمبردة</div>
                 <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 12px;">
                     <div>📦 إجمالي STRGE: ${refrigeratedStrgeNet} يوم</div>
                     <div>📤 إجمالي EXPRT: ${refrigeratedExprtNet} يوم</div>
