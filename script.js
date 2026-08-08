@@ -389,6 +389,7 @@ const availableColumnsTab6 = {
         { name: "Line ID", label: "الخط", default: true },
         { name: "طريقة الحساب", label: "طريقة الحساب", default: false },
         { name: "Flex String 01", label: "Flex String 01", default: false },
+		{ name: "flex_04", label: "flex_04", default: false },  // ← أضف هذا
         { name: "STRGE Start", label: "بداية STRGE", default: true },
         { name: "STRGE End", label: "نهاية STRGE", default: true },
         { name: "STRGE Days", label: "أيام STRGE", default: true },
@@ -4997,6 +4998,7 @@ function processAndDisplay6() {
                 "Line ID": lineId,
                 "طريقة الحساب": method,
                 "Flex String 01": flexString01,
+				"flex_04": ex["Flex String 04"] || "",  // ← أضف هذا السطر
                 "STRGE Start": stStart,
                 "STRGE End": stEnd,
                 "STRGE Days": stDays,
@@ -5834,6 +5836,7 @@ function renderTable6(tbodyId, data, searchId, typeId, statsId) {
                 <td>${item["Line ID"] || "—"}<\/td>
                 <td><span class="${methodClass}">${item["طريقة الحساب"] || "—"}</span><\/td>
                 <td>${flexHtml}<\/td>
+				<td>${item["flex_04"] || "—"}</td>  <!-- ← أضف هذا السطر -->
                 <td>${item["STRGE Start"] || "—"}<\/td>
                 <td>${item["STRGE End"] || "—"}<\/td>
                 <td style="background:#e3f2fd;">${item["STRGE Days"] || "—"}<\/td>
@@ -6074,27 +6077,29 @@ function renderTable6WithSelectedColumns(tbodyId, data, searchId, typeId, statsI
             let cell = row.insertCell();
             let value = item[colName];
             
-            if (["Is OOG", "Is Refrigerated", "Is Bundled", "Is Hazardous"].includes(colName)) {
-                cell.textContent = value === "true" ? "✅" : "❌";
-            } else if (colName === "طريقة الحساب") {
-                let methodClass = value === "🚫 سماح مستقل" ? "exclude-badge" : "method-badge";
-                cell.innerHTML = `<span class="${methodClass}">${value || "—"}</span>`;
-            } else if (colName === "Flex String 01") {
-                if (value === "TRUE") {
-                    cell.innerHTML = '<span style="background:#ff6b6b; color:white; padding:2px 8px; border-radius:12px;">⭐ خاص</span>';
-                } else if (value === "FALSE") {
-                    cell.innerHTML = '<span style="background:#4facfe; color:white; padding:2px 8px; border-radius:12px;">📋 عادي</span>';
-                } else {
-                    cell.textContent = "—";
-                }
-            } else if (colName === "Container No.") {
-                cell.textContent = value || "—";
-                cell.style.fontWeight = "bold";
-            } else if (colName === "Type") {
-                cell.innerHTML = `<strong>${value || "—"}</strong>`;
-            } else {
-                cell.textContent = value || "—";
-            }
+			if (["Is OOG", "Is Refrigerated", "Is Bundled", "Is Hazardous"].includes(colName)) {
+				cell.textContent = value === "true" ? "✅" : "❌";
+			} else if (colName === "طريقة الحساب") {
+				let methodClass = value === "🚫 سماح مستقل" ? "exclude-badge" : "method-badge";
+				cell.innerHTML = `<span class="${methodClass}">${value || "—"}</span>`;
+			} else if (colName === "Flex String 01") {
+				if (value === "TRUE") {
+					cell.innerHTML = '<span style="background:#ff6b6b; color:white; padding:2px 8px; border-radius:12px;">⭐ خاص</span>';
+				} else if (value === "FALSE") {
+					cell.innerHTML = '<span style="background:#4facfe; color:white; padding:2px 8px; border-radius:12px;">📋 عادي</span>';
+				} else {
+					cell.textContent = "—";
+				}
+			} else if (colName === "flex_04") {  // ← أضف هذا الشرط
+				cell.textContent = value || "—";
+			} else if (colName === "Container No.") {
+				cell.textContent = value || "—";
+				cell.style.fontWeight = "bold";
+			} else if (colName === "Type") {
+				cell.innerHTML = `<strong>${value || "—"}</strong>`;
+			} else {
+				cell.textContent = value || "—";
+			}
         });
     }
     
