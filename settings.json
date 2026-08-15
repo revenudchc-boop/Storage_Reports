@@ -77,9 +77,9 @@
     ],
 
     "exprtPeriodsTab1": [
-        {"id": 1, "category": "EXPRT", "lineId": "MSC", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
-        {"id": 2, "category": "EXPRT", "lineId": "ZIM", "drayStatus": "RETURN", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 5},
-        {"id": 3, "category": "EXPRT", "lineId": "ALP", "drayStatus": "FORWARD", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays":57}
+        {"id": 1, "category": "EXPRT", "lineId": "*", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
+        {"id": 2, "category": "EXPRT", "lineId": "*", "drayStatus": "RETURN", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 5},
+        {"id": 3, "category": "EXPRT", "lineId": "*", "drayStatus": "FORWARD", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays":5}
 
     ],
 
@@ -152,18 +152,18 @@
     ],
 
     "exprtPeriodsTab2": [
-        {"id": 1, "category": "EXPRT", "lineId": "MSC", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
-        {"id": 2, "category": "EXPRT", "lineId": "ZIM", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
-        {"id": 3, "category": "EXPRT", "lineId": "ALP", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7}
+        {"id": 1, "category": "EXPRT", "lineId": "*", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
+        {"id": 2, "category": "EXPRT", "lineId": "*", "drayStatus": "RETURN", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 5},
+        {"id": 3, "category": "EXPRT", "lineId": "*", "drayStatus": "FORWARD", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays":5}
 
     ],
 
     "excludeLines2": ["MSC"],
 
     "exprtOnlyPeriodsTab3": [
-        {"id": 1, "category": "EXPRT", "lineId": "MSC", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
-        {"id": 2, "category": "EXPRT", "lineId": "ZIM", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
-        {"id": 3, "category": "EXPRT", "lineId": "ALP", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7}
+        {"id": 1, "category": "EXPRT", "lineId": "*", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
+        {"id": 2, "category": "EXPRT", "lineId": "*", "drayStatus": "RETURN", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 5},
+        {"id": 3, "category": "EXPRT", "lineId": "*", "drayStatus": "FORWARD", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays":5}
 
     ],
 
@@ -372,9 +372,9 @@
     ],
 
     "exprtPeriodsTab6": [
-        {"id": 1, "category": "EXPRT", "lineId": "MSC", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
-        {"id": 2, "category": "EXPRT", "lineId": "ZIM", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
-        {"id": 3, "category": "EXPRT", "lineId": "ALP", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7}
+        {"id": 1, "category": "EXPRT", "lineId": "*", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
+        {"id": 2, "category": "EXPRT", "lineId": "*", "drayStatus": "RETURN", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 5},
+        {"id": 3, "category": "EXPRT", "lineId": "*", "drayStatus": "FORWARD", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays":5}
 
     ],
 
