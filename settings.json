@@ -77,10 +77,10 @@
     ],
 
     "exprtPeriodsTab1": [
-    {"id": 1, "category": "EXPRT", "lineId": "*", "drayStatus": "", "flexString01": "FALSE", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
-    {"id": 2, "category": "EXPRT", "lineId": "*", "drayStatus": "", "flexString01": "TRUE", "startDate": "2026-01-01", "endDate": "", "freeDays": 5},
-    {"id": 3, "category": "EXPRT", "lineId": "*", "drayStatus": "FORWARD", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 5}
-],
+        {"id": 1, "category": "EXPRT", "lineId": "*", "drayStatus": "", "flexString01": "FALSE", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
+        {"id": 2, "category": "EXPRT", "lineId": "*", "drayStatus": "", "flexString01": "TRUE", "startDate": "2026-01-01", "endDate": "", "freeDays": 5},
+        {"id": 3, "category": "EXPRT", "lineId": "*", "drayStatus": "FORWARD", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 5}
+    ],
 
     "excludeLines1": ["MSC"],
 
@@ -154,7 +154,6 @@
         {"id": 1, "category": "EXPRT", "lineId": "*", "drayStatus": "", "flexString01": "FALSE", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
         {"id": 2, "category": "EXPRT", "lineId": "*", "drayStatus": "", "flexString01": "TRUE", "startDate": "2026-01-01", "endDate": "", "freeDays": 5},
         {"id": 3, "category": "EXPRT", "lineId": "*", "drayStatus": "FORWARD", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 5}
-
     ],
 
     "excludeLines2": ["MSC"],
@@ -162,8 +161,7 @@
     "exprtOnlyPeriodsTab3": [
         {"id": 1, "category": "EXPRT", "lineId": "*", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
         {"id": 2, "category": "EXPRT", "lineId": "*", "drayStatus": "RETURN", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 5},
-        {"id": 3, "category": "EXPRT", "lineId": "*", "drayStatus": "FORWARD", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays":5}
-
+        {"id": 3, "category": "EXPRT", "lineId": "*", "drayStatus": "FORWARD", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 5}
     ],
 
     "excludeLines3": [],
@@ -454,7 +452,7 @@
         "tab5": ["Container No.", "Size", "Freight Kind", "Is OOG", "Is Refrigerated", "Is Hazardous", "Flex String 01", "flex_04", "TRSHP Start", "TRSHP End", "TRSHP Days", "TRSHP Net", "Vessel Name"],
         "tab6": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "flex_04", "Is Hazardous", "Flex String 01", "STRGE Start", "STRGE End", "STRGE Net", "EXPRT Start", "EXPRT End", "EXPRT Days", "Vessel Name"],
         "tab7": ["رقم الحاوية", "الحجم", "OOG", "ثلاجه", "خطر", "IMDG", "النوع", "نوع", "Start Time", "PaidThruDate", "Start (Paid+1)", "End", "Days", "Free", "Net", "Vessel Name"]
-}
+    },
 
     "savedExcelFile": "",
     "savedExcelFileName": ""
