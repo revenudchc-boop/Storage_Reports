@@ -79,7 +79,7 @@
     "exprtPeriodsTab1": [
         {"id": 1, "category": "EXPRT", "lineId": "MSC", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
         {"id": 2, "category": "EXPRT", "lineId": "ZIM", "drayStatus": "RETURN", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 5},
-        {"id": 3, "category": "EXPRT", "lineId": "ALP", "drayStatus": "FORWARD", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays":57},
+        {"id": 3, "category": "EXPRT", "lineId": "ALP", "drayStatus": "FORWARD", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays":57}
 
     ],
 
@@ -154,7 +154,7 @@
     "exprtPeriodsTab2": [
         {"id": 1, "category": "EXPRT", "lineId": "MSC", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
         {"id": 2, "category": "EXPRT", "lineId": "ZIM", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
-        {"id": 3, "category": "EXPRT", "lineId": "ALP", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
+        {"id": 3, "category": "EXPRT", "lineId": "ALP", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7}
 
     ],
 
@@ -163,7 +163,7 @@
     "exprtOnlyPeriodsTab3": [
         {"id": 1, "category": "EXPRT", "lineId": "MSC", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
         {"id": 2, "category": "EXPRT", "lineId": "ZIM", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
-        {"id": 3, "category": "EXPRT", "lineId": "ALP", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
+        {"id": 3, "category": "EXPRT", "lineId": "ALP", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7}
 
     ],
 
@@ -374,7 +374,7 @@
     "exprtPeriodsTab6": [
         {"id": 1, "category": "EXPRT", "lineId": "MSC", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
         {"id": 2, "category": "EXPRT", "lineId": "ZIM", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
-        {"id": 3, "category": "EXPRT", "lineId": "ALP", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7},
+        {"id": 3, "category": "EXPRT", "lineId": "ALP", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 7}
 
     ],
 
