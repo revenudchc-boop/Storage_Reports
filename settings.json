@@ -447,7 +447,7 @@
     "excludeLines7": [],
 
     "selectedColumns": {
-        "tab1": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "flex_04", "Is Bundled", "Is Hazardous", "IMDG Class", "Type", "Line ID", "طريقة الحساب", "Flex String 01", "TRSHP Start", "TRSHP End", "TRSHP Days", "أيام مشتركة", "TRSHP بعد الخصم", "TRSHP Free", "TRSHP Net", "EXPRT Start", "EXPRT End", "EXPRT Days", "EXPRT Free", "EXPRT Net", "Total Net", "Vessel Name"],
+        "tab1": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "flex_04", "Is Hazardous", "Type", "Line ID", "Flex String 01", "TRSHP Start", "TRSHP End", "TRSHP Days", "TRSHP Net", "EXPRT Start", "EXPRT End", "EXPRT Days", "Vessel Name"],
         "tab2": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "Is Bundled", "Is Hazardous", "IMDG Class", "Type", "Line ID", "طريقة الحساب", "Flex String 01", "نوع IMPRT", "📥 IMPRT Start", "📥 IMPRT End", "📥 IMPRT Days", "📦 STRGE Start", "📦 STRGE End", "📦 STRGE Days", "أيام مشتركة", "STRGE بعد الخصم", "STRGE Free", "STRGE Net", "📤 EXPRT Start", "📤 EXPRT End", "EXPRT Days", "EXPRT Free", "EXPRT Net", "Total Net", "Vessel Name"],
         "tab3": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "Is Bundled", "Is Hazardous", "IMDG Class", "Type", "Line ID", "طريقة الحساب", "Flex String 01", "EXPRT Start", "EXPRT End", "EXPRT Days", "EXPRT Free", "EXPRT Net", "Total Net", "Vessel Name"],
         "tab4": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "Is Bundled", "Is Hazardous", "IMDG Class", "Type", "Line ID", "طريقة الحساب", "Flex String 01", "📥 IMPRT Start", "📥 IMPRT End", "📥 IMPRT Days", "📦 STRGE فارغ Start", "📦 STRGE فارغ End", "📦 STRGE فارغ Days", "STRGE Free", "STRGE Net", "Total Net", "Vessel Name"],
