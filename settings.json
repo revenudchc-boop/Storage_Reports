@@ -447,13 +447,13 @@
     "excludeLines7": [],
 
     "selectedColumns": {
-        "tab1": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "flex_04", "Is Hazardous", "Type", "Line ID", "Flex String 01", "TRSHP Start", "TRSHP End", "TRSHP Net", "EXPRT Start", "EXPRT End", "EXPRT Days", "Vessel Name"],
-        "tab2": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "Is Bundled", "Is Hazardous", "IMDG Class", "Type", "Line ID", "طريقة الحساب", "Flex String 01", "نوع IMPRT", "📥 IMPRT Start", "📥 IMPRT End", "📥 IMPRT Days", "📦 STRGE Start", "📦 STRGE End", "📦 STRGE Days", "أيام مشتركة", "STRGE بعد الخصم", "STRGE Free", "STRGE Net", "📤 EXPRT Start", "📤 EXPRT End", "EXPRT Days", "EXPRT Free", "EXPRT Net", "Total Net", "Vessel Name"],
-        "tab3": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "Is Bundled", "Is Hazardous", "IMDG Class", "Type", "Line ID", "طريقة الحساب", "Flex String 01", "EXPRT Start", "EXPRT End", "EXPRT Days", "EXPRT Free", "EXPRT Net", "Total Net", "Vessel Name"],
-        "tab4": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "Is Bundled", "Is Hazardous", "IMDG Class", "Type", "Line ID", "طريقة الحساب", "Flex String 01", "📥 IMPRT Start", "📥 IMPRT End", "📥 IMPRT Days", "📦 STRGE فارغ Start", "📦 STRGE فارغ End", "📦 STRGE فارغ Days", "STRGE Free", "STRGE Net", "Total Net", "Vessel Name"],
-        "tab5": ["Container No.", "Size", "Freight Kind", "Is OOG", "Is Refrigerated", "Is Bundled", "Is Hazardous", "IMDG Class", "Type", "Line ID", "طريقة الحساب", "Flex String 01", "flex_04", "TRSHP Start", "TRSHP End", "TRSHP Days", "TRSHP Free", "TRSHP Net", "Total Net", "Vessel Name"],
-        "tab6": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "Is Bundled", "Is Hazardous", "IMDG Class", "Type", "Line ID", "طريقة الحساب", "Flex String 01", "STRGE Start", "STRGE End", "STRGE Days", "أيام مشتركة", "STRGE بعد الخصم", "STRGE Free", "STRGE Net", "EXPRT Start", "EXPRT End", "EXPRT Days", "EXPRT Free", "EXPRT Net", "Total Net", "Vessel Name"],
-        "tab7": ["رقم الحاوية", "الحجم", "OOG", "ثلاجه", "خطر", "IMDG", "النوع", "الخط", "نوع", "Start Time", "PaidThruDate", "Start (Paid+1)", "End", "Days", "Free", "Net", "Vessel Name"]
+        "tab1": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "flex_04", "Is Hazardous", "Flex String 01", "TRSHP Start", "TRSHP End", "TRSHP Net", "EXPRT Start", "EXPRT End", "EXPRT Days", "Vessel Name"],
+        "tab2": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "flex_04", "Is Hazardous", "Flex String 01", "📥 IMPRT Start", "📥 IMPRT End", "📦 STRGE Start", "📦 STRGE End", "STRGE Net", "📤 EXPRT Start", "📤 EXPRT End", "EXPRT Days", "Vessel Name"],
+        "tab3": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "flex_04", "Is Hazardous", "Flex String 01", "EXPRT Start", "EXPRT End", "EXPRT Days", "EXPRT Free", "EXPRT Net", "Total Net", "Vessel Name"],
+        "tab4": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "flex_04", "Is Hazardous", "Flex String 01", "📥 IMPRT End""📦 STRGE فارغ Start", "📦 STRGE فارغ End", "STRGE Net", "Vessel Name"],
+        "tab5": ["Container No.", "Size", "Freight Kind", "Is OOG", "Is Refrigerated", "Is Hazardous", "Flex String 01", "flex_04", "TRSHP Start", "TRSHP End", "TRSHP Days", "TRSHP Net", "Vessel Name"],
+        "tab6": ["Container No.", "Size", "Is OOG", "Is Refrigerated", "Is Hazardous", "Flex String 01", "STRGE Start", "STRGE End", "STRGE Net", "EXPRT Start", "EXPRT End", "EXPRT Days", "Vessel Name"],
+        "tab7": ["رقم الحاوية", "الحجم", "OOG", "ثلاجه", "خطر", "IMDG", "النوع", "نوع", "Start Time", "PaidThruDate", "Start (Paid+1)", "End", "Days", "Free", "Net", "Vessel Name"]
     },
 
     "savedExcelFile": "",
