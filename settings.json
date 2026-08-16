@@ -297,7 +297,8 @@
         {"id": 60, "category": "TRSHP", "lineId": "ESL", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
         {"id": 61, "category": "TRSHP", "lineId": "SIV", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
         {"id": 62, "category": "TRSHP", "lineId": "SFT", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
-        {"id": 63, "category": "TRSHP", "lineId": "ROD", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15}
+        {"id": 63, "category": "TRSHP", "lineId": "ROD", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
+        {"id": 64, "category": "TRSHP", "lineId": "MSC", "drayStatus": "", "flexString01": "", "startDate": "2026-02-01", "endDate": "", "freeDays": 23}
     ],
 
     "excludeLines5": [],
