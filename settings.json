@@ -235,7 +235,7 @@
     "excludeLines4": [],
 
     "trshpOnlyPeriodsTab5": [
-        {"id": 1, "category": "TRSHP", "lineId": "MSC", "drayStatus": "", "flexString01": "", "startDate": "2025-12-01", "endDate": "", "freeDays": 25},
+        {"id": 1, "category": "TRSHP", "lineId": "MSC", "drayStatus": "", "flexString01": "", "startDate": "2025-12-01", "endDate": "2026-02-28", "freeDays": 23},
         {"id": 2, "category": "TRSHP", "lineId": "ZIM", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 20},
         {"id": 3, "category": "TRSHP", "lineId": "ALP", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 25},
         {"id": 4, "category": "TRSHP", "lineId": "YML", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 20},
@@ -298,7 +298,7 @@
         {"id": 61, "category": "TRSHP", "lineId": "SIV", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
         {"id": 62, "category": "TRSHP", "lineId": "SFT", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
         {"id": 63, "category": "TRSHP", "lineId": "ROD", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
-        {"id": 64, "category": "TRSHP", "lineId": "MSC", "drayStatus": "", "flexString01": "", "startDate": "2026-02-01", "endDate": "", "freeDays": 23}
+        {"id": 64, "category": "TRSHP", "lineId": "MSC", "drayStatus": "", "flexString01": "", "startDate": "2026-03-01", "endDate": "", "freeDays": 25}
     ],
 
     "excludeLines5": [],
