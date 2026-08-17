@@ -244,7 +244,7 @@
         {"id": 7, "category": "TRSHP", "lineId": "HLC", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 20},
         {"id": 8, "category": "TRSHP", "lineId": "COS", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
         {"id": 9, "category": "TRSHP", "lineId": "COE", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
-        {"id": 10, "category": "TRSHP", "lineId": "ONE", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 50},
+        {"id": 10, "category": "TRSHP", "lineId": "ONE", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 20},
         {"id": 11, "category": "TRSHP", "lineId": "HMM", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 20},
         {"id": 12, "category": "TRSHP", "lineId": "KLN", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
         {"id": 13, "category": "TRSHP", "lineId": "UAS", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
