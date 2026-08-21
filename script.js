@@ -65,6 +65,155 @@ let currentData7 = [];
 let imprtForwardPeriods7 = JSON.parse(localStorage.getItem("imprtForwardPeriodsTab7")) || [];
 let excludeLines7 = JSON.parse(localStorage.getItem("excludeLines7")) || [];
 let nextIdImprtForward7 = imprtForwardPeriods7.length > 0 ? Math.max(...imprtForwardPeriods7.map(p => p.id)) + 1 : 1;
+
+
+let currentData8 = [];
+let storageFinaloutData = [];
+// ========== تحميل الإعدادات تلقائياً من GitHub ==========
+const SETTINGS_URL = 'https://raw.githubusercontent.com/revenudchc-boop/Storage_Reports/main/settings.json';
+
+async function loadSettingsAutomatically() {
+    try {
+        console.log('🔄 جاري تحميل الإعدادات من GitHub...');
+        const response = await fetch(SETTINGS_URL);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const settings = await response.json();
+        applySettings(settings);
+        console.log('✅ تم تحميل الإعدادات بنجاح من GitHub');
+        document.getElementById("footerMsg").innerHTML = '✅ تم تحميل الإعدادات من GitHub تلقائياً';
+        
+    } catch (error) {
+        console.warn('⚠️ فشل تحميل الإعدادات من GitHub، سيتم استخدام الإعدادات المحفوظة محلياً:', error.message);
+        document.getElementById("footerMsg").innerHTML = '⚠️ فشل تحميل الإعدادات من GitHub، يتم استخدام الإعدادات المحفوظة محلياً';
+    }
+}
+
+function applySettings(settings) {
+	    console.log('🔄 تطبيق الإعدادات:', settings); // ← أضف هذا للتشخيص
+
+    // قائمة الخطوط الرئيسية
+    if (settings.masterLinesList) {
+        masterLinesList = settings.masterLinesList;
+        saveMasterLinesList();
+        updateAllLineSelects();
+    }
+    
+    // تبويب 1
+    if (settings.trshpPeriodsTab1) {
+        trshpPeriods1 = settings.trshpPeriodsTab1;
+        localStorage.setItem("trshpPeriodsTab1", JSON.stringify(trshpPeriods1));
+    }
+    if (settings.exprtPeriodsTab1) {
+        exprtPeriods1 = settings.exprtPeriodsTab1;
+        localStorage.setItem("exprtPeriodsTab1", JSON.stringify(exprtPeriods1));
+    }
+    if (settings.excludeLines1) {
+        excludeLines1 = settings.excludeLines1;
+        localStorage.setItem("excludeLines1", JSON.stringify(excludeLines1));
+    }
+    
+    // تبويب 2
+    if (settings.strgePeriodsTab2) {
+        strgePeriods2 = settings.strgePeriodsTab2;
+        localStorage.setItem("strgePeriodsTab2", JSON.stringify(strgePeriods2));
+    }
+    if (settings.exprtPeriodsTab2) {
+        exprtPeriods2 = settings.exprtPeriodsTab2;
+        localStorage.setItem("exprtPeriodsTab2", JSON.stringify(exprtPeriods2));
+    }
+    if (settings.excludeLines2) {
+        excludeLines2 = settings.excludeLines2;
+        localStorage.setItem("excludeLines2", JSON.stringify(excludeLines2));
+    }
+    
+    // تبويب 3
+    if (settings.exprtOnlyPeriodsTab3) {
+        exprtOnlyPeriods3 = settings.exprtOnlyPeriodsTab3;
+        localStorage.setItem("exprtOnlyPeriodsTab3", JSON.stringify(exprtOnlyPeriods3));
+    }
+    if (settings.excludeLines3) {
+        excludeLines3 = settings.excludeLines3;
+        localStorage.setItem("excludeLines3", JSON.stringify(excludeLines3));
+    }
+    
+    // تبويب 4
+    if (settings.emptyStrgePeriodsTab4) {
+        emptyStrgePeriods4 = settings.emptyStrgePeriodsTab4;
+        localStorage.setItem("emptyStrgePeriodsTab4", JSON.stringify(emptyStrgePeriods4));
+    }
+    if (settings.excludeLines4) {
+        excludeLines4 = settings.excludeLines4;
+        localStorage.setItem("excludeLines4", JSON.stringify(excludeLines4));
+    }
+    
+    // تبويب 5
+    if (settings.trshpOnlyPeriodsTab5) {
+        trshpOnlyPeriods5 = settings.trshpOnlyPeriodsTab5;
+        localStorage.setItem("trshpOnlyPeriodsTab5", JSON.stringify(trshpOnlyPeriods5));
+    }
+    if (settings.excludeLines5) {
+        excludeLines5 = settings.excludeLines5;
+        localStorage.setItem("excludeLines5", JSON.stringify(excludeLines5));
+    }
+    
+    // تبويب 6
+    if (settings.strgePeriodsTab6) {
+        strgePeriods6 = settings.strgePeriodsTab6;
+        localStorage.setItem("strgePeriodsTab6", JSON.stringify(strgePeriods6));
+    }
+    if (settings.exprtPeriodsTab6) {
+        exprtPeriods6 = settings.exprtPeriodsTab6;
+        localStorage.setItem("exprtPeriodsTab6", JSON.stringify(exprtPeriods6));
+    }
+    if (settings.excludeLines6) {
+        excludeLines6 = settings.excludeLines6;
+        localStorage.setItem("excludeLines6", JSON.stringify(excludeLines6));
+    }
+    
+    // تبويب 7
+    if (settings.imprtForwardPeriodsTab7) {
+        imprtForwardPeriods7 = settings.imprtForwardPeriodsTab7;
+        localStorage.setItem("imprtForwardPeriodsTab7", JSON.stringify(imprtForwardPeriods7));
+    }
+    if (settings.excludeLines7) {
+        excludeLines7 = settings.excludeLines7;
+        localStorage.setItem("excludeLines7", JSON.stringify(excludeLines7));
+    }
+    
+    // تفضيلات الأعمدة
+    if (settings.selectedColumns) {
+        for (let key in settings.selectedColumns) {
+            selectedColumns[key] = settings.selectedColumns[key];
+            localStorage.setItem(`selectedColumns_${key}`, JSON.stringify(selectedColumns[key]));
+        }
+    }
+    
+    // تحديث واجهة المستخدم
+    initializeAllSelects();
+    refreshPeriodsDisplay('1');
+    refreshPeriodsDisplay('2');
+    refreshPeriodsDisplay('3');
+    refreshPeriodsDisplay('4');
+    refreshPeriodsDisplay('5');
+    refreshPeriodsDisplay('6');
+    refreshPeriodsDisplay('7');
+    displayExcludeList('excludeList1', excludeLines1, '1');
+    displayExcludeList('excludeList2', excludeLines2, '2');
+    displayExcludeList('excludeList3', excludeLines3, '3');
+    displayExcludeList('excludeList4', excludeLines4, '4');
+    displayExcludeList('excludeList5', excludeLines5, '5');
+    displayExcludeList('excludeList6', excludeLines6, '6');
+    displayExcludeList('excludeList7', excludeLines7, '7');
+    
+    console.log('✅ تم تطبيق جميع الإعدادات بنجاح');
+}
+
+
+
 // دالة لحفظ القائمة الرئيسية
 function saveMasterLinesList() {
     localStorage.setItem("masterLinesList", JSON.stringify(masterLinesList));
@@ -135,11 +284,18 @@ function initializeAllSelects() {
 // ========== دوال حفظ وتحميل الملف ==========
 function saveFileToLocalStorage(fileData, fileName) {
     try {
+        // تقدير حجم البيانات (base64)
+        const sizeInMB = fileData.length * 3 / 4 / 1024 / 1024;
+        if (sizeInMB > 5) {
+            console.warn(`⚠️ الملف كبير جداً (${sizeInMB.toFixed(1)} ميجابايت)، لن يتم حفظه في localStorage.`);
+            return; // لا نحفظ، ولكن لا نرمي خطأ
+        }
         localStorage.setItem("savedExcelFile", fileData);
         localStorage.setItem("savedExcelFileName", fileName);
-        console.log("تم حفظ الملف:", fileName);
+        console.log("✅ تم حفظ الملف:", fileName);
     } catch(e) {
-        console.error("خطأ في حفظ الملف:", e);
+        console.warn("⚠️ فشل حفظ الملف في localStorage:", e.message);
+        // لا نرمي خطأ، نستمر في التنفيذ
     }
 }
 
@@ -149,6 +305,51 @@ function processExcelFile(file) {
     let reader = new FileReader();
     reader.onload = function(evt) {
         try {
+            let arrayBuffer = evt.target.result;
+
+            // محاولة حفظ الملف
+            try {
+                let binary = '';
+                let bytes = new Uint8Array(arrayBuffer);
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                let base64Data = btoa(binary);
+                saveFileToLocalStorage(base64Data, file.name);
+            } catch(e) {
+                console.warn("⚠️ فشل حفظ الملف، لكن المتابعة مستمرة:", e.message);
+            }
+
+            let workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            let sheet = workbook.Sheets[workbook.SheetNames[0]];
+            // استخدام range: 4 لتخطي الصفوف غير الضرورية
+            let rows = XLSX.utils.sheet_to_json(sheet, { defval: "", range: 4 });
+
+            console.log(`📄 عدد الصفوف المقروءة: ${rows.length}`);
+            if (rows.length === 0) {
+                document.getElementById("footerMsg").innerHTML = "⚠️ الملف فارغ أو التنسيق غير صحيح";
+                return;
+            }
+
+            // ===== التحقق من نوع الملف =====
+            let firstRow = rows[0];
+            let keys = Object.keys(firstRow);
+            console.log("🔍 أسماء الأعمدة في الملف:", keys);
+            
+            let hasUnitNbr = keys.some(k => k.trim() === "Unit Nbr");
+            let hasEquipId = keys.some(k => k.trim() === "Equip ID");
+            let isFinalout = hasUnitNbr && !hasEquipId;
+
+            if (isFinalout) {
+                console.log("📂 تم التعرف على ملف FINALOUT (تبويب 8)");
+                processFinaloutFile(rows);
+                document.getElementById("footerMsg").innerHTML = `✅ تم تحميل ملف FINALOUT: ${file.name} | عدد الحاويات: ${currentData8.length}`;
+                return;
+            }
+
+            // ===== معالجة الملف العادي =====
+            console.log("📂 تم التعرف على ملف البيانات الرئيسي (تبويبات 1-7)");
+
             // تنظيف البيانات القديمة
             currentData1 = [];
             currentData2 = [];
@@ -156,59 +357,221 @@ function processExcelFile(file) {
             currentData4 = [];
             currentData5 = [];
             currentData6 = [];
-            currentData7 = [];  // ← أضف هذا
-
+            currentData7 = [];
             containersMap.clear();
-            
-            let data = new Uint8Array(evt.target.result);
-            let workbook = XLSX.read(data, { type: 'array' });
-            let sheet = workbook.Sheets[workbook.SheetNames[0]];
-            let rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-            
+
             for (let row of rows) {
                 let equipId = row["Equip ID"];
                 if (!equipId || equipId === "") continue;
-                
+
                 if (!containersMap.has(equipId)) {
-				containersMap.set(equipId, {
-					equipId: equipId,
-					equipmentType: row["Equipment Type"] || "",
-					lineId: row["Line ID"] || "",
-					trshpList: [],
-					exprtList: [],      // ← تغيير من exprt: null إلى exprtList: []
-					strgeList: [],      // ← مصفوفة
-					imprt: null,
-					trshpReturn: null
-				});
+                    containersMap.set(equipId, {
+                        equipId: equipId,
+                        equipmentType: row["Equipment Type"] || "",
+                        lineId: row["Line ID"] || "",
+                        trshpList: [],
+                        exprtList: [],
+                        strge: null,
+                        imprt: null,
+                        trshpReturn: null
+                    });
                 }
                 let c = containersMap.get(equipId);
                 let cat = row["Category"];
                 let drayStatus = row["Dray Status"] || "";
-                
+
                 if (cat === "TRSHP") {
-                    c.trshpList.push(row);    // ← نضيف إلى المصفوفة
+                    c.trshpList.push(row);
                     if (drayStatus === "RETURN") {
-					c.trshpList.push(row);    // ← تغيير: من c.trshp = row إلى c.trshpList.push(row)
+                        c.trshpReturn = row;
                     }
                 }
                 else if (cat === "EXPRT") {
-    if (!c.exprtList) c.exprtList = [];
-    c.exprtList.push(row);
-}
-                else if (cat === "STRGE") c.strge = row;
-                else if (cat === "IMPRT") c.imprt = row;
+                    if (!c.exprtList) c.exprtList = [];
+                    c.exprtList.push(row);
+                }
+                else if (cat === "STRGE") {
+                    c.strge = row;
+                }
+                else if (cat === "IMPRT") {
+                    c.imprt = row;
+                }
             }
-            
+
+            console.log(`📦 containersMap.size بعد القراءة: ${containersMap.size}`);
+
+            // معالجة جميع التبويبات
             processAndDisplay1();
             processAndDisplay2();
             processAndDisplay3();
             processAndDisplay4();
             processAndDisplay5();
             processAndDisplay6();
-			processAndDisplay7();  // ← هنا المكان الصحيح
+            processAndDisplay7();
+            processAndDisplay8();
 
-            
-            document.getElementById("footerMsg").innerHTML = `✅ تم تحميل: ${file.name} | TRSHP+EXPRT: ${currentData1.length} | STRGE+EXPRT+IMPRT: ${currentData2.length} | EXPRT فقط: ${currentData3.length} | STRGE فارغ: ${currentData4.length} | TRSHP فقط: ${currentData5.length} | STRGE+EXPRT فقط: ${currentData6.length} | IMPRT+FORWARD: ${currentData7.length}`;
+            updateHeaderInfo('1');
+
+            setTimeout(function() {
+                applySavedColumnPreferences();
+            }, 200);
+
+            document.getElementById("footerMsg").innerHTML = `✅ تم تحميل: ${file.name} | TRSHP+EXPRT: ${currentData1.length} | STRGE+EXPRT+IMPRT: ${currentData2.length} | EXPRT فقط: ${currentData3.length} | STRGE فارغ: ${currentData4.length} | TRSHP فقط: ${currentData5.length} | STRGE+EXPRT فقط: ${currentData6.length} | IMPRT+FORWARD: ${currentData7.length} | Storage Finalout: ${currentData8.length}`;
+        } catch(err) {
+            console.error("❌ خطأ في معالجة الملف:", err);
+            document.getElementById("footerMsg").innerHTML = `❌ خطأ: ${err.message}`;
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function processFinaloutFile(rows) {
+    console.log("🔄 معالجة ملف FINALOUT...");
+    let result = [];
+
+    for (let row of rows) {
+        // استخراج البيانات من الأعمدة الصحيحة
+        let unitNbr = row["Unit Nbr"] || "";
+        if (!unitNbr) continue; // تخطي الصفوف بدون رقم حاوية
+
+        let typeISO = row["Type ISO"] || "";
+        let category = row["Category"] || "";
+        let orig = row["Orig"] || "";
+        let drayStatus = row["Dray Status"] || "";
+        let orderNumber = row["Order Number"] || "";
+        let timeIn = row["Time In"] || "";
+        let timeOut = row["Time Out"] || "";
+        let storageDaysTotal = parseInt(row["Storage Days Total"]) || 0;
+        let loaded = row["Loaded"] || "";
+        let lclPoss = row["LCL-POSS"] || "";
+        let lineOp = row["Line Op"] || "";
+        let freightKind = row["Frght Kind"] || "";
+
+        // تحويل التواريخ
+        let timeInFormatted = convertDate(timeIn);
+        let timeOutFormatted = convertDate(timeOut);
+
+        // حساب أيام التخزين الجديدة (حسب القاعدة)
+        let newStorageDays = 0;
+        if (timeInFormatted && timeOutFormatted) {
+            let diff = diffDays(timeInFormatted, timeOutFormatted);
+            if (orig === "DPA") {
+                newStorageDays = diff - 1;
+                if (newStorageDays < 0) newStorageDays = 0;
+            } else {
+                newStorageDays = diff;
+            }
+        }
+
+        // ترتيب حسب LCL-POSS
+        let sortKey = lclPoss || "zzzz";
+
+        result.push({
+            "رقم الحاوية": unitNbr,
+            "النوع": typeISO,
+            "المنشأ": orig || "—",
+            "رقم الأمر": orderNumber,
+            "الخط المشغل": lineOp,
+            "تاريخ الدخول": timeInFormatted || "—",
+            "تاريخ الخروج": timeOutFormatted || "—",
+            "أيام التخزين (جديد)": newStorageDays,
+            "Storage Days Total": storageDaysTotal,
+            "الملاحظات": lclPoss || "—",
+            "نوع الشحنة": freightKind || "—",
+            "_sortKey": sortKey
+        });
+    }
+
+    // ترتيب النتائج حسب LCL-POSS
+    result.sort((a, b) => a["_sortKey"].localeCompare(b["_sortKey"]));
+    result.forEach(item => delete item._sortKey);
+
+    currentData8 = result;
+    console.log(`✅ تمت معالجة ${currentData8.length} حاوية في تبويب Storage Finalout`);
+
+    // تحديث الـ Header
+    let headerInfo = {
+        orderNumber: result.length > 0 ? result[0]["رقم الأمر"] : "",
+        lineOp: result.length > 0 ? result[0]["الخط المشغل"] : ""
+    };
+    updateStorageFinaloutHeader(headerInfo);
+
+    // عرض البيانات في الجدول
+    renderTable8("bodyTab8", currentData8, "searchTab8", "typeTab8", "statsTab8");
+
+    // إظهار عناصر التبويب
+    let filtersDiv = document.getElementById("filtersTab8");
+    let wrapperDiv = document.getElementById("wrapperTab8");
+    let statsDiv = document.getElementById("statsTab8");
+
+    if (filtersDiv) filtersDiv.style.display = "flex";
+    if (wrapperDiv) wrapperDiv.style.display = "block";
+    if (statsDiv && currentData8.length > 0) {
+        statsDiv.innerHTML = renderAdvancedStatsTab8(currentData8);
+        statsDiv.style.display = "flex";
+    }
+
+    // ===== تنشيط تبويب 8 تلقائياً =====
+    let tab8Div = document.getElementById("tab8");
+    if (tab8Div && !tab8Div.classList.contains("active")) {
+        tab8Div.classList.add("active");
+        document.querySelectorAll(".tab-content").forEach(c => {
+            if (c.id !== "tab8") c.classList.remove("active");
+        });
+        document.querySelectorAll(".tab-btn").forEach(b => {
+            b.classList.remove("active");
+            if (b.dataset.tab === "tab8") b.classList.add("active");
+        });
+    }
+}
+
+// ===== دالة جديدة لمعالجة الملفات =====
+function handleFileUpload(file) {
+    let reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            let arrayBuffer = evt.target.result;
+            let workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            let sheet = workbook.Sheets[workbook.SheetNames[0]];
+            let rows = XLSX.utils.sheet_to_json(sheet, { defval: "", range: 0 });
+
+            console.log(`📄 عدد الصفوف المقروءة: ${rows.length}`);
+            if (rows.length === 0) {
+                document.getElementById("footerMsg").innerHTML = "⚠️ الملف فارغ";
+                return;
+            }
+
+            let firstRow = rows[0];
+            let keys = Object.keys(firstRow);
+            console.log("🔍 أسماء الأعمدة:", keys);
+
+            // إذا كان هناك عمود "Unit Nbr"، نعتبره FINALOUT
+            let hasUnitNbr = keys.some(k => k.trim() === "Unit Nbr");
+            if (hasUnitNbr) {
+                console.log("📂 تم التعرف على FINALOUT");
+                processFinaloutFile(rows);
+                document.getElementById("footerMsg").innerHTML = `✅ تم تحميل FINALOUT: ${file.name} | عدد الحاويات: ${currentData8.length}`;
+                // تنشيط تبويب 8
+                let tab8Div = document.getElementById("tab8");
+                if (tab8Div) {
+                    tab8Div.classList.add("active");
+                    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+                    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+                    tab8Div.classList.add("active");
+                    document.querySelector('.tab-btn[data-tab="tab8"]').classList.add("active");
+                }
+                return;
+            }
+
+            // هنا معالجة الملف العادي...
+            console.log("📂 ملف عادي (تبويبات 1-7)");
+            // ... (ضع كود المعالجة العادية هنا)
+            // لكننا سنستدعي الدالة القديمة للتبويبات 1-7
+            // لكن لتجنب التعقيد، سنضيف استدعاء processExcelFile القديم
+            // ولكن يجب تجنب التكرار، لذا سننقل كود المعالجة العادية إلى هنا.
+            // لكن للاختصار، سأفترض أنك ستستخدم الدالة القديمة بعد التعديل.
+            // لكن الأفضل هو استخدام الدالة القديمة المعدلة.
+
         } catch(err) {
             console.error(err);
             document.getElementById("footerMsg").innerHTML = `❌ خطأ: ${err.message}`;
@@ -225,7 +588,8 @@ let selectedColumns = {
     tab4: JSON.parse(localStorage.getItem("selectedColumns_tab4")) || [],
     tab5: JSON.parse(localStorage.getItem("selectedColumns_tab5")) || [],
     tab6: JSON.parse(localStorage.getItem("selectedColumns_tab6")) || [],
-    tab7: JSON.parse(localStorage.getItem("selectedColumns_tab7")) || []  // ← أضف هذا
+    tab7: JSON.parse(localStorage.getItem("selectedColumns_tab7")) || [],  // ← أضف هذا
+	tab8: JSON.parse(localStorage.getItem("selectedColumns_tab8")) || []  // ← أضف هذا
 };
 
 // تعريف الأعمدة المتاحة للتبويب 1
@@ -431,6 +795,20 @@ const availableColumnsTab7 = {
     ]
 };
 
+const availableColumnsTab8 = {
+    tab8: [
+        { name: "رقم الحاوية", label: "رقم الحاوية", default: true },
+        { name: "النوع", label: "النوع", default: true },
+        { name: "المنشأ", label: "المنشأ", default: true },
+        { name: "تاريخ الدخول", label: "تاريخ الدخول", default: true },
+        { name: "تاريخ الخروج", label: "تاريخ الخروج", default: true },
+        { name: "أيام التخزين (جديد)", label: "أيام التخزين (جديد)", default: true },
+        { name: "Storage Days Total", label: "Storage Days Total", default: true },
+        { name: "الملاحظات", label: "الملاحظات", default: true },
+        { name: "نوع الشحنة", label: "نوع الشحنة", default: true }
+    ]
+};
+
 // دالة فتح نافذة اختيار الأعمدة لتبويب 7
 function openColumnModalTab7() {
     let modal = document.getElementById('columnModal');
@@ -585,6 +963,7 @@ function loadLastFileFromStorage() {
         currentData5 = [];
         currentData6 = [];
         currentData7 = [];  // ← أضف هذا
+		currentData8 = [];  // ← أضف هذا
 
         containersMap.clear();
         
@@ -641,6 +1020,7 @@ function loadLastFileFromStorage() {
         processAndDisplay5();
         processAndDisplay6();
 		processAndDisplay7();  // ← هنا المكان الصحيح
+		processAndDisplay8();
 
         updateHeaderInfo('1');
         
@@ -1325,97 +1705,7 @@ function closeColumnModal() {
 document.getElementById("fileInput").addEventListener("change", function(e) {
     let file = e.target.files[0];
     if (!file) return;
-    
-    // تنظيف البيانات القديمة
-    currentData1 = [];
-    currentData2 = [];
-    currentData3 = [];
-    currentData4 = [];
-    currentData5 = [];
-    currentData6 = [];
-    containersMap.clear();
-    
-    updateFileNameDisplay(file.name);
-    
-    let reader = new FileReader();
-    reader.onload = function(evt) {
-        let arrayBuffer = evt.target.result;
-        
-        // حفظ الملف في localStorage
-        let binary = '';
-        let bytes = new Uint8Array(arrayBuffer);
-        for (let i = 0; i < bytes.byteLength; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
-        let base64Data = btoa(binary);
-        saveFileToLocalStorage(base64Data, file.name);
-        
-        let workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        let sheet = workbook.Sheets[workbook.SheetNames[0]];
-        let rows = XLSX.utils.sheet_to_json(sheet, { defval: "", range: 4 });
-        
-        for (let row of rows) {
-            let equipId = row["Equip ID"];
-            if (!equipId || equipId === "") continue;
-            
-            if (!containersMap.has(equipId)) {
-                containersMap.set(equipId, {
-                    equipId: equipId,
-                    equipmentType: row["Equipment Type"] || "",
-                    lineId: row["Line ID"] || "",
-                    trshpList: [],
-                    exprtList: [],      // ← تغيير: من exprt: null إلى exprtList: []
-                    strge: null,
-                    imprt: null,
-                    trshpReturn: null
-                });
-            }
-            let c = containersMap.get(equipId);
-            let cat = row["Category"];
-            let drayStatus = row["Dray Status"] || "";
-            
-            if (cat === "TRSHP") {
-                c.trshpList.push(row);
-                if (drayStatus === "RETURN") {
-                    c.trshpReturn = row;
-                }
-            }
-            else if (cat === "EXPRT") {
-                if (!c.exprtList) c.exprtList = [];
-                c.exprtList.push(row);
-            }
-            else if (cat === "STRGE") {
-                c.strge = row;
-            }
-            else if (cat === "IMPRT") {
-                c.imprt = row;
-            }
-        }
-        
-        // للتشخيص - تأكد من قراءة جميع EXPRT
-        console.log("عدد الصفوف المقروءة:", rows.length);
-        let testContainer = containersMap.get("UETU6230321");
-        if (testContainer) {
-            console.log("عدد EXPRT في exprtList:", testContainer.exprtList?.length);
-        }
-        
-        processAndDisplay1();
-        processAndDisplay2();
-        processAndDisplay3();
-        processAndDisplay4();
-        processAndDisplay5();
-        processAndDisplay6();
-		        processAndDisplay7();  // ← هنا المكان الصحيح
-
-        updateHeaderInfo('1');
-        
-        setTimeout(function() {
-            applySavedColumnPreferences();
-        }, 200);
-        
-        document.getElementById("footerMsg").innerHTML = `✅ تم تحميل: ${file.name} | TRSHP+EXPRT: ${currentData1.length} | STRGE+EXPRT+IMPRT: ${currentData2.length} | EXPRT فقط: ${currentData3.length} | STRGE فارغ: ${currentData4.length} | TRSHP فقط: ${currentData5.length} | STRGE+EXPRT فقط: ${currentData6.length} | IMPRT+FORWARD: ${currentData7.length}`;
-    };
-    reader.readAsArrayBuffer(file);
+    processExcelFile(file); // استدعاء الدالة المعدلة
 });
 
 function processAndDisplay1() {
@@ -3104,9 +3394,20 @@ function printReport(tabId, title) {
         return;
     }
     
-    // نسخ محتوى الإحصائيات والجدول
-    let statsClone = activeTab.querySelector('.stats');
-    let tableClone = activeTab.querySelector('table');
+    // ===== نسخ الإحصائيات فقط =====
+    let statsElement = activeTab.querySelector('.stats');
+    let statsClone = statsElement ? statsElement.cloneNode(true) : null;
+    
+    // ===== الحصول على الجدول من داخل .table-wrapper =====
+    let tableWrapper = activeTab.querySelector('.table-wrapper');
+    let tableElement = tableWrapper ? tableWrapper.querySelector('table') : null;
+    
+    // إذا لم يتم العثور على الجدول، حاول البحث مباشرة
+    if (!tableElement) {
+        tableElement = activeTab.querySelector('table');
+    }
+    
+    let tableClone = tableElement ? tableElement.cloneNode(true) : null;
     
     if (!tableClone) {
         console.error("الجدول غير موجود");
@@ -3162,25 +3463,23 @@ function printReport(tabId, title) {
     }
     
     // الحصول على بيانات الرأس
-// محاولة جلب البيانات من الصفحة
-let headerCarrierName = document.getElementById("headerCarrierName")?.innerText;
-let headerShippingDate = document.getElementById("headerShippingDate")?.innerText;
-let headerLineId = document.getElementById("headerLineId")?.innerText;
+    let headerCarrierName = document.getElementById("headerCarrierName")?.innerText;
+    let headerShippingDate = document.getElementById("headerShippingDate")?.innerText;
+    let headerLineId = document.getElementById("headerLineId")?.innerText;
 
-// إذا لم يتم العثور على البيانات، استخدم القيم الافتراضية
-if (!headerCarrierName || headerCarrierName === "—") {
-    headerCarrierName = "MSC JADE";
-}
-if (!headerShippingDate || headerShippingDate === "—") {
-    headerShippingDate = "2026/05/05";
-}
-if (!headerLineId || headerLineId === "—") {
-    headerLineId = "MSC";
-}
+    if (!headerCarrierName || headerCarrierName === "—") {
+        headerCarrierName = "MSC JADE";
+    }
+    if (!headerShippingDate || headerShippingDate === "—") {
+        headerShippingDate = "2026/05/05";
+    }
+    if (!headerLineId || headerLineId === "—") {
+        headerLineId = "MSC";
+    }
 
-console.log("Carrier Name:", headerCarrierName);
-console.log("Shipping Date:", headerShippingDate);
-console.log("Line ID:", headerLineId);
+    console.log("Carrier Name:", headerCarrierName);
+    console.log("Shipping Date:", headerShippingDate);
+    console.log("Line ID:", headerLineId);
     
     let currentDate = new Date().toLocaleString('ar-EG', {
         year: 'numeric',
@@ -3216,7 +3515,6 @@ console.log("Line ID:", headerLineId);
                     print-color-adjust: exact;
                 }
                 
-                /* ========== رأس الصفحة (بدون position: fixed) ========== */
                 .report-header {
                     text-align: center;
                     margin-bottom: 15px;
@@ -3243,7 +3541,6 @@ console.log("Line ID:", headerLineId);
                     margin-bottom: 10px;
                 }
                 
-                /* ========== الجدول ========== */
                 table {
                     width: 100%;
                     border-collapse: collapse;
@@ -3263,7 +3560,6 @@ console.log("Line ID:", headerLineId);
                     text-align: center;
                 }
                 
-                /* عمود الترقيم */
                 th:first-child, td:first-child {
                     width: 35px;
                 }
@@ -3272,7 +3568,6 @@ console.log("Line ID:", headerLineId);
                     font-weight: bold;
                 }
                 
-                /* الإحصائيات */
                 .stats {
                     display: flex;
                     gap: 10px;
@@ -3297,7 +3592,6 @@ console.log("Line ID:", headerLineId);
                     margin: 0;
                 }
                 
-                /* ========== التوقيعات (بدون position: fixed) ========== */
                 .signatures {
                     display: flex;
                     justify-content: space-between;
@@ -3323,7 +3617,6 @@ console.log("Line ID:", headerLineId);
                     padding-top: 5px;
                 }
                 
-                /* تكرار رأس الجدول في كل صفحة */
                 thead {
                     display: table-header-group;
                 }
@@ -3331,14 +3624,12 @@ console.log("Line ID:", headerLineId);
                     break-inside: avoid;
                 }
                 
-                /* إعدادات الطباعة */
                 @media print {
                     body {
                         margin: 0;
                         padding: 8px;
                     }
                     
-                    /* إخفاء عناصر التحكم */
                     .upload-area, .tabs, .settings-btn, .filters, .btn-container,
                     .export-btn, .print-btn, .note, .settings-panel, .modal,
                     .file-label, .export-all-btn, #currentFileName {
@@ -3346,19 +3637,19 @@ console.log("Line ID:", headerLineId);
                     }
                     
                     @page {
-                        size: A4 portrait;;
+                        size: A4 portrait;
                         margin: 1cm;
                     }
                 }
             </style>
         </head>
         <body>
-			<div class="report-header">
-				<h1>📦 تقرير أيام التخزين</h1>
-				<div class="report-title-line">
-					${title}
-				</div>
-			</div>
+            <div class="report-header">
+                <h1>📦 تقرير أيام التخزين</h1>
+                <div class="report-title-line">
+                    ${title}
+                </div>
+            </div>
          
             <div class="report-date">📅 تاريخ الطباعة: ${currentDate}</div>
             
@@ -4288,11 +4579,11 @@ let hasMultiplePeriods = (sortedPeriods.length > 1);
 // netDays موجود من الأعلى
 
 let freightKind = period.rawData["Freight Kind"] || "";
-
+let orderNumber = period.rawData["Order Number"] || "";
 // إذا كانت RF و Freight Kind = MTY و Is Refrigerated = false و netDays <= 0 → لا تظهر
 let isInvalidRF = (type === "RF" && freightKind === "MTY" && isRefrigerated === "false" && netDays <= 0);
 
-let shouldShow = (type === "RF" && !isInvalidRF) || hasMultiplePeriods || (type === "GP" && netDays > 0);
+let shouldShow = (type === "RF" && !isInvalidRF) || hasMultiplePeriods || (type === "GP" && netDays > 0) || (netDays === 0 && orderNumber && orderNumber.trim() !== "");
 // ===================================================
 // ===================================================
     // =====================================
@@ -4314,6 +4605,7 @@ let shouldShow = (type === "RF" && !isInvalidRF) || hasMultiplePeriods || (type 
             "طريقة الحساب": method,
             "Flex String 01": period.flexString01,
             "flex_04": period.flexString04,
+			"Order Number": orderNumber,  // ← تأكد من وجود هذا السطر
             "TRSHP Start": period.start,
             "TRSHP End": period.end,
             "TRSHP Days": days,
@@ -5333,6 +5625,155 @@ function processAndDisplay7() {
     
     console.log("✅ processAndDisplay7 اكتمل");
 }
+
+// ========== دالة معالجة تبويب 8 (Storage Finalout) ==========
+function processAndDisplay8() {
+    console.log("=== بدء processAndDisplay8 (Storage Finalout) ===");
+    
+    let result = [];
+    let headerInfo = {
+        orderNumber: "",
+        lineOp: ""
+    };
+    
+    // ===== تجميع البيانات من containersMap =====
+    for (let [id, container] of containersMap.entries()) {
+        // البحث عن أي سجل يحتوي على Order Number (من أي فئة)
+        let storageData = null;
+        let orderNumber = "";
+        let lineOp = "";
+        let unitNbr = id;
+        let typeISO = "";
+        let orig = "";
+        let timeIn = "";
+        let timeOut = "";
+        let storageDaysTotal = 0;
+        let lclPoss = "";
+        let freightKind = "";
+        
+        // البحث في trshpList أولاً (قد تحتوي على Order Number)
+        if (container.trshpList && container.trshpList.length > 0) {
+            for (let tr of container.trshpList) {
+                let orderNum = tr["Order Number"] || "";
+                if (orderNum && orderNum.trim() !== "") {
+                    storageData = tr;
+                    break;
+                }
+            }
+        }
+        
+        // إذا لم نجد، نبحث في exprtList
+        if (!storageData && container.exprtList && container.exprtList.length > 0) {
+            for (let ex of container.exprtList) {
+                let orderNum = ex["Order Number"] || "";
+                if (orderNum && orderNum.trim() !== "") {
+                    storageData = ex;
+                    break;
+                }
+            }
+        }
+        
+        // إذا لم نجد، نبحث في strge
+        if (!storageData && container.strge) {
+            let orderNum = container.strge["Order Number"] || "";
+            if (orderNum && orderNum.trim() !== "") {
+                storageData = container.strge;
+            }
+        }
+        
+        // إذا لم نجد، نبحث في imprt
+        if (!storageData && container.imprt) {
+            let orderNum = container.imprt["Order Number"] || "";
+            if (orderNum && orderNum.trim() !== "") {
+                storageData = container.imprt;
+            }
+        }
+        
+        // إذا لم نجد أي سجل به Order Number، نتخطى
+        if (!storageData) continue;
+        
+        // استخراج البيانات باستخدام الأعمدة الصحيحة
+        unitNbr = storageData["Unit Nbr"] || storageData["Equip ID"] || id;
+        typeISO = storageData["Type ISO"] || storageData["Equipment Type"] || "";
+        orig = storageData["Orig"] || "";
+        orderNumber = storageData["Order Number"] || "";
+        lineOp = storageData["Line Op"] || storageData["Line ID"] || "";
+        timeIn = storageData["Time In"] || storageData["Start Time"] || "";
+        timeOut = storageData["Time Out"] || storageData["End Time"] || "";
+        storageDaysTotal = parseInt(storageData["Storage Days Total"]) || 0;
+        lclPoss = storageData["LCL-POSS"] || "";
+        freightKind = storageData["Frght Kind"] || storageData["Freight Kind"] || "";
+        
+        // حفظ معلومات الرأس (أول حاوية فقط)
+        if (!headerInfo.orderNumber) {
+            headerInfo.orderNumber = orderNumber;
+            headerInfo.lineOp = lineOp;
+        }
+        
+        // تحويل التواريخ
+        let timeInFormatted = convertDate(timeIn);
+        let timeOutFormatted = convertDate(timeOut);
+        
+        // ===== حساب أيام التخزين الجديدة =====
+        let newStorageDays = 0;
+        if (timeInFormatted && timeOutFormatted) {
+            let diff = diffDays(timeInFormatted, timeOutFormatted);
+            if (orig === "DPA") {
+                newStorageDays = diff - 1;
+                if (newStorageDays < 0) newStorageDays = 0;
+            } else {
+                newStorageDays = diff;
+            }
+        }
+        
+        // ترتيب حسب LCL-POSS
+        let sortKey = lclPoss || "zzzz";
+        
+        result.push({
+            "رقم الحاوية": unitNbr,
+            "النوع": typeISO,
+            "المنشأ": orig || "—",
+            "رقم الأمر": orderNumber,
+            "الخط المشغل": lineOp,
+            "تاريخ الدخول": timeInFormatted || "—",
+            "تاريخ الخروج": timeOutFormatted || "—",
+            "أيام التخزين (جديد)": newStorageDays,
+            "Storage Days Total": storageDaysTotal,
+            "الملاحظات": lclPoss || "—",
+            "نوع الشحنة": freightKind || "—",
+            "_sortKey": sortKey
+        });
+    }
+    
+    // ===== ترتيب النتائج حسب LCL-POSS =====
+    result.sort((a, b) => a["_sortKey"].localeCompare(b["_sortKey"]));
+    result.forEach(item => delete item._sortKey);
+    
+    currentData8 = result;
+    storageFinaloutHeader = headerInfo;
+    
+    console.log(`✅ تمت معالجة ${currentData8.length} حاوية في تبويب Storage Finalout`);
+    console.log("📋 معلومات الرأس:", headerInfo);
+    
+    // تحديث الـ Header
+    updateStorageFinaloutHeader(headerInfo);
+    
+    // عرض البيانات
+    renderTable8("bodyTab8", currentData8, "searchTab8", "typeTab8", "statsTab8");
+    
+    // إظهار عناصر التبويب
+    let filtersDiv = document.getElementById("filtersTab8");
+    let wrapperDiv = document.getElementById("wrapperTab8");
+    let statsDiv = document.getElementById("statsTab8");
+    
+    if (filtersDiv) filtersDiv.style.display = "flex";
+    if (wrapperDiv) wrapperDiv.style.display = "block";
+    if (statsDiv && currentData8.length > 0) {
+        statsDiv.innerHTML = renderAdvancedStatsTab8(currentData8);
+        statsDiv.style.display = "flex";
+    }
+}
+
 // ========== دالة عرض جدول تبويب 7 ==========
 function renderTable7(tbodyId, data, searchId, typeId, statsId) {
     console.log("=== renderTable7 ===");
@@ -5411,6 +5852,72 @@ function renderTable7(tbodyId, data, searchId, typeId, statsId) {
     console.log("✅ renderTable7 completed, displayed:", filtered.length, "rows");
 }
 
+// ========== عرض جدول تبويب 8 ==========
+function renderTable8(tbodyId, data, searchId, typeId, statsId) {
+    let search = document.getElementById(searchId)?.value.toLowerCase() || "";
+    let type = document.getElementById(typeId)?.value || "";
+    
+    let filtered = data.filter(item => {
+        let matchSearch = item["رقم الحاوية"]?.toLowerCase().includes(search) || false;
+        let matchType = !type || item["النوع"] === type;
+        return matchSearch && matchType;
+    });
+    
+    let tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:40px;">⚠️ لا توجد حاويات</td></tr>`;
+        return;
+    }
+    
+    for (let i = 0; i < filtered.length; i++) {
+        let item = filtered[i];
+        let row = tbody.insertRow();
+        
+        // تم إزالة عمود "المسلسل" ← هنا التعديل
+        
+        // الأعمدة المتبقية بنفس الترتيب
+        let cell1 = row.insertCell();
+        cell1.textContent = item["رقم الحاوية"] || "—";
+        cell1.style.fontWeight = "bold";
+        
+        let cell2 = row.insertCell();
+        cell2.textContent = item["النوع"] || "—";
+        
+        let cell3 = row.insertCell();
+        cell3.textContent = item["المنشأ"] || "—";
+        
+        let cell4 = row.insertCell();
+        cell4.textContent = item["تاريخ الدخول"] || "—";
+        
+        let cell5 = row.insertCell();
+        cell5.textContent = item["تاريخ الخروج"] || "—";
+        
+        let cell6 = row.insertCell();
+        cell6.textContent = item["أيام التخزين (جديد)"] !== undefined ? item["أيام التخزين (جديد)"] : "—";
+        cell6.style.background = "#e3f2fd";
+        cell6.style.fontWeight = "bold";
+        
+        let cell7 = row.insertCell();
+        cell7.textContent = item["Storage Days Total"] !== undefined ? item["Storage Days Total"] : "—";
+        cell7.style.background = "#fff3cd";
+        
+        let cell8 = row.insertCell();
+        cell8.textContent = item["الملاحظات"] || "—";
+        
+        let cell9 = row.insertCell();
+        cell9.textContent = item["نوع الشحنة"] || "—";
+    }
+    
+    // تحديث الإحصائيات
+    let statsDiv = document.getElementById(statsId);
+    if (statsDiv && data.length > 0) {
+        statsDiv.innerHTML = renderAdvancedStatsTab8(data);
+        statsDiv.style.display = "flex";
+    }
+}
 // ========== دالة إحصائيات تبويب 7 ==========
 function renderAdvancedStatsTab7(data) {
     if (!data || data.length === 0) {
@@ -5520,6 +6027,49 @@ function renderAdvancedStatsTab7(data) {
     `;
 }
 
+// ========== إحصائيات تبويب 8 ==========
+function renderAdvancedStatsTab8(data) {
+    if (!data || data.length === 0) {
+        return `<div style="padding:20px; text-align:center;">لا توجد بيانات</div>`;
+    }
+    
+    let totalContainers = data.length;
+    let totalNewDays = data.reduce((s, i) => s + (i["أيام التخزين (جديد)"] || 0), 0);
+    let totalOldDays = data.reduce((s, i) => s + (i["Storage Days Total"] || 0), 0);
+    let avgNewDays = (totalNewDays / totalContainers).toFixed(1);
+    
+    let dpaContainers = data.filter(i => i["المنشأ"] === "DPA");
+    let dpaCount = dpaContainers.length;
+    let dpaDays = dpaContainers.reduce((s, i) => s + (i["أيام التخزين (جديد)"] || 0), 0);
+    
+    let emptyContainers = data.filter(i => i["نوع الشحنة"] === "Empty");
+    let emptyCount = emptyContainers.length;
+    
+    return `
+        <div style="display: flex; gap: 15px; margin: 0 25px 20px 25px; flex-wrap: wrap;">
+            <div style="flex: 1; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 12px; padding: 15px; text-align: center; color: white;">
+                <div style="font-size: 14px;">📦 إجمالي الحاويات</div>
+                <div style="font-size: 28px; font-weight: bold;">${totalContainers}</div>
+                <div style="font-size: 12px;">حاوية</div>
+            </div>
+            <div style="flex: 1; background: linear-gradient(135deg, #4facfe, #00f2fe); border-radius: 12px; padding: 15px; text-align: center; color: white;">
+                <div style="font-size: 14px;">📅 إجمالي أيام التخزين (جديد)</div>
+                <div style="font-size: 28px; font-weight: bold;">${totalNewDays}</div>
+                <div style="font-size: 12px;">متوسط ${avgNewDays} يوم</div>
+            </div>
+            <div style="flex: 1; background: linear-gradient(135deg, #f093fb, #f5576c); border-radius: 12px; padding: 15px; text-align: center; color: white;">
+                <div style="font-size: 14px;">📅 Storage Days Total</div>
+                <div style="font-size: 28px; font-weight: bold;">${totalOldDays}</div>
+                <div style="font-size: 12px;">من البيانات الأصلية</div>
+            </div>
+            <div style="flex: 1; background: linear-gradient(135deg, #43e97b, #38f9d7); border-radius: 12px; padding: 15px; text-align: center; color: white;">
+                <div style="font-size: 14px;">📍 DPA</div>
+                <div style="font-size: 28px; font-weight: bold;">${dpaCount}</div>
+                <div style="font-size: 12px;">حاوية (${dpaDays} يوم)</div>
+            </div>
+        </div>
+    `;
+}
 // ========== دوال إدارة فترات السماح للتبويب 7 ==========
 function getPeriodsArray7() {
     return imprtForwardPeriods7;
@@ -6209,11 +6759,13 @@ if (tabId === '5') {
         
         // البحث عن فترة O/B Loc Type = VESSEL (السفينة)
         let vesselData = null;
+        let orderNumber = "";
         
         for (let tr of trshpArray) {
             let locType = tr["O/B Loc Type"] || "";  // ← التصحيح هنا: O/B Loc Type
             if (locType === "VESSEL") {
                 vesselData = tr;
+                orderNumber = tr["Order Number"] || "";  // ← الحصول على Order Number
                 break;
             }
         }
@@ -6222,7 +6774,12 @@ if (tabId === '5') {
         if (vesselData) {
             // O/B Carrier Name (اسم السفينة)
             if (carrierName === "—") {
-                carrierName = vesselData["O/B Carrier Name"] || vesselData["I/B Carrier Name"] || "—";
+                // ===== التعديل: إذا كان Order Number موجود، استخدمه بدلاً من اسم السفينة =====
+                if (orderNumber && orderNumber.trim() !== "") {
+                    carrierName = orderNumber;
+                } else {
+                    carrierName = vesselData["O/B Carrier Name"] || vesselData["I/B Carrier Name"] || "—";
+                }
             }
             
             // O/B Carrier ATD (تاريخ الشحن) - من سطر VESSEL فقط
@@ -6248,7 +6805,13 @@ if (tabId === '5') {
     if (carrierName === "—") {
         for (let item of displayData) {
             if (carrierName === "—") {
-                carrierName = item["Vessel Name"] || "—";
+                // ===== التعديل: إذا كان Order Number موجود، استخدمه =====
+                let orderNum = item["Order Number"] || "";
+                if (orderNum && orderNum.trim() !== "") {
+                    carrierName = orderNum;
+                } else {
+                    carrierName = item["Vessel Name"] || "—";
+                }
             }
             let lineId = item["Line ID"];
             if (lineId && lineId !== "") {
@@ -6353,6 +6916,45 @@ else if (tabId === '4') {
     updateHeaderUI(carrierName, maxDate, lineIds);
 }
 
+// ========== أزرار تبويب 8 ==========
+
+// زر طباعة تبويب 8
+document.getElementById("printBtn8").addEventListener("click", function() {
+    if (currentData8 && currentData8.length > 0) {
+        printReport('tab8', '📋 تقرير Storage Finalout');
+    } else {
+        alert("⚠️ لا توجد بيانات للطباعة في تبويب Storage Finalout");
+    }
+});
+
+// زر تصدير تبويب 8 إلى Excel
+document.getElementById("exportBtn8").addEventListener("click", function() {
+    if (currentData8 && currentData8.length > 0) {
+        let ws = XLSX.utils.json_to_sheet(currentData8);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "STORAGE_FINALOUT");
+        XLSX.writeFile(wb, `تقرير_Storage_Finalout_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.xlsx`);
+    } else {
+        alert("⚠️ لا توجد بيانات للتصدير في تبويب Storage Finalout");
+    }
+});
+
+// زر اختيار الأعمدة لتبويب 8
+document.getElementById("selectColumnsBtn8").addEventListener("click", function() {
+    // يمكنك استخدام دالة عامة لاختيار الأعمدة
+    // إذا كانت الأعمدة معرفة مسبقاً في availableColumnsTab8
+    openColumnModal('tab8'); // أو أنشئ دالة خاصة
+});
+
+// ========== البحث والفلترة لتبويب 8 ==========
+document.getElementById("searchTab8")?.addEventListener("input", function() {
+    renderTable8("bodyTab8", currentData8, "searchTab8", "typeTab8", "statsTab8");
+});
+
+document.getElementById("typeTab8")?.addEventListener("change", function() {
+    renderTable8("bodyTab8", currentData8, "searchTab8", "typeTab8", "statsTab8");
+});
+
 function updateHeaderUI(carrierName, maxDate, lineIds) {
     // تحديث اسم السفينة في عنوان الصفحة و h1
     if (carrierName !== "—" && carrierName !== currentVesselName) {
@@ -6390,3 +6992,250 @@ displayExcludeList('excludeList6', excludeLines6, '6');
 // ربط زر اختيار الأعمدة للتبويب 5
 document.getElementById("selectColumnsBtn5").onclick = () => openColumnModalTab5();
 
+/// ========== تحميل الإعدادات تلقائياً عند فتح الصفحة ==========
+document.addEventListener("DOMContentLoaded", function() {
+    setTimeout(() => {
+        loadSettingsAutomatically();
+    }, 500);
+});
+
+// ============================================================
+// ========== دوال تحميل الإعدادات من GitHub تلقائياً ==========
+// ============================================================
+
+const GITHUB_SETTINGS_URL = 'https://raw.githubusercontent.com/revenudchc-boop/Storage_Reports/main/settings.json';
+
+// ===== دالة التحميل الرئيسية =====
+async function loadSettingsFromGitHub() {
+    try {
+        console.log('🔄 [GitHub] جاري تحميل الإعدادات...');
+        
+        const response = await fetch(GITHUB_SETTINGS_URL + '?t=' + Date.now());
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const settings = await response.json();
+        
+        // تطبيق الإعدادات على المتغيرات مباشرة
+        applyGitHubSettings(settings);
+        
+        console.log('✅ [GitHub] تم تحميل الإعدادات بنجاح');
+        document.getElementById("footerMsg").innerHTML = '✅ تم تحميل الإعدادات من GitHub تلقائياً';
+        
+    } catch (error) {
+        console.warn('⚠️ [GitHub] فشل التحميل، استخدام localStorage:', error.message);
+        document.getElementById("footerMsg").innerHTML = '⚠️ استخدام الإعدادات المحفوظة محلياً';
+    }
+}
+
+// ===== دالة تطبيق الإعدادات =====
+function applyGitHubSettings(settings) {
+    console.log('🔄 [GitHub] تطبيق الإعدادات...');
+    
+    // قائمة الخطوط
+    if (settings.masterLinesList) {
+        masterLinesList = settings.masterLinesList;
+        localStorage.setItem("masterLinesList", JSON.stringify(masterLinesList));
+        updateAllLineSelects();
+    }
+    
+    // تبويب 1
+    if (settings.trshpPeriodsTab1) {
+        trshpPeriods1 = settings.trshpPeriodsTab1;
+        localStorage.setItem("trshpPeriodsTab1", JSON.stringify(trshpPeriods1));
+        nextIdTrshp1 = trshpPeriods1.length > 0 ? Math.max(...trshpPeriods1.map(p => p.id)) + 1 : 1;
+    }
+    if (settings.exprtPeriodsTab1) {
+        exprtPeriods1 = settings.exprtPeriodsTab1;
+        localStorage.setItem("exprtPeriodsTab1", JSON.stringify(exprtPeriods1));
+        nextIdExprt1 = exprtPeriods1.length > 0 ? Math.max(...exprtPeriods1.map(p => p.id)) + 1 : 1;
+    }
+    if (settings.excludeLines1) {
+        excludeLines1 = settings.excludeLines1;
+        localStorage.setItem("excludeLines1", JSON.stringify(excludeLines1));
+    }
+    
+    // تبويب 2
+    if (settings.strgePeriodsTab2) {
+        strgePeriods2 = settings.strgePeriodsTab2;
+        localStorage.setItem("strgePeriodsTab2", JSON.stringify(strgePeriods2));
+        nextIdStrge2 = strgePeriods2.length > 0 ? Math.max(...strgePeriods2.map(p => p.id)) + 1 : 1;
+    }
+    if (settings.exprtPeriodsTab2) {
+        exprtPeriods2 = settings.exprtPeriodsTab2;
+        localStorage.setItem("exprtPeriodsTab2", JSON.stringify(exprtPeriods2));
+        nextIdExprt2 = exprtPeriods2.length > 0 ? Math.max(...exprtPeriods2.map(p => p.id)) + 1 : 1;
+    }
+    if (settings.excludeLines2) {
+        excludeLines2 = settings.excludeLines2;
+        localStorage.setItem("excludeLines2", JSON.stringify(excludeLines2));
+    }
+    
+    // تبويب 3
+    if (settings.exprtOnlyPeriodsTab3) {
+        exprtOnlyPeriods3 = settings.exprtOnlyPeriodsTab3;
+        localStorage.setItem("exprtOnlyPeriodsTab3", JSON.stringify(exprtOnlyPeriods3));
+        nextIdExprtOnly3 = exprtOnlyPeriods3.length > 0 ? Math.max(...exprtOnlyPeriods3.map(p => p.id)) + 1 : 1;
+    }
+    if (settings.excludeLines3) {
+        excludeLines3 = settings.excludeLines3;
+        localStorage.setItem("excludeLines3", JSON.stringify(excludeLines3));
+    }
+    
+    // تبويب 4
+    if (settings.emptyStrgePeriodsTab4) {
+        emptyStrgePeriods4 = settings.emptyStrgePeriodsTab4;
+        localStorage.setItem("emptyStrgePeriodsTab4", JSON.stringify(emptyStrgePeriods4));
+        nextIdEmptyStrge4 = emptyStrgePeriods4.length > 0 ? Math.max(...emptyStrgePeriods4.map(p => p.id)) + 1 : 1;
+    }
+    if (settings.excludeLines4) {
+        excludeLines4 = settings.excludeLines4;
+        localStorage.setItem("excludeLines4", JSON.stringify(excludeLines4));
+    }
+    
+    // تبويب 5
+    if (settings.trshpOnlyPeriodsTab5) {
+        trshpOnlyPeriods5 = settings.trshpOnlyPeriodsTab5;
+        localStorage.setItem("trshpOnlyPeriodsTab5", JSON.stringify(trshpOnlyPeriods5));
+        nextIdTrshpOnly5 = trshpOnlyPeriods5.length > 0 ? Math.max(...trshpOnlyPeriods5.map(p => p.id)) + 1 : 1;
+    }
+    if (settings.excludeLines5) {
+        excludeLines5 = settings.excludeLines5;
+        localStorage.setItem("excludeLines5", JSON.stringify(excludeLines5));
+    }
+    
+    // تبويب 6
+    if (settings.strgePeriodsTab6) {
+        strgePeriods6 = settings.strgePeriodsTab6;
+        localStorage.setItem("strgePeriodsTab6", JSON.stringify(strgePeriods6));
+        nextIdStrge6 = strgePeriods6.length > 0 ? Math.max(...strgePeriods6.map(p => p.id)) + 1 : 1;
+    }
+    if (settings.exprtPeriodsTab6) {
+        exprtPeriods6 = settings.exprtPeriodsTab6;
+        localStorage.setItem("exprtPeriodsTab6", JSON.stringify(exprtPeriods6));
+        nextIdExprt6 = exprtPeriods6.length > 0 ? Math.max(...exprtPeriods6.map(p => p.id)) + 1 : 1;
+    }
+    if (settings.excludeLines6) {
+        excludeLines6 = settings.excludeLines6;
+        localStorage.setItem("excludeLines6", JSON.stringify(excludeLines6));
+    }
+    
+    // تبويب 7
+    if (settings.imprtForwardPeriodsTab7) {
+        imprtForwardPeriods7 = settings.imprtForwardPeriodsTab7;
+        localStorage.setItem("imprtForwardPeriodsTab7", JSON.stringify(imprtForwardPeriods7));
+        nextIdImprtForward7 = imprtForwardPeriods7.length > 0 ? Math.max(...imprtForwardPeriods7.map(p => p.id)) + 1 : 1;
+    }
+    if (settings.excludeLines7) {
+        excludeLines7 = settings.excludeLines7;
+        localStorage.setItem("excludeLines7", JSON.stringify(excludeLines7));
+    }
+    
+    // تفضيلات الأعمدة
+    if (settings.selectedColumns) {
+        for (let key in settings.selectedColumns) {
+            selectedColumns[key] = settings.selectedColumns[key];
+            localStorage.setItem(`selectedColumns_${key}`, JSON.stringify(selectedColumns[key]));
+        }
+    }
+    
+    // تحديث واجهة المستخدم
+    initializeAllSelects();
+    refreshPeriodsDisplay('1');
+    refreshPeriodsDisplay('2');
+    refreshPeriodsDisplay('3');
+    refreshPeriodsDisplay('4');
+    refreshPeriodsDisplay('5');
+    refreshPeriodsDisplay('6');
+    refreshPeriodsDisplay('7');
+    displayExcludeList('excludeList1', excludeLines1, '1');
+    displayExcludeList('excludeList2', excludeLines2, '2');
+    displayExcludeList('excludeList3', excludeLines3, '3');
+    displayExcludeList('excludeList4', excludeLines4, '4');
+    displayExcludeList('excludeList5', excludeLines5, '5');
+    displayExcludeList('excludeList6', excludeLines6, '6');
+    displayExcludeList('excludeList7', excludeLines7, '7');
+    
+    // إعادة معالجة البيانات إذا كان هناك ملف محمل
+    if (containersMap.size > 0) {
+        processAndDisplay1();
+        processAndDisplay2();
+        processAndDisplay3();
+        processAndDisplay4();
+        processAndDisplay5();
+        processAndDisplay6();
+        processAndDisplay7();
+    }
+    
+	// بعد تحديث واجهة المستخدم
+applyColumnPreferencesFromGitHub();
+    console.log('✅ [GitHub] تم تطبيق الإعدادات بنجاح');
+}
+
+// ========== تحديث Header لتبويب 8 ==========
+function updateStorageFinaloutHeader(headerInfo) {
+    let orderNumberSpan = document.getElementById("headerOrderNumber");
+    let lineOpSpan = document.getElementById("headerLineOp");
+    
+    if (!orderNumberSpan) {
+        let headerDiv = document.getElementById("headerInfo");
+        if (headerDiv) {
+            headerDiv.innerHTML = `
+                <div>📋 <strong>رقم الأمر (Order Number):</strong> <span id="headerOrderNumber">—</span></div>
+                <div>🚢 <strong>الخط المشغل (Line Op):</strong> <span id="headerLineOp">—</span></div>
+                <div>📦 <strong>عدد الحاويات:</strong> <span id="headerCount">0</span></div>
+            `;
+        }
+    }
+    
+    let orderNumberSpan2 = document.getElementById("headerOrderNumber");
+    let lineOpSpan2 = document.getElementById("headerLineOp");
+    let countSpan = document.getElementById("headerCount");
+    
+    if (orderNumberSpan2) orderNumberSpan2.textContent = headerInfo.orderNumber || "—";
+    if (lineOpSpan2) lineOpSpan2.textContent = headerInfo.lineOp || "—";
+    if (countSpan) countSpan.textContent = currentData8.length || 0;
+}
+// ===== استدعاء التحميل عند فتح الصفحة =====
+// هذا السطر سيتم تنفيذه بعد تحميل الصفحة بالكامل
+document.addEventListener("DOMContentLoaded", function() {
+    // تأخير بسيط لضمان جاهزية كل شيء
+    setTimeout(loadSettingsFromGitHub, 500);
+});
+
+
+// ============================================================
+// ===== دالة تطبيق تفضيلات الأعمدة من GitHub =====
+// ============================================================
+function applyColumnPreferencesFromGitHub() {
+    try {
+        // التحقق من وجود تفضيلات الأعمدة في selectedColumns
+        if (!selectedColumns || Object.keys(selectedColumns).length === 0) {
+            console.log('⚠️ لا توجد تفضيلات أعمدة للتحميل');
+            return;
+        }
+        
+        // تطبيق التفضيلات على كل تبويب
+        for (let tab in selectedColumns) {
+            let tabNumber = tab.replace('tab', '');
+            let columns = selectedColumns[tab];
+            
+            if (!columns || columns.length === 0) continue;
+            
+            // حفظ التفضيلات في localStorage
+            localStorage.setItem(`selectedColumns_${tab}`, JSON.stringify(columns));
+            
+            console.log(`✅ تم تطبيق تفضيلات الأعمدة للتبويب ${tabNumber}:`, columns.length, 'عمود');
+        }
+        
+        // إعادة عرض الجداول مع الأعمدة المختارة
+        setTimeout(function() {
+            applySavedColumnPreferences();
+        }, 200);
+        
+    } catch (error) {
+        console.warn('⚠️ فشل تطبيق تفضيلات الأعمدة:', error);
+    }
+}
