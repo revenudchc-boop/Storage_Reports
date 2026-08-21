@@ -3488,6 +3488,21 @@ function printReport(tabId, title) {
         hour: '2-digit',
         minute: '2-digit'
     });
+	
+	    // ===== معلومات إضافية لتبويب 8 =====
+    let extraInfo = "";
+    if (tabId === 'tab8') {
+        let orderNumber = document.getElementById("headerOrderNumber")?.innerText || "—";
+        let lineOp = document.getElementById("headerLineOp")?.innerText || "—";
+        let count = document.getElementById("headerCount")?.innerText || "0";
+        extraInfo = `
+            <div style="text-align: right; margin-bottom: 10px; font-size: 12px; direction: rtl; background: #f8f9fa; padding: 8px; border-radius: 4px;">
+                <div>📋 <strong>رقم الأمر:</strong> ${orderNumber}</div>
+                <div>🚢 <strong>الخط المشغل:</strong> ${lineOp}</div>
+                <div>📦 <strong>عدد الحاويات:</strong> ${count}</div>
+            </div>
+        `;
+    }
     
     let printWindow = window.open('', '_blank', 'width=1200,height=800');
     if (!printWindow) {
@@ -3652,6 +3667,8 @@ function printReport(tabId, title) {
             </div>
          
             <div class="report-date">📅 تاريخ الطباعة: ${currentDate}</div>
+            
+            ${extraInfo}
             
             <div id="statsPrint"></div>
             <div id="tablePrint"></div>
@@ -7175,28 +7192,52 @@ applyColumnPreferencesFromGitHub();
 }
 
 // ========== تحديث Header لتبويب 8 ==========
+// ========== تحديث Header لتبويب 8 ==========
 function updateStorageFinaloutHeader(headerInfo) {
+    // البحث عن العناصر الخاصة بتبويب 8
     let orderNumberSpan = document.getElementById("headerOrderNumber");
     let lineOpSpan = document.getElementById("headerLineOp");
-    
+    let countSpan = document.getElementById("headerCount");
+
+    // إذا لم تكن العناصر موجودة، نقوم بإنشائها داخل headerInfo دون مسح المحتوى الأصلي
     if (!orderNumberSpan) {
         let headerDiv = document.getElementById("headerInfo");
         if (headerDiv) {
-            headerDiv.innerHTML = `
+            // نضيف عناصر جديدة بجانب العناصر القديمة (بدون مسحها)
+            let newDiv = document.createElement('div');
+            newDiv.id = 'finaloutHeader';
+            newDiv.style.marginTop = '10px';
+            newDiv.style.paddingTop = '10px';
+            newDiv.style.borderTop = '1px solid rgba(255,255,255,0.2)';
+            newDiv.innerHTML = `
                 <div>📋 <strong>رقم الأمر (Order Number):</strong> <span id="headerOrderNumber">—</span></div>
                 <div>🚢 <strong>الخط المشغل (Line Op):</strong> <span id="headerLineOp">—</span></div>
                 <div>📦 <strong>عدد الحاويات:</strong> <span id="headerCount">0</span></div>
             `;
+            headerDiv.appendChild(newDiv);
+        }
+        // إعادة الحصول على العناصر بعد إنشائها
+        orderNumberSpan = document.getElementById("headerOrderNumber");
+        lineOpSpan = document.getElementById("headerLineOp");
+        countSpan = document.getElementById("headerCount");
+    }
+
+    // تحديث قيم العناصر
+    if (orderNumberSpan) orderNumberSpan.textContent = headerInfo.orderNumber || "—";
+    if (lineOpSpan) lineOpSpan.textContent = headerInfo.lineOp || "—";
+    if (countSpan) countSpan.textContent = currentData8.length || 0;
+
+    // إظهار عناصر تبويب 8 وإخفاء العناصر الأصلية حسب التبويب النشط
+    // لكننا سنتركها ظاهرة دائماً، ويمكن إخفاؤها عند تحميل ملف عادي
+    // لكن الأفضل إظهار/إخفاء حسب وجود بيانات finalout
+    let finaloutHeader = document.getElementById("finaloutHeader");
+    if (finaloutHeader) {
+        if (currentData8 && currentData8.length > 0) {
+            finaloutHeader.style.display = 'block';
+        } else {
+            finaloutHeader.style.display = 'none';
         }
     }
-    
-    let orderNumberSpan2 = document.getElementById("headerOrderNumber");
-    let lineOpSpan2 = document.getElementById("headerLineOp");
-    let countSpan = document.getElementById("headerCount");
-    
-    if (orderNumberSpan2) orderNumberSpan2.textContent = headerInfo.orderNumber || "—";
-    if (lineOpSpan2) lineOpSpan2.textContent = headerInfo.lineOp || "—";
-    if (countSpan) countSpan.textContent = currentData8.length || 0;
 }
 // ===== استدعاء التحميل عند فتح الصفحة =====
 // هذا السطر سيتم تنفيذه بعد تحميل الصفحة بالكامل
