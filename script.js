@@ -1101,7 +1101,9 @@ function updateEndDates(periods) {
     return result;
 }
 
-function getFreeDays(periods, lineId, periodDate, flexString01, drayStatus) {
+function getFreeDays(periods, lineId, periodDate, flexString01, drayStatus, freightKind = "") {
+    let cleanFreightKind = freightKind.trim().toUpperCase();
+    
     let matchingPeriods = periods.filter(p => {
         let lineMatch = (p.lineId === lineId || p.lineId === "*");
         
@@ -1121,7 +1123,14 @@ function getFreeDays(periods, lineId, periodDate, flexString01, drayStatus) {
             drayMatch = (!drayStatus || drayStatus === "");
         }
         
-        return lineMatch && flexMatch && drayMatch;
+        // ===== شرط Freight Kind =====
+        let freightMatch = true;
+        if (p.freightKind && p.freightKind !== "") {
+            let periodFreightKind = p.freightKind.trim().toUpperCase();
+            freightMatch = (periodFreightKind === cleanFreightKind);
+        }
+        
+        return lineMatch && flexMatch && drayMatch && freightMatch;
     });
     
     if (matchingPeriods.length === 0) return 0;
@@ -2646,6 +2655,18 @@ function setPeriodsArray(tabId, category, periods) {
 }  // ← تأكد من وجود هذا القوس
 
 function displayPeriodsList(containerId, periods, tabId) {
+    // دالة مساعدة لتنسيق التاريخ للعرض (DD/MM/YYYY)
+    function formatDateToDisplay(dateStr) {
+        if (!dateStr) return '';
+        // إذا كان التاريخ بصيغة YYYY-MM-DD
+        let parts = dateStr.split('-');
+        if (parts.length === 3 && parts[0].length === 4) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+        // إذا كان بصيغة أخرى، اعرضه كما هو
+        return dateStr;
+    }
+
     let sorted = sortPeriods([...periods]);
     let html = `<table style="width:100%; font-size:12px; border:1px solid #ddd;">
         <thead>
@@ -2654,6 +2675,7 @@ function displayPeriodsList(containerId, periods, tabId) {
                 <th>Line ID</th>
                 <th>Dray Status</th>
                 <th>Flex String 01</th>
+                <th>Freight Kind</th>
                 <th>تاريخ البدء</th>
                 <th>تاريخ النهاية</th>
                 <th>أيام السماح</th>
@@ -2669,10 +2691,10 @@ function displayPeriodsList(containerId, periods, tabId) {
         html += `<tr>
             <td><span class="category-badge ${catClass}">${period.category}</span></td>
             <td>
-<select class="period-line-${tabId}" data-id="${period.id}" data-cat="${period.category}" style="padding:6px 10px; border-radius:6px;">
-    <option value="*" ${period.lineId === "*" ? "selected" : ""}>* (الكل)</option>
-    ${masterLinesList.map(line => `<option value="${line}" ${period.lineId === line ? "selected" : ""}>${line}</option>`).join('')}
-</select>
+                <select class="period-line-${tabId}" data-id="${period.id}" data-cat="${period.category}" style="padding:6px 10px; border-radius:6px;">
+                    <option value="*" ${period.lineId === "*" ? "selected" : ""}>* (الكل)</option>
+                    ${masterLinesList.map(line => `<option value="${line}" ${period.lineId === line ? "selected" : ""}>${line}</option>`).join('')}
+                </select>
             </td>
             <td>
                 <select class="period-dray-${tabId}" data-id="${period.id}" data-cat="${period.category}" style="padding:6px 10px; border-radius:6px;">
@@ -2689,17 +2711,31 @@ function displayPeriodsList(containerId, periods, tabId) {
                     <option value="FALSE" ${period.flexString01 === "FALSE" ? "selected" : ""}>FALSE (صادر عادي)</option>
                 </select>
             </td>
-            <td><input type="date" class="period-start-${tabId}" data-id="${period.id}" data-cat="${period.category}" value="${period.startDate || ''}" style="width:130px;"></td>
+            <td>
+                <select class="period-freight-${tabId}" data-id="${period.id}" data-cat="${period.category}" style="padding:6px 10px; border-radius:6px;">
+                    <option value="">الكل</option>
+                    <option value="FCL" ${period.freightKind === "FCL" ? "selected" : ""}>FCL (حاوية كاملة)</option>
+                    <option value="MTY" ${period.freightKind === "MTY" ? "selected" : ""}>MTY (فارغة)</option>
+                </select>
+            </td>
+            <td>
+                <input type="date" class="period-start-${tabId}" data-id="${period.id}" data-cat="${period.category}" value="${period.startDate || ''}" style="width:130px;">
+                <span style="display:block; font-size:10px; color:#6c757d; margin-top:2px;">
+                    ${formatDateToDisplay(period.startDate)}
+                </span>
+            </td>
             <td style="background:#f8f9fa;">${endDisplay}</td>
-            <td><input type="number" class="period-days-${tabId}" data-id="${period.id}" data-cat="${period.category}" value="${period.freeDays}" style="width:80px;"><td>
+            <td><input type="number" class="period-days-${tabId}" data-id="${period.id}" data-cat="${period.category}" value="${period.freeDays}" style="width:80px;"></td>
             <td><button onclick="window.deletePeriod('${tabId}', '${period.category}', ${period.id})" class="delete-btn">✖ حذف</button></td>
         </tr>`;
     });
     
-    html += `</tbody></tr>`;
+    html += `</tbody></table>`;
     document.getElementById(containerId).innerHTML = html;
     
+    // ===== إضافة مستمعي الأحداث =====
     setTimeout(() => {
+        // مستمع تغيير Line ID
         document.querySelectorAll(`.period-line-${tabId}`).forEach(sel => {
             sel.onchange = e => {
                 let id = parseInt(e.target.dataset.id);
@@ -2714,6 +2750,7 @@ function displayPeriodsList(containerId, periods, tabId) {
             };
         });
         
+        // مستمع تغيير Dray Status
         document.querySelectorAll(`.period-dray-${tabId}`).forEach(sel => {
             sel.onchange = e => {
                 let id = parseInt(e.target.dataset.id);
@@ -2728,6 +2765,7 @@ function displayPeriodsList(containerId, periods, tabId) {
             };
         });
         
+        // مستمع تغيير Flex String 01
         document.querySelectorAll(`.period-flex-${tabId}`).forEach(sel => {
             sel.onchange = e => {
                 let id = parseInt(e.target.dataset.id);
@@ -2742,6 +2780,22 @@ function displayPeriodsList(containerId, periods, tabId) {
             };
         });
         
+        // مستمع تغيير Freight Kind
+        document.querySelectorAll(`.period-freight-${tabId}`).forEach(sel => {
+            sel.onchange = e => {
+                let id = parseInt(e.target.dataset.id);
+                let category = e.target.dataset.cat;
+                let periodsArr = getPeriodsArray(tabId, category);
+                let p = periodsArr.find(p => p.id === id);
+                if (p) {
+                    p.freightKind = e.target.value;
+                    setPeriodsArray(tabId, category, periodsArr);
+                    refreshPeriodsDisplay(tabId);
+                }
+            };
+        });
+        
+        // مستمع تغيير تاريخ البدء
         document.querySelectorAll(`.period-start-${tabId}`).forEach(inp => {
             inp.onchange = e => {
                 let id = parseInt(e.target.dataset.id);
@@ -2756,6 +2810,7 @@ function displayPeriodsList(containerId, periods, tabId) {
             };
         });
         
+        // مستمع تغيير أيام السماح
         document.querySelectorAll(`.period-days-${tabId}`).forEach(inp => {
             inp.onchange = e => {
                 let id = parseInt(e.target.dataset.id);
@@ -2856,6 +2911,7 @@ function addNewPeriod(tabId, category) {
         lineId: defaultLineId,
         drayStatus: defaultDrayStatus,
         flexString01: defaultFlex,
+		freightKind: "",        // ← أضف هذا
         startDate: lastStart,
         endDate: "",
         freeDays: 0
@@ -4513,6 +4569,13 @@ function processAndDisplay5() {
             
             let obLocType = tr["O/B Loc Type"] || "";  // نستخدم O/B Loc Type للتصنيف
             
+            // ===== قراءة Freight Kind من عدة أسماء أعمدة محتملة =====
+            let freightKind = tr["Freight Kind"] || tr["Frght Kind"] || tr["FreightKind"] || tr["Freight_Kind"] || "";
+            // إذا كانت القيمة "Empty" أو "EMPTY"، حوّلها إلى "MTY"
+            if (freightKind && freightKind.toUpperCase() === "EMPTY") {
+                freightKind = "MTY";
+            }
+            
             let periodData = {
                 rawData: tr,
                 start: trStart,
@@ -4524,7 +4587,8 @@ function processAndDisplay5() {
                 flexString01: tr["Flex String 01"] || "",
                 flexString04: tr["Flex String 04"] || "",
                 obCarrierName: tr["O/B Carrier Name"] || "",
-                obCarrierATD: tr["O/B Carrier ATD"] || tr["O/B Carrier ATA"] || ""
+                obCarrierATD: tr["O/B Carrier ATD"] || tr["O/B Carrier ATA"] || "",
+                freightKind: freightKind  // ← تأكد من وجود هذا السطر
             };
             
             if (obLocType === "TRUCK") {
@@ -4556,88 +4620,83 @@ function processAndDisplay5() {
         let lineId = container.lineId || "";
         let isExcl = isExcluded(lineId, excludeLines5);
         
-        // حساب أيام السماح الكلي (مرة واحدة) من أول فترة (TRUCK)
+        // ===== حساب أيام السماح الكلي مع تمرير freightKind =====
         let firstPeriod = sortedPeriods[0];
-        let freeDays = getFreeDays(trshpOnlyPeriods5, lineId, firstPeriod.start, firstPeriod.flexString01, "");
+        let freightKind = firstPeriod.freightKind || "";
+        
+        // ==== تشخيص: طباعة قيمة freightKind للحاوية ====
+        console.log(`🔍 حاوية ${id}: Freight Kind = "${freightKind}" (طول النص: ${freightKind.length})`);
+        
+        let freeDays = getFreeDays(trshpOnlyPeriods5, lineId, firstPeriod.start, firstPeriod.flexString01, "", freightKind);
+        
+        console.log(`🔍 السماح المحسوب للحاوية ${id}: ${freeDays} يوم`);
         
         // ========== توزيع السماح على الفترات بالتسلسل (TRUCK أولاً ثم VESSEL) ==========
         let remainingFree = freeDays;
         
-for (let i = 0; i < sortedPeriods.length; i++) {
-    let period = sortedPeriods[i];
-    let days = period.days;
-    
-    let deduction = Math.min(days, remainingFree);
-    let netDays = days - deduction;
-    if (netDays < 0) netDays = 0;
-    remainingFree -= deduction;
-    
-    let equipType = container.equipmentType;
-    let size = equipType.toString().match(/^(\d+)/)?.[1] || "";
-    let isRefrigerated = period.rawData["Is Refrigerated"] || "";
-    let type = (isRefrigerated === "true" || equipType.includes("R1")) ? "RF" : "GP";
-    let isOOG = period.rawData["Is OOG"] || "";
-    let isBundled = period.rawData["Is Bundled"] || "";
-    let isHazardous = period.rawData["Is Hazardous"] || "";
-    let imdgClass = period.rawData["IMDG Class"] || "";
-    let method = isExcl ? "🚫 سماح مستقل" : "🔄 سماح متسلسل";
-    let displayType = period.obLocType || period.ibLocType || "—";
-    
-    // ========== أضف هذه الأسطر هنا ==========
-let hasMultiplePeriods = (sortedPeriods.length > 1);
-
-// ===================================================
-// شرط إظهار الحاوية في تبويب 5
-// ===================================================
-// استخدم المتغيرات الموجودة (لا تعيد تعريفها)
-// ===================================================
-// isRefrigerated موجودة من الأعلى
-// type موجود من الأعلى
-// netDays موجود من الأعلى
-
-let freightKind = period.rawData["Freight Kind"] || "";
-let orderNumber = period.rawData["Order Number"] || "";
-// إذا كانت RF و Freight Kind = MTY و Is Refrigerated = false و netDays <= 0 → لا تظهر
-let isInvalidRF = (type === "RF" && freightKind === "MTY" && isRefrigerated === "false" && netDays <= 0);
-
-let shouldShow = (type === "RF" && !isInvalidRF) || hasMultiplePeriods || (type === "GP" && netDays > 0) || (netDays === 0 && orderNumber && orderNumber.trim() !== "");
-// ===================================================
-// ===================================================
-    // =====================================
-    
-    // لف result.push داخل شرط if
-    if (shouldShow) {
-        result.push({
-            "Container No.": id,
-            "Size": size,
-			"Freight Kind": period.rawData["Freight Kind"] || "",  // ← أضف هذا
-            "Is OOG": isOOG,
-            "Is Refrigerated": isRefrigerated,
-            "O/B Loc Type": displayType,
-            "Is Bundled": isBundled,
-            "Is Hazardous": isHazardous,
-            "IMDG Class": imdgClass,
-            "Type": type,
-            "Line ID": lineId,
-            "طريقة الحساب": method,
-            "Flex String 01": period.flexString01,
-            "flex_04": period.flexString04,
-			"Order Number": orderNumber,  // ← تأكد من وجود هذا السطر
-            "TRSHP Start": period.start,
-            "TRSHP End": period.end,
-            "TRSHP Days": days,
-            "TRSHP Free": freeDays,   // السماح الكلي من الإعدادات
-            "TRSHP Net": netDays,
-            "Total Net": netDays,
-            "Vessel Name": period.vesselName,
-            "O/B Carrier Name": period.obCarrierName,
-            "O/B Carrier ATD": period.obCarrierATD,
-            "Period Order": i + 1,
-            "Period Type": displayType
-        });
-    }  // <--- قوس إغلاق if
-}  
-	}// <--- قوس إغلاق for
+        for (let i = 0; i < sortedPeriods.length; i++) {
+            let period = sortedPeriods[i];
+            let days = period.days;
+            
+            let deduction = Math.min(days, remainingFree);
+            let netDays = days - deduction;
+            if (netDays < 0) netDays = 0;
+            remainingFree -= deduction;
+            
+            let equipType = container.equipmentType;
+            let size = equipType.toString().match(/^(\d+)/)?.[1] || "";
+            let isRefrigerated = period.rawData["Is Refrigerated"] || "";
+            let type = (isRefrigerated === "true" || equipType.includes("R1")) ? "RF" : "GP";
+            let isOOG = period.rawData["Is OOG"] || "";
+            let isBundled = period.rawData["Is Bundled"] || "";
+            let isHazardous = period.rawData["Is Hazardous"] || "";
+            let imdgClass = period.rawData["IMDG Class"] || "";
+            let method = isExcl ? "🚫 سماح مستقل" : "🔄 سماح متسلسل";
+            let displayType = period.obLocType || period.ibLocType || "—";
+            
+            let hasMultiplePeriods = (sortedPeriods.length > 1);
+            
+            // ===== استخدم freightKind من period (بدون إعادة تعريف) =====
+            let periodFreightKind = period.freightKind || "";
+            let orderNumber = period.rawData["Order Number"] || "";
+            
+            // إذا كانت RF و Freight Kind = MTY و Is Refrigerated = false و netDays <= 0 → لا تظهر
+            let isInvalidRF = (type === "RF" && periodFreightKind === "MTY" && isRefrigerated === "false" && netDays <= 0);
+            
+            let shouldShow = (type === "RF" && !isInvalidRF) || hasMultiplePeriods || (type === "GP" && netDays > 0) || (netDays === 0 && orderNumber && orderNumber.trim() !== "");
+            
+            if (shouldShow) {
+                result.push({
+                    "Container No.": id,
+                    "Size": size,
+                    "Freight Kind": periodFreightKind,
+                    "Is OOG": isOOG,
+                    "Is Refrigerated": isRefrigerated,
+                    "O/B Loc Type": displayType,
+                    "Is Bundled": isBundled,
+                    "Is Hazardous": isHazardous,
+                    "IMDG Class": imdgClass,
+                    "Type": type,
+                    "Line ID": lineId,
+                    "طريقة الحساب": method,
+                    "Flex String 01": period.flexString01,
+                    "flex_04": period.flexString04,
+                    "Order Number": orderNumber,
+                    "TRSHP Start": period.start,
+                    "TRSHP End": period.end,
+                    "TRSHP Days": days,
+                    "TRSHP Free": freeDays,
+                    "TRSHP Net": netDays,
+                    "Total Net": netDays,
+                    "Vessel Name": period.vesselName,
+                    "O/B Carrier Name": period.obCarrierName,
+                    "O/B Carrier ATD": period.obCarrierATD,
+                    "Period Order": i + 1,
+                    "Period Type": displayType
+                });
+            }
+        }
+    } // <--- قوس إغلاق for (containersMap)
     
     // ترتيب النتائج: حسب رقم الحاوية ثم حسب الترتيب (TRUCK ثم VESSEL)
     result.sort((a, b) => {
