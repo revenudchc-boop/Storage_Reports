@@ -298,8 +298,8 @@
 	    {"id": 61, "category": "TRSHP", "lineId": "SIV", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
 	    {"id": 62, "category": "TRSHP", "lineId": "SFT", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
 	    {"id": 63, "category": "TRSHP", "lineId": "ROD", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
-	    {"id": 64, "category": "TRSHP", "lineId": "MSC", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-03-01", "endDate": "", "freeDays": 25}
-		{"id": 65, "category": "TRSHP", "lineId": "ALP", "drayStatus": "", "flexString01": "FCL", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 24},
+	    {"id": 64, "category": "TRSHP", "lineId": "MSC", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-03-01", "endDate": "", "freeDays": 25},
+		{"id": 65, "category": "TRSHP", "lineId": "ALP", "drayStatus": "", "flexString01": "FCL", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 24}
 	],
     "excludeLines5": [],
 
