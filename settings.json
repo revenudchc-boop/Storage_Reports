@@ -237,7 +237,7 @@
 	"trshpOnlyPeriodsTab5": [
 	    {"id": 1, "category": "TRSHP", "lineId": "MSC", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2025-12-01", "endDate": "2026-02-28", "freeDays": 23},
 	    {"id": 2, "category": "TRSHP", "lineId": "ZIM", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 20},
-	    {"id": 3, "category": "TRSHP", "lineId": "ALP", "drayStatus": "", "flexString01": "MTY", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 25},
+	    {"id": 3, "category": "TRSHP", "lineId": "ALP", "drayStatus": "", "flexString01": "", "freightKind": "MTY", "startDate": "2026-01-01", "endDate": "", "freeDays": 25},
 	    {"id": 4, "category": "TRSHP", "lineId": "YML", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 20},
 	    {"id": 5, "category": "TRSHP", "lineId": "MSK", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 20},
 	    {"id": 6, "category": "TRSHP", "lineId": "CMA", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 21},
@@ -299,7 +299,7 @@
 	    {"id": 62, "category": "TRSHP", "lineId": "SFT", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
 	    {"id": 63, "category": "TRSHP", "lineId": "ROD", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
 	    {"id": 64, "category": "TRSHP", "lineId": "MSC", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-03-01", "endDate": "", "freeDays": 25},
-		{"id": 65, "category": "TRSHP", "lineId": "ALP", "drayStatus": "", "flexString01": "FCL", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 24}
+		{"id": 65, "category": "TRSHP", "lineId": "ALP", "drayStatus": "", "flexString01": "", "freightKind": "FCL", "startDate": "2026-01-01", "endDate": "", "freeDays": 24}
 	],
     "excludeLines5": [],
 
