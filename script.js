@@ -1738,15 +1738,44 @@ function processAndDisplay1() {
         let totalFreeDays = 0;
         let lineId = container.lineId || "";
         
-        for (let tr of sortedTrshp) {
-            let ibLocType = tr["I/B Loc Type"] || "";
-            if (ibLocType === "VESSEL") {
-                let flexString01 = tr["Flex String 01"] || "";
-                let drayStatus = tr["Dray Status"] || "";
-                totalFreeDays = getFreeDays(trshpPeriods1, lineId, convertDate(tr["Start Time"]), flexString01, drayStatus);
+// حساب السماح الكلي من أول VESSEL مع مراعاة Flex String 01 من TRSHP أو EXPRT
+let foundVessel = false;
+for (let tr of sortedTrshp) {
+    let ibLocType = tr["I/B Loc Type"] || "";
+    if (ibLocType === "VESSEL") {
+        let flexString01 = tr["Flex String 01"] || "";
+        // إذا كانت flexString01 من TRSHP فارغة، نحاول أخذها من EXPRT (أول سجل غير TRUCK)
+        if (flexString01 === "") {
+            for (let ex of exprtList) {
+                let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
+                if (obLocType !== "TRUCK") {
+                    flexString01 = ex["Flex String 01"] || "";
+                    break;
+                }
+            }
+        }
+        let drayStatus = tr["Dray Status"] || "";
+        totalFreeDays = getFreeDays(trshpPeriods1, lineId, convertDate(tr["Start Time"]), flexString01, drayStatus);
+        foundVessel = true;
+        break;
+    }
+}
+// إذا لم نجد VESSEL، نأخذ من أول TRSHP
+if (!foundVessel && sortedTrshp.length > 0) {
+    let firstTr = sortedTrshp[0];
+    let flexString01 = firstTr["Flex String 01"] || "";
+    if (flexString01 === "") {
+        for (let ex of exprtList) {
+            let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
+            if (obLocType !== "TRUCK") {
+                flexString01 = ex["Flex String 01"] || "";
                 break;
             }
         }
+    }
+    let drayStatus = firstTr["Dray Status"] || "";
+    totalFreeDays = getFreeDays(trshpPeriods1, lineId, convertDate(firstTr["Start Time"]), flexString01, drayStatus);
+}
         
         if (totalFreeDays === 0 && sortedTrshp.length > 0) {
             let firstTr = sortedTrshp[0];
@@ -1880,7 +1909,7 @@ function processAndDisplay1() {
                 let exDays = overlapResult.net2;
                 let overlapDays = overlapResult.overlap;
                 
-                let flexString01 = tr["Flex String 01"] || "";
+                let flexString01 = ex["Flex String 01"] || tr["Flex String 01"] || "";  // ← التعديل هنا
                 
                 // ===================================================
                 // حساب EXPRT Free (مع مراعاة الاستثناء)
