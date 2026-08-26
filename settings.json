@@ -73,7 +73,7 @@
         {"id": 60, "category": "TRSHP", "lineId": "ESL", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
         {"id": 61, "category": "TRSHP", "lineId": "SIV", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
         {"id": 62, "category": "TRSHP", "lineId": "SFT", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
-        {"id": 63, "category": "TRSHP", "lineId": "ROD", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15}
+        {"id": 63, "category": "TRSHP", "lineId": "ROD", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
 		{"id": 64, "category": "TRSHP", "lineId": "MAXI", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15}
     ],
 
@@ -148,7 +148,7 @@
         {"id": 60, "category": "STRGE", "lineId": "ESL", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
         {"id": 61, "category": "STRGE", "lineId": "SIV", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
         {"id": 62, "category": "STRGE", "lineId": "SFT", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
-        {"id": 63, "category": "STRGE", "lineId": "ROD", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10}
+        {"id": 63, "category": "STRGE", "lineId": "ROD", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
 		{"id": 64, "category": "STRGE", "lineId": "MAXI", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10}
     ],
 
@@ -231,7 +231,7 @@
         {"id": 60, "category": "STRGE", "lineId": "ESL", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
         {"id": 61, "category": "STRGE", "lineId": "SIV", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
         {"id": 62, "category": "STRGE", "lineId": "SFT", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
-        {"id": 63, "category": "STRGE", "lineId": "ROD", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10}
+        {"id": 63, "category": "STRGE", "lineId": "ROD", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
 		{"id": 64, "category": "STRGE", "lineId": "MAXI", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10}
     ],
 
@@ -302,7 +302,7 @@
 	    {"id": 62, "category": "TRSHP", "lineId": "SFT", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
 	    {"id": 63, "category": "TRSHP", "lineId": "ROD", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
 	    {"id": 64, "category": "TRSHP", "lineId": "MSC", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-03-01", "endDate": "", "freeDays": 25},
-		{"id": 65, "category": "TRSHP", "lineId": "ALP", "drayStatus": "", "flexString01": "", "freightKind": "FCL", "startDate": "2026-01-01", "endDate": "", "freeDays": 24}
+		{"id": 65, "category": "TRSHP", "lineId": "ALP", "drayStatus": "", "flexString01": "", "freightKind": "FCL", "startDate": "2026-01-01", "endDate": "", "freeDays": 24},
 		{"id": 66, "category": "TRSHP", "lineId": "MAXI", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
 	],
     "excludeLines5": [],
@@ -370,7 +370,7 @@
         {"id": 60, "category": "STRGE", "lineId": "ESL", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
         {"id": 61, "category": "STRGE", "lineId": "SIV", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
         {"id": 62, "category": "STRGE", "lineId": "SFT", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
-        {"id": 63, "category": "STRGE", "lineId": "ROD", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10}
+        {"id": 63, "category": "STRGE", "lineId": "ROD", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
 		{"id": 64, "category": "STRGE", "lineId": "MAXI", "drayStatus": "", "flexString01": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 10}
     ],
 
@@ -445,7 +445,7 @@
         {"id": 60, "lineId": "ESL", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
         {"id": 61, "lineId": "SIV", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
         {"id": 62, "lineId": "SFT", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
-        {"id": 63, "lineId": "ROD", "startDate": "2026-01-01", "endDate": "", "freeDays": 10}
+        {"id": 63, "lineId": "ROD", "startDate": "2026-01-01", "endDate": "", "freeDays": 10},
 		{"id": 64, "lineId": "MAXI", "startDate": "2026-01-01", "endDate": "", "freeDays": 10}
     ],
 
