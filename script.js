@@ -1346,7 +1346,7 @@ function renderAdvancedStats(data) {
             <!-- بطاقة 3: Dray Status & Flex String (منفصلة) -->
             <div style="flex: 1; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1);">
                 <div style="background: #ff6b6b; color: white; padding: 6px; text-align: center; font-weight: bold; font-size: 10px;">
-                    📊 تفاصيل Dray Status & Flex String
+                    📊 ReExport_Storage
                 </div>
                 <div style="padding: 8px;">
                     <div style="margin-bottom: 8px;">
@@ -2164,6 +2164,7 @@ if (isReturnDray) {
             "Line ID": lineId,
             "طريقة الحساب": method,
             "Flex String 01": flexString01,
+			"_isFlexTrue": flexString01 === "TRUE" || flexString01 === "true" || flexString01 === "1", // ← أضف هذا
             "نوع IMPRT": imprtType,
             "IMPRT Start": imStart,
             "IMPRT End": imEnd,
@@ -2272,12 +2273,14 @@ function processAndDisplay3() {
                 "Is OOG": isOOG,
                 "Is Refrigerated": isRefrigerated,
                 "flex_04": ex["Flex String 04"] || "",
+				"_isFlexTrue": flexString01 === "TRUE" || flexString01 === "true" || flexString01 === "1", // ← أضف هذا
                 "Is Bundled": isBundled,
                 "Is Hazardous": isHazardous,
                 "IMDG Class": imdgClass,
                 "Type": type,
                 "Line ID": lineId,
                 "Flex String 01": flexString01,
+				"_isFlexTrue": flexString01 === "TRUE" || flexString01 === "true" || flexString01 === "1", // ← أضف هذا
                 "EXPRT Start": exStart,
                 "EXPRT End": exEnd,
                 "EXPRT Days": exDays,
@@ -4207,12 +4210,14 @@ function renderAdvancedStatsTab2(data) {
     if (!data || data.length === 0) {
         return `<div style="padding:20px; text-align:center;">لا توجد بيانات</div>`;
     }
-    
-    // ========== تجميع الحاويات الفريدة حسب رقم الحاوية ==========
+
+    // ========== تجميع الحاويات الفريدة ==========
     let uniqueContainers = new Map();
-    
+
     for (let item of data) {
         let containerNo = item["Container No."];
+        if (!containerNo) continue;
+
         if (!uniqueContainers.has(containerNo)) {
             uniqueContainers.set(containerNo, {
                 "Container No.": containerNo,
@@ -4220,93 +4225,68 @@ function renderAdvancedStatsTab2(data) {
                 "Is Refrigerated": item["Is Refrigerated"],
                 "Is OOG": item["Is OOG"],
                 "Is Hazardous": item["Is Hazardous"],
-                "Flex String 01": item["Flex String 01"],
+                "Flex String 01": item["Flex String 01"] || "",
                 "Dray Status": item["Dray Status"] || "",
                 "STRGE Net": item["STRGE Net"] || 0,
                 "EXPRT Net": item["EXPRT Net"] || 0,
-                "EXPRT Days": item["EXPRT Days"] || 0
+                "EXPRT Days": item["EXPRT Days"] || 0,
+                "_isFlexTrue": item["_isFlexTrue"] || false
             });
         } else {
-            // دمج القيم إذا وجدت أكثر من فترة لنفس الحاوية
             let existing = uniqueContainers.get(containerNo);
             existing["STRGE Net"] += item["STRGE Net"] || 0;
             existing["EXPRT Net"] += item["EXPRT Net"] || 0;
             existing["EXPRT Days"] += item["EXPRT Days"] || 0;
+            if (item["_isFlexTrue"] === true) {
+                existing["_isFlexTrue"] = true;
+                existing["Flex String 01"] = "TRUE";
+            }
         }
     }
-    
+
     let uniqueData = Array.from(uniqueContainers.values());
-    
+
+    // ========== حساب الإحصائيات ==========
     let totalStrgeNet = uniqueData.reduce((s, i) => s + (i["STRGE Net"] || 0), 0);
     let totalExprtNet = uniqueData.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    
-    // Flex String 01
-    let flexTrueContainers = uniqueData.filter(i => i["Flex String 01"] === "TRUE");
+
+    let flexTrueContainers = uniqueData.filter(i => i["_isFlexTrue"] === true);
     let flexTrueExprtNet = flexTrueContainers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
     let flexTrueCount = flexTrueContainers.length;
-    
-    let flexFalseContainers = uniqueData.filter(i => i["Flex String 01"] === "FALSE");
+
+    let flexFalseContainers = uniqueData.filter(i => i["_isFlexTrue"] !== true);
     let flexFalseExprtNet = flexFalseContainers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
     let flexFalseCount = flexFalseContainers.length;
-    
-    // Dray Status
-    let exprtNoDray = uniqueData.filter(i => (i["Dray Status"] || "") === "");
-    let exprtNoDrayNet = exprtNoDray.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    let exprtNoDrayCount = exprtNoDray.length;
-    
-    let exprtWithDray = uniqueData.filter(i => (i["Dray Status"] || "") !== "");
-    let exprtWithDrayNet = exprtWithDray.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    let exprtWithDrayCount = exprtWithDray.length;
-    
-    // OOG و Hazardous
-    let oogContainers = uniqueData.filter(i => i["Is OOG"] === "true");
-    let oogExprtNet = oogContainers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    let oogCount = oogContainers.length;
-    
-    let hazardousContainers = uniqueData.filter(i => i["Is Hazardous"] === "true");
-    let hazardousExprtNet = hazardousContainers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    let hazardousCount = hazardousContainers.length;
-    
+
+    let totalExprtNetAfterDeduction = totalExprtNet - flexTrueExprtNet;
+
     let refrigeratedContainers = uniqueData.filter(i => i["Is Refrigerated"] === "true");
     let rfExprtDays = refrigeratedContainers.reduce((s, i) => s + (i["EXPRT Days"] || 0), 0);
-    let totalCount = uniqueData.length;  // ← عدد فريد وليس مكرر
-    
+    let totalCount = uniqueData.length;
+
     let size20Containers = uniqueData.filter(i => i["Size"]?.toString().startsWith("2"));
     let size40Containers = uniqueData.filter(i => i["Size"]?.toString().startsWith("4"));
-    
     let size20Count = size20Containers.length;
     let size40Count = size40Containers.length;
     let size20StrgeNet = size20Containers.reduce((s, i) => s + (i["STRGE Net"] || 0), 0);
     let size40StrgeNet = size40Containers.reduce((s, i) => s + (i["STRGE Net"] || 0), 0);
     let size20ExprtNet = size20Containers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
     let size40ExprtNet = size40Containers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    
+
     let refrigerated40 = refrigeratedContainers.filter(i => i["Size"]?.toString().startsWith("4"));
     let refrigerated40Count = refrigerated40.length;
     let refrigerated40Days = refrigerated40.reduce((s, i) => s + (i["EXPRT Days"] || 0), 0);
-    
-    let totalExprtNetAfterDeduction = totalExprtNet - flexTrueExprtNet;
-    
-    // تفاصيل Dray Status حسب المقاس
-    let size20NoDray = exprtNoDray.filter(i => i["Size"]?.toString().startsWith("2"));
-    let size40NoDray = exprtNoDray.filter(i => i["Size"]?.toString().startsWith("4"));
-    let size20NoDrayNet = size20NoDray.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    let size40NoDrayNet = size40NoDray.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    
-    let size20WithDray = exprtWithDray.filter(i => i["Size"]?.toString().startsWith("2"));
-    let size40WithDray = exprtWithDray.filter(i => i["Size"]?.toString().startsWith("4"));
-    let size20WithDrayNet = size20WithDray.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    let size40WithDrayNet = size40WithDray.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    
-    // تفاصيل Flex حسب المقاس
+
     let flexTrue20 = flexTrueContainers.filter(i => i["Size"]?.toString().startsWith("2"));
     let flexTrue40 = flexTrueContainers.filter(i => i["Size"]?.toString().startsWith("4"));
     let flexTrue20Net = flexTrue20.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
     let flexTrue40Net = flexTrue40.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    
+
+    // ========== العرض ==========
     return `
-        <div style="display: flex; gap: 15px; margin: 0 25px 20px 25px; flex-wrap: wrap;">
-            
+        <div style="display: flex; gap: 15px; margin: 0 0 20px 0; flex-wrap: wrap;">
+
+            <!-- STRGE -->
             <div style="flex: 1; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 12px; padding: 15px; text-align: center; color: white;">
                 <div style="font-size: 14px;">📦 إجمالي STRGE</div>
                 <div style="font-size: 28px; font-weight: bold;">${totalStrgeNet}</div>
@@ -4316,17 +4296,42 @@ function renderAdvancedStatsTab2(data) {
                     <div>📦 40 قدم: ${size40StrgeNet} يوم</div>
                 </div>
             </div>
-            
+
+            <!-- EXPRT (بعد خصم TRUE) -->
             <div style="flex: 1; background: linear-gradient(135deg, #f093fb, #f5576c); border-radius: 12px; padding: 15px; text-align: center; color: white;">
-                <div style="font-size: 14px;">📤 إجمالي EXPRT</div>
-                <div style="font-size: 28px; font-weight: bold;">${totalExprtNet}</div>
+                <div style="font-size: 14px;">📤 إجمالي EXPRT (بعد الخصم)</div>
+                <div style="font-size: 28px; font-weight: bold;">${totalExprtNetAfterDeduction}</div>
                 <div style="font-size: 12px;">صافي أيام التصدير</div>
                 <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 12px;">
                     <div>📦 20 قدم: ${size20ExprtNet} يوم</div>
                     <div>📦 40 قدم: ${size40ExprtNet} يوم</div>
+                    ${flexTrueCount > 0 ? `
+                        <div style="margin-top: 5px; background: rgba(255,255,255,0.15); padding: 4px 8px; border-radius: 6px;">
+                            ⭐ TRUE (خاص): ${flexTrueExprtNet} يوم (${flexTrueCount} حاوية)
+                            <span style="font-size: 10px;">20:${flexTrue20Net} | 40:${flexTrue40Net}</span>
+                        </div>
+                    ` : ''}
                 </div>
             </div>
-            
+
+            <!-- بطاقة Flex String 01 -->
+            <div style="flex: 1; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="background: #ff6b6b; color: white; padding: 12px; text-align: center; font-weight: bold;">
+                    ⭐ Re Storage
+                </div>
+                <div style="padding: 15px;">
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex:1; background:#ffebee; border-radius:8px; padding:8px; text-align:center;">
+                            <div>⭐ TRUE (خاص)</div>
+                            <div style="font-size:20px; font-weight:bold; color:#ff6b6b;">${flexTrueExprtNet}</div>
+                            <div>${flexTrueCount} حاوية</div>
+                            <div style="font-size:10px;">20:${flexTrue20Net} | 40:${flexTrue40Net}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ثلاجه -->
             <div style="flex: 1; background: linear-gradient(135deg, #4facfe, #00f2fe); border-radius: 12px; padding: 15px; text-align: center; color: white;">
                 <div style="font-size: 14px;">❄️ أيام EXPRT (ثلاجه)</div>
                 <div style="font-size: 28px; font-weight: bold;">${rfExprtDays}</div>
@@ -4336,14 +4341,17 @@ function renderAdvancedStatsTab2(data) {
                     <div>📦 40 قدم: ${refrigerated40Count} (${refrigerated40Days} يوم)</div>
                 </div>
             </div>
-            
+
+            <!-- الإجمالي -->
             <div style="flex: 1; background: linear-gradient(135deg, #43e97b, #38f9d7); border-radius: 12px; padding: 15px; text-align: center; color: white;">
                 <div style="font-size: 14px;">📦 إجمالي الحاويات</div>
                 <div style="font-size: 28px; font-weight: bold;">${totalCount}</div>
-                <div style="font-size: 12px;">حاوية</div>
+                <div style="font-size: 12px;">حاوية فريدة</div>
                 <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 12px;">
-                    <div>📦 20 قدم: ${size20Count} حاوية</div>
-                    <div>📦 40 قدم: ${size40Count} حاوية</div>
+                    <div>📦 20 قدم: ${size20Count}</div>
+                    <div>📦 40 قدم: ${size40Count}</div>
+                    <div>⭐ TRUE: ${flexTrueCount}</div>
+                    <div>❄️ مبردة: ${refrigeratedContainers.length}</div>
                 </div>
             </div>
         </div>
@@ -4351,72 +4359,115 @@ function renderAdvancedStatsTab2(data) {
 }
 
 function renderAdvancedStatsTab3(data) {
-    let totalExprtNet = data.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    
-    // Flex String 01
-    let flexTrueContainers = data.filter(i => i["Flex String 01"] === "TRUE");
+    if (!data || data.length === 0) {
+        return `<div style="padding:20px; text-align:center;">لا توجد بيانات</div>`;
+    }
+
+    // ========== تجميع الحاويات الفريدة ==========
+    let uniqueContainers = new Map();
+
+    for (let item of data) {
+        let containerNo = item["Container No."];
+        if (!containerNo) continue;
+
+        if (!uniqueContainers.has(containerNo)) {
+            uniqueContainers.set(containerNo, {
+                "Container No.": containerNo,
+                "Size": item["Size"],
+                "Is Refrigerated": item["Is Refrigerated"],
+                "Is OOG": item["Is OOG"],
+                "Is Hazardous": item["Is Hazardous"],
+                "Flex String 01": item["Flex String 01"] || "",
+                "Dray Status": item["Dray Status"] || "",
+                "EXPRT Net": item["EXPRT Net"] || 0,
+                "EXPRT Days": item["EXPRT Days"] || 0,
+                "_isFlexTrue": item["_isFlexTrue"] || false
+            });
+        } else {
+            let existing = uniqueContainers.get(containerNo);
+            existing["EXPRT Net"] += item["EXPRT Net"] || 0;
+            existing["EXPRT Days"] += item["EXPRT Days"] || 0;
+            if (item["_isFlexTrue"] === true) {
+                existing["_isFlexTrue"] = true;
+                existing["Flex String 01"] = "TRUE";
+            }
+        }
+    }
+
+    let uniqueData = Array.from(uniqueContainers.values());
+
+    // ========== حساب الإحصائيات ==========
+    let totalExprtNet = uniqueData.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
+
+    let flexTrueContainers = uniqueData.filter(i => i["_isFlexTrue"] === true);
     let flexTrueExprtNet = flexTrueContainers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
     let flexTrueCount = flexTrueContainers.length;
-    
-    let flexFalseContainers = data.filter(i => i["Flex String 01"] === "FALSE");
+
+    let flexFalseContainers = uniqueData.filter(i => i["_isFlexTrue"] !== true);
     let flexFalseExprtNet = flexFalseContainers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
     let flexFalseCount = flexFalseContainers.length;
-    
-    // Dray Status
-    let exprtNoDray = data.filter(i => (i["Dray Status"] || "") === "");
-    let exprtNoDrayNet = exprtNoDray.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    let exprtNoDrayCount = exprtNoDray.length;
-    
-    let exprtWithDray = data.filter(i => (i["Dray Status"] || "") !== "");
-    let exprtWithDrayNet = exprtWithDray.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    let exprtWithDrayCount = exprtWithDray.length;
-    
-    // OOG و Hazardous
-    let oogContainers = data.filter(i => i["Is OOG"] === "true");
-    let oogExprtNet = oogContainers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    let oogCount = oogContainers.length;
-    
-    let hazardousContainers = data.filter(i => i["Is Hazardous"] === "true");
-    let hazardousExprtNet = hazardousContainers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    let hazardousCount = hazardousContainers.length;
-    
-    let refrigeratedContainers = data.filter(i => i["Is Refrigerated"] === "true");
+
+    let totalExprtNetAfterDeduction = totalExprtNet - flexTrueExprtNet;
+
+    let refrigeratedContainers = uniqueData.filter(i => i["Is Refrigerated"] === "true");
     let rfExprtDays = refrigeratedContainers.reduce((s, i) => s + (i["EXPRT Days"] || 0), 0);
-    let totalCount = data.length;
-    
-    let size20Containers = data.filter(i => i["Size"]?.toString().startsWith("2"));
-    let size40Containers = data.filter(i => i["Size"]?.toString().startsWith("4"));
-    
+    let totalCount = uniqueData.length;
+
+    let size20Containers = uniqueData.filter(i => i["Size"]?.toString().startsWith("2"));
+    let size40Containers = uniqueData.filter(i => i["Size"]?.toString().startsWith("4"));
     let size20Count = size20Containers.length;
     let size40Count = size40Containers.length;
     let size20ExprtNet = size20Containers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
     let size40ExprtNet = size40Containers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    
+
     let refrigerated40 = refrigeratedContainers.filter(i => i["Size"]?.toString().startsWith("4"));
     let refrigerated40Count = refrigerated40.length;
     let refrigerated40Days = refrigerated40.reduce((s, i) => s + (i["EXPRT Days"] || 0), 0);
-    
-    // تفاصيل Flex حسب المقاس
+
     let flexTrue20 = flexTrueContainers.filter(i => i["Size"]?.toString().startsWith("2"));
     let flexTrue40 = flexTrueContainers.filter(i => i["Size"]?.toString().startsWith("4"));
     let flexTrue20Net = flexTrue20.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
     let flexTrue40Net = flexTrue40.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
-    
-    let totalExprtNetAfterDeduction = totalExprtNet - flexTrueExprtNet;
-    
+
+    // ========== العرض ==========
     return `
-        <div style="display: flex; gap: 15px; margin: 0 25px 20px 25px; flex-wrap: wrap;">
-            
+        <div style="display: flex; gap: 15px; margin: 0 0 20px 0; flex-wrap: wrap;">
+
+            <!-- EXPRT (بعد خصم TRUE) -->
             <div style="flex: 1; background: linear-gradient(135deg, #f093fb, #f5576c); border-radius: 12px; padding: 15px; text-align: center; color: white;">
-                <div style="font-size: 14px;">📤 إجمالي EXPRT</div>
-                <div style="font-size: 28px; font-weight: bold;">${totalExprtNet}</div>
+                <div style="font-size: 14px;">📤 إجمالي EXPRT (بعد الخصم)</div>
+                <div style="font-size: 28px; font-weight: bold;">${totalExprtNetAfterDeduction}</div>
                 <div style="font-size: 12px;">صافي أيام التصدير</div>
                 <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 12px;">
                     <div>📦 20 قدم: ${size20ExprtNet} يوم</div>
                     <div>📦 40 قدم: ${size40ExprtNet} يوم</div>
+                    ${flexTrueCount > 0 ? `
+                        <div style="margin-top: 5px; background: rgba(255,255,255,0.15); padding: 4px 8px; border-radius: 6px;">
+                            ⭐ TRUE (خاص): ${flexTrueExprtNet} يوم (${flexTrueCount} حاوية)
+                            <span style="font-size: 10px;">20:${flexTrue20Net} | 40:${flexTrue40Net}</span>
+                        </div>
+                    ` : ''}
                 </div>
             </div>
-            
+
+            <!-- بطاقة Flex String 01 -->
+            <div style="flex: 1; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="background: #ff6b6b; color: white; padding: 12px; text-align: center; font-weight: bold;">
+                    ⭐ ReExport_Storage
+                </div>
+                <div style="padding: 15px;">
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex:1; background:#ffebee; border-radius:8px; padding:8px; text-align:center;">
+                            <div>⭐ TRUE (خاص)</div>
+                            <div style="font-size:20px; font-weight:bold; color:#ff6b6b;">${flexTrueExprtNet}</div>
+                            <div>${flexTrueCount} حاوية</div>
+                            <div style="font-size:10px;">20:${flexTrue20Net} | 40:${flexTrue40Net}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ثلاجه -->
             <div style="flex: 1; background: linear-gradient(135deg, #4facfe, #00f2fe); border-radius: 12px; padding: 15px; text-align: center; color: white;">
                 <div style="font-size: 14px;">❄️ أيام EXPRT (ثلاجه)</div>
                 <div style="font-size: 28px; font-weight: bold;">${rfExprtDays}</div>
@@ -4426,14 +4477,17 @@ function renderAdvancedStatsTab3(data) {
                     <div>📦 40 قدم: ${refrigerated40Count} (${refrigerated40Days} يوم)</div>
                 </div>
             </div>
-            
+
+            <!-- الإجمالي -->
             <div style="flex: 1; background: linear-gradient(135deg, #43e97b, #38f9d7); border-radius: 12px; padding: 15px; text-align: center; color: white;">
                 <div style="font-size: 14px;">📦 إجمالي الحاويات</div>
                 <div style="font-size: 28px; font-weight: bold;">${totalCount}</div>
-                <div style="font-size: 12px;">حاوية</div>
+                <div style="font-size: 12px;">حاوية فريدة</div>
                 <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 12px;">
-                    <div>📦 20 قدم: ${size20Count} حاوية</div>
-                    <div>📦 40 قدم: ${size40Count} حاوية</div>
+                    <div>📦 20 قدم: ${size20Count}</div>
+                    <div>📦 40 قدم: ${size40Count}</div>
+                    <div>⭐ TRUE: ${flexTrueCount}</div>
+                    <div>❄️ مبردة: ${refrigeratedContainers.length}</div>
                 </div>
             </div>
         </div>
@@ -4489,26 +4543,6 @@ function renderAdvancedStatsTab4(data) {
                     <div>📦 40 قدم: ${size40StrgeNet} يوم</div>
                     <div style="margin-top: 5px;">📐 OOG: ${oogStrgeNet} يوم (${oogCount})</div>
                     <div>⚠️ Hazardous: ${hazardousStrgeNet} يوم (${hazardousCount})</div>
-                </div>
-            </div>
-            
-            <!-- بطاقة 2: Flex String 01 -->
-            <div style="flex: 1; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <div style="background: #ff6b6b; color: white; padding: 12px; text-align: center; font-weight: bold;">⭐ Flex String 01</div>
-                <div style="padding: 15px;">
-                    <div style="display: flex; gap: 10px;">
-                        <div style="flex:1; background:#ffebee; border-radius:8px; padding:8px; text-align:center;">
-                            <div>⭐ TRUE (خاص)</div>
-                            <div style="font-size:20px; font-weight:bold; color:#ff6b6b;">${flexTrueStrgeNet}</div>
-                            <div>${flexTrueCount} حاوية</div>
-                            <div style="font-size:10px;">20:${flexTrue20Net} | 40:${flexTrue40Net}</div>
-                        </div>
-                        <div style="flex:1; background:#e3f2fd; border-radius:8px; padding:8px; text-align:center;">
-                            <div>📋 FALSE (عادي)</div>
-                            <div style="font-size:20px; font-weight:bold; color:#4facfe;">${flexFalseStrgeNet}</div>
-                            <div>${flexFalseCount} حاوية</div>
-                        </div>
-                    </div>
                 </div>
             </div>
             
