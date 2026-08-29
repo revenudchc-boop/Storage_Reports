@@ -1078,7 +1078,8 @@ function sortPeriods(periods) {
 function updateEndDates(periods) {
     let groups = {};
     for (let p of periods) {
-        let key = `${p.lineId}|${p.drayStatus || ""}|${p.flexString01 || ""}`;
+        // المفتاح يشمل Line ID، Dray Status، Flex String 01، و Hazardous
+        let key = `${p.lineId}|${p.drayStatus || ""}|${p.flexString01 || ""}|${p.isHazardous || ""}`;
         if (!groups[key]) groups[key] = [];
         groups[key].push(p);
     }
@@ -1101,36 +1102,37 @@ function updateEndDates(periods) {
     return result;
 }
 
-function getFreeDays(periods, lineId, periodDate, flexString01, drayStatus, freightKind = "") {
-    let cleanFreightKind = freightKind.trim().toUpperCase();
-    
+function getFreeDays(periods, lineId, periodDate, flexString01, drayStatus, freightKind, isHazardous) {
+    let cleanFreightKind = (freightKind || "").trim().toUpperCase();
+    let isHazardousBool = (isHazardous === true || String(isHazardous).toLowerCase() === "true");
+
     let matchingPeriods = periods.filter(p => {
         let lineMatch = (p.lineId === lineId || p.lineId === "*");
         
         let flexMatch = true;
-        if (p.flexString01 === "TRUE") {
-            flexMatch = (flexString01 === "TRUE");
-        } else if (p.flexString01 === "FALSE") {
-            flexMatch = (flexString01 !== "TRUE");
-        }
+        if (p.flexString01 === "TRUE") flexMatch = (flexString01 === "TRUE");
+        else if (p.flexString01 === "FALSE") flexMatch = (flexString01 !== "TRUE");
         
         let drayMatch = true;
-        if (p.drayStatus === "RETURN") {
-            drayMatch = (drayStatus === "RETURN");
-        } else if (p.drayStatus === "FORWARD") {
-            drayMatch = (drayStatus === "FORWARD");
-        } else if (p.drayStatus === "EMPTY") {
-            drayMatch = (!drayStatus || drayStatus === "");
-        }
+        if (p.drayStatus === "RETURN") drayMatch = (drayStatus === "RETURN");
+        else if (p.drayStatus === "FORWARD") drayMatch = (drayStatus === "FORWARD");
+        else if (p.drayStatus === "EMPTY") drayMatch = (!drayStatus || drayStatus === "");
         
-        // ===== شرط Freight Kind =====
         let freightMatch = true;
         if (p.freightKind && p.freightKind !== "") {
             let periodFreightKind = p.freightKind.trim().toUpperCase();
             freightMatch = (periodFreightKind === cleanFreightKind);
         }
         
-        return lineMatch && flexMatch && drayMatch && freightMatch;
+        // ===== التعديل هنا: مقارنة غير حساسة لحالة الأحرف =====
+        let hazardMatch = true;
+        if (p.isHazardous && p.isHazardous.toLowerCase() === "true") {
+            hazardMatch = isHazardousBool;
+        } else if (p.isHazardous && p.isHazardous.toLowerCase() === "false") {
+            hazardMatch = !isHazardousBool;
+        }
+        
+        return lineMatch && flexMatch && drayMatch && freightMatch && hazardMatch;
     });
     
     if (matchingPeriods.length === 0) return 0;
@@ -1725,9 +1727,9 @@ function processAndDisplay1() {
         let exprtList = container.exprtList || [];
         
         if (trshpArray.length === 0 || exprtList.length === 0) continue;
-		
-		 let hasReturnTrshp = trshpArray.some(tr => (tr["Dray Status"] || "") === "RETURN");
-    if (hasReturnTrshp) continue;
+        
+        let hasReturnTrshp = trshpArray.some(tr => (tr["Dray Status"] || "") === "RETURN");
+        if (hasReturnTrshp) continue;
         
         // ترتيب فترات TRSHP حسب التاريخ
         let sortedTrshp = [...trshpArray].sort((a, b) => 
@@ -1738,50 +1740,52 @@ function processAndDisplay1() {
         let totalFreeDays = 0;
         let lineId = container.lineId || "";
         
-// حساب السماح الكلي من أول VESSEL مع مراعاة Flex String 01 من TRSHP أو EXPRT
-let foundVessel = false;
-for (let tr of sortedTrshp) {
-    let ibLocType = tr["I/B Loc Type"] || "";
-    if (ibLocType === "VESSEL") {
-        let flexString01 = tr["Flex String 01"] || "";
-        // إذا كانت flexString01 من TRSHP فارغة، نحاول أخذها من EXPRT (أول سجل غير TRUCK)
-        if (flexString01 === "") {
-            for (let ex of exprtList) {
-                let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
-                if (obLocType !== "TRUCK") {
-                    flexString01 = ex["Flex String 01"] || "";
-                    break;
+        // حساب السماح الكلي من أول VESSEL مع مراعاة Flex String 01 من TRSHP أو EXPRT
+        let foundVessel = false;
+        for (let tr of sortedTrshp) {
+            let ibLocType = tr["I/B Loc Type"] || "";
+            if (ibLocType === "VESSEL") {
+                let flexString01 = tr["Flex String 01"] || "";
+                if (flexString01 === "") {
+                    for (let ex of exprtList) {
+                        let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
+                        if (obLocType !== "TRUCK") {
+                            flexString01 = ex["Flex String 01"] || "";
+                            break;
+                        }
+                    }
                 }
-            }
-        }
-        let drayStatus = tr["Dray Status"] || "";
-        totalFreeDays = getFreeDays(trshpPeriods1, lineId, convertDate(tr["Start Time"]), flexString01, drayStatus);
-        foundVessel = true;
-        break;
-    }
-}
-// إذا لم نجد VESSEL، نأخذ من أول TRSHP
-if (!foundVessel && sortedTrshp.length > 0) {
-    let firstTr = sortedTrshp[0];
-    let flexString01 = firstTr["Flex String 01"] || "";
-    if (flexString01 === "") {
-        for (let ex of exprtList) {
-            let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
-            if (obLocType !== "TRUCK") {
-                flexString01 = ex["Flex String 01"] || "";
+                let drayStatus = tr["Dray Status"] || "";
+                let hazardousFlag = (tr["Is Hazardous"] === "true" || tr["Is Hazardous"] === true);
+                totalFreeDays = getFreeDays(trshpPeriods1, lineId, convertDate(tr["Start Time"]), flexString01, drayStatus, "", hazardousFlag);
+                foundVessel = true;
                 break;
             }
         }
-    }
-    let drayStatus = firstTr["Dray Status"] || "";
-    totalFreeDays = getFreeDays(trshpPeriods1, lineId, convertDate(firstTr["Start Time"]), flexString01, drayStatus);
-}
+        // إذا لم نجد VESSEL، نأخذ من أول TRSHP
+        if (!foundVessel && sortedTrshp.length > 0) {
+            let firstTr = sortedTrshp[0];
+            let flexString01 = firstTr["Flex String 01"] || "";
+            if (flexString01 === "") {
+                for (let ex of exprtList) {
+                    let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
+                    if (obLocType !== "TRUCK") {
+                        flexString01 = ex["Flex String 01"] || "";
+                        break;
+                    }
+                }
+            }
+            let drayStatus = firstTr["Dray Status"] || "";
+            let hazardousFlag = (firstTr["Is Hazardous"] === "true" || firstTr["Is Hazardous"] === true);
+            totalFreeDays = getFreeDays(trshpPeriods1, lineId, convertDate(firstTr["Start Time"]), flexString01, drayStatus, "", hazardousFlag);
+        }
         
         if (totalFreeDays === 0 && sortedTrshp.length > 0) {
             let firstTr = sortedTrshp[0];
             let flexString01 = firstTr["Flex String 01"] || "";
             let drayStatus = firstTr["Dray Status"] || "";
-            totalFreeDays = getFreeDays(trshpPeriods1, lineId, convertDate(firstTr["Start Time"]), flexString01, drayStatus);
+            let hazardousFlag = (firstTr["Is Hazardous"] === "true" || firstTr["Is Hazardous"] === true);
+            totalFreeDays = getFreeDays(trshpPeriods1, lineId, convertDate(firstTr["Start Time"]), flexString01, drayStatus, "", hazardousFlag);
         }
 
         
@@ -1834,17 +1838,18 @@ if (!foundVessel && sortedTrshp.length > 0) {
         // ===================================================
         // حساب EXPRT Free من أول EXPRT (للخصم من السماح الكلي)
         // ===================================================
-		let exFreeForDeduction = 0;
-		for (let ex of exprtList) {
-			let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
-			let isTruck = (obLocType === "TRUCK");
-			if (!isTruck) {
-				let exStart = convertDate(ex["Rule Start Time"] || "");
-				let flexString01 = ex["Flex String 01"] || "";  // ← استخدم Flex من EXPRT
-				exFreeForDeduction = getFreeDays(exprtPeriods1, lineId, exStart, flexString01, "");
-				break;
-			}
-		}
+        let exFreeForDeduction = 0;
+        for (let ex of exprtList) {
+            let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
+            let isTruck = (obLocType === "TRUCK");
+            if (!isTruck) {
+                let exStart = convertDate(ex["Rule Start Time"] || "");
+                let flexString01 = ex["Flex String 01"] || "";
+                let hazardousFlag = (ex["Is Hazardous"] === "true" || ex["Is Hazardous"] === true);
+                exFreeForDeduction = getFreeDays(exprtPeriods1, lineId, exStart, flexString01, "", "", hazardousFlag);
+                break;
+            }
+        }
         
         // حساب إجمالي أيام EXPRT
         let totalExprtDays = 0;
@@ -1891,8 +1896,8 @@ if (!foundVessel && sortedTrshp.length > 0) {
             // ===================================================
             // الحصول على سماح TRSHP (مع مراعاة الاستثناء)
             // ===================================================
-			let key = trStart + "|" + trEnd;
-			let trFree = totalFreeDays;  // السماح الكلي في جميع الحالات
+            let key = trStart + "|" + trEnd;
+            let trFree = totalFreeDays;  // السماح الكلي في جميع الحالات
             // ===================================================
             
             for (let ex of exprtList) {
@@ -1909,7 +1914,7 @@ if (!foundVessel && sortedTrshp.length > 0) {
                 let exDays = overlapResult.net2;
                 let overlapDays = overlapResult.overlap;
                 
-                let flexString01 = ex["Flex String 01"] || tr["Flex String 01"] || "";  // ← التعديل هنا
+                let flexString01 = ex["Flex String 01"] || tr["Flex String 01"] || "";
                 
                 // ===================================================
                 // حساب EXPRT Free (مع مراعاة الاستثناء)
@@ -1917,23 +1922,24 @@ if (!foundVessel && sortedTrshp.length > 0) {
                 let obLocType = (ex["O/B Loc Type"] || "").trim().toUpperCase();
                 let isTruck = (obLocType === "TRUCK");
 
+                let hazardousFlag = (ex["Is Hazardous"] === "true" || ex["Is Hazardous"] === true);
                 let exFree;
                 if (isExcl) {
                     // في حالة السماح المستقل، نعرض سماح EXPRT من الإعدادات
-                    exFree = getFreeDays(exprtPeriods1, lineId, exStart, flexString01, drayStatus);
+                    exFree = getFreeDays(exprtPeriods1, lineId, exStart, flexString01, drayStatus, "", hazardousFlag);
                 } else if (isTruck) {
                     exFree = 0;
                 } else {
-                    exFree = getFreeDays(exprtPeriods1, lineId, exStart, flexString01, drayStatus);
+                    exFree = getFreeDays(exprtPeriods1, lineId, exStart, flexString01, drayStatus, "", hazardousFlag);
                 }
                 // ===================================================
                 
                 // ===================================================
                 // خصم الأيام المشتركة من TRSHP و EXPRT
                 // ===================================================
-				let exNet = exDays - Math.min(exDays, exFree);
-				if (exNet < 0) exNet = 0;
-				// لا نخصم overlapDays من EXPRT
+                let exNet = exDays - Math.min(exDays, exFree);
+                if (exNet < 0) exNet = 0;
+                // لا نخصم overlapDays من EXPRT
 
                 let trNet = trNetPeriod - overlapDays;
                 if (trNet < 0) trNet = 0;
@@ -2044,6 +2050,7 @@ function processAndDisplay2() {
             
             let exFlexString01 = ex["Flex String 01"] || "";
             let exDrayStatus = ex["Dray Status"] || "";
+			let hazardousFlag = (ex["Is Hazardous"] === "true" || ex["Is Hazardous"] === true);
             
             // التحقق من Dray Status في EXPRT
             let isReturnDray = (exDrayStatus === "RETURN");
@@ -2066,7 +2073,8 @@ function processAndDisplay2() {
                     
                     let stDrayStatus = st["Dray Status"] || "";
                     let stFlexString01 = st["Flex String 01"] || "";
-                    stFree = getFreeDays(strgePeriods2, lineId, stStart, stFlexString01, stDrayStatus);
+					let stHazardousFlag = (st["Is Hazardous"] === "true" || st["Is Hazardous"] === true);
+                   stFree = getFreeDays(strgePeriods2, lineId, stStart, stFlexString01, stDrayStatus, "", stHazardousFlag);
                     
                     let overlapResult = calculateDaysWithOverlapRemoved(stStart, stEnd, exStart, exEnd);
                     stDaysAfterOverlap = overlapResult.net1;
@@ -2099,7 +2107,7 @@ if (isReturnDray) {
     exFree = 0;
 } else {
     // الحالات العادية: تطبق إعدادات السماح
-    exFree = getFreeDays(exprtPeriods2, lineId, exStart, exFlexString01, exDrayStatus);
+    exFree = getFreeDays(exprtPeriods2, lineId, exStart, exFlexString01, exDrayStatus, "", hazardousFlag);
 }
         
 let strgeNet = 0, exprtNet = 0;
@@ -2192,6 +2200,7 @@ if (isReturnDray) {
     updateHeaderFromDisplayData('2', currentData2);
 } // ← إغلاق الدالةAndDisplay2
 
+
 function processAndDisplay3() {
     console.log("=== processAndDisplay3 ===");
     console.log("containersMap size:", containersMap.size);
@@ -2250,7 +2259,11 @@ function processAndDisplay3() {
             let flexString01 = ex["Flex String 01"] || "";
             let drayStatus = ex["Dray Status"] || "";
             
-            let exFree = getFreeDays(exprtOnlyPeriods3, lineId, exStart, flexString01, drayStatus);
+            // ===== استخراج isHazardous من EXPRT =====
+            let hazardousFlag = (ex["Is Hazardous"] === "true" || ex["Is Hazardous"] === true);
+            
+            // ===== تعديل استدعاء getFreeDays مع إضافة isHazardous =====
+            let exFree = getFreeDays(exprtOnlyPeriods3, lineId, exStart, flexString01, drayStatus, "", hazardousFlag);
             
             let exNet = exDays - exFree;
             if (exNet < 0) exNet = 0;
@@ -2273,14 +2286,13 @@ function processAndDisplay3() {
                 "Is OOG": isOOG,
                 "Is Refrigerated": isRefrigerated,
                 "flex_04": ex["Flex String 04"] || "",
-				"_isFlexTrue": flexString01 === "TRUE" || flexString01 === "true" || flexString01 === "1", // ← أضف هذا
+                "_isFlexTrue": flexString01 === "TRUE" || flexString01 === "true" || flexString01 === "1",
                 "Is Bundled": isBundled,
                 "Is Hazardous": isHazardous,
                 "IMDG Class": imdgClass,
                 "Type": type,
                 "Line ID": lineId,
                 "Flex String 01": flexString01,
-				"_isFlexTrue": flexString01 === "TRUE" || flexString01 === "true" || flexString01 === "1", // ← أضف هذا
                 "EXPRT Start": exStart,
                 "EXPRT End": exEnd,
                 "EXPRT Days": exDays,
@@ -2708,6 +2720,7 @@ function displayPeriodsList(containerId, periods, tabId) {
                 <th>Dray Status</th>
                 <th>Flex String 01</th>
                 <th>Freight Kind</th>
+                <th>Hazardous</th>
                 <th>تاريخ البدء</th>
                 <th>تاريخ النهاية</th>
                 <th>أيام السماح</th>
@@ -2719,6 +2732,7 @@ function displayPeriodsList(containerId, periods, tabId) {
     sorted.forEach(period => {
         let catClass = period.category === "TRSHP" ? "trshp" : (period.category === "EXPRT" ? "exprt" : "strge");
         let endDisplay = period.endDate || "مفتوحة";
+        let hazardVal = (period.isHazardous || "").toLowerCase();
         
         html += `<tr>
             <td><span class="category-badge ${catClass}">${period.category}</span></td>
@@ -2748,6 +2762,13 @@ function displayPeriodsList(containerId, periods, tabId) {
                     <option value="">الكل</option>
                     <option value="FCL" ${period.freightKind === "FCL" ? "selected" : ""}>FCL (حاوية كاملة)</option>
                     <option value="MTY" ${period.freightKind === "MTY" ? "selected" : ""}>MTY (فارغة)</option>
+                </select>
+            </td>
+            <td>
+                <select class="period-hazard-${tabId}" data-id="${period.id}" data-cat="${period.category}" style="padding:6px 10px; border-radius:6px;">
+                    <option value="" ${hazardVal === "" ? "selected" : ""}>الكل</option>
+                    <option value="true" ${hazardVal === "true" ? "selected" : ""}>نعم (خطر)</option>
+                    <option value="false" ${hazardVal === "false" ? "selected" : ""}>لا (غير خطر)</option>
                 </select>
             </td>
             <td>
@@ -2827,6 +2848,21 @@ function displayPeriodsList(containerId, periods, tabId) {
             };
         });
         
+        // ===== مستمع تغيير Hazardous (جديد) =====
+        document.querySelectorAll(`.period-hazard-${tabId}`).forEach(sel => {
+            sel.onchange = e => {
+                let id = parseInt(e.target.dataset.id);
+                let category = e.target.dataset.cat;
+                let periodsArr = getPeriodsArray(tabId, category);
+                let p = periodsArr.find(p => p.id === id);
+                if (p) {
+                    p.isHazardous = e.target.value;
+                    setPeriodsArray(tabId, category, periodsArr);
+                    refreshPeriodsDisplay(tabId);
+                }
+            };
+        });
+        
         // مستمع تغيير تاريخ البدء
         document.querySelectorAll(`.period-start-${tabId}`).forEach(inp => {
             inp.onchange = e => {
@@ -2857,7 +2893,7 @@ function displayPeriodsList(containerId, periods, tabId) {
             };
         });
     }, 100);
-}
+}	
 
 function refreshPeriodsDisplay(tabId) {
     if (tabId === '1') {
@@ -5386,8 +5422,25 @@ function processAndDisplay6() {
             let exFlexString01 = ex["Flex String 01"] || "";
             let exDrayStatus = ex["Dray Status"] || "";
             
-            let stFree = getFreeDays(strgePeriods6, lineId, stStart, stFlexString01, stDrayStatus);
-            let exFree = getFreeDays(exprtPeriods6, lineId, exStart, exFlexString01, exDrayStatus);
+            // ===================================================
+            // استخراج isHazardous من STRGE
+            // ===================================================
+            let stHazardousFlag = (st["Is Hazardous"] === "true" || st["Is Hazardous"] === true);
+            
+            // ===================================================
+            // استخراج isHazardous من EXPRT
+            // ===================================================
+            let exHazardousFlag = (ex["Is Hazardous"] === "true" || ex["Is Hazardous"] === true);
+            
+            // ===================================================
+            // استدعاء getFreeDays مع إضافة isHazardous لـ STRGE
+            // ===================================================
+            let stFree = getFreeDays(strgePeriods6, lineId, stStart, stFlexString01, stDrayStatus, "", stHazardousFlag);
+            
+            // ===================================================
+            // استدعاء getFreeDays مع إضافة isHazardous لـ EXPRT
+            // ===================================================
+            let exFree = getFreeDays(exprtPeriods6, lineId, exStart, exFlexString01, exDrayStatus, "", exHazardousFlag);
             
             let strgeNet = 0, exprtNet = 0;
             
@@ -5429,7 +5482,7 @@ function processAndDisplay6() {
                 "Line ID": lineId,
                 "طريقة الحساب": method,
                 "Flex String 01": flexString01,
-				"flex_04": ex["Flex String 04"] || "",  // ← أضف هذا السطر
+                "flex_04": ex["Flex String 04"] || "",
                 "STRGE Start": stStart,
                 "STRGE End": stEnd,
                 "STRGE Days": stDays,
