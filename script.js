@@ -5409,11 +5409,11 @@ function processAndDisplay6() {
             let size = equipType.toString().match(/^(\d+)/)?.[1] || "";
             let isRefrigerated = ex["Is Refrigerated"] || "";
             let type = (isRefrigerated === "true" || equipType.includes("R1")) ? "RF" : "GP";
-            let isOOG = st["Is OOG"] || "";
-            let isBundled = st["Is Bundled"] || "";
-            let isHazardous = st["Is Hazardous"] || "";
-            let imdgClass = st["IMDG Class"] || "";
-            let flexString01 = st["Flex String 01"] || "";
+            let isOOG = ex["Is OOG"] || "";
+            let isBundled = ex["Is Bundled"] || "";
+            let isHazardous = ex["Is Hazardous"] || "";
+            let imdgClass = ex["IMDG Class"] || "";
+            let flexString01 = ex["Flex String 01"] || "";
             let vesselName = st["I/B Carrier Name"] || "";
             if (!vesselName) vesselName = ex["I/B Carrier Name"] || "—";
             
