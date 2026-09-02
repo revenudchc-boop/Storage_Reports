@@ -282,7 +282,7 @@
         {"id": 38, "category": "TRSHP", "lineId": "BWL", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
         {"id": 39, "category": "TRSHP", "lineId": "LOT", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
         {"id": 40, "category": "TRSHP", "lineId": "MED", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
-        {"id": 41, "category": "TRSHP", "lineId": "SLS", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 24},
+        {"id": 41, "category": "TRSHP", "lineId": "SLS", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2025-07-01", "endDate": "2026-06-30", "freeDays": 24},
         {"id": 42, "category": "TRSHP", "lineId": "VOL", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 24},
         {"id": 43, "category": "TRSHP", "lineId": "REL", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 24},
         {"id": 44, "category": "TRSHP", "lineId": "WSHI", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
@@ -307,7 +307,8 @@
         {"id": 63, "category": "TRSHP", "lineId": "ROD", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
         {"id": 64, "category": "TRSHP", "lineId": "MSC", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-03-01", "endDate": "", "freeDays": 25},
         {"id": 65, "category": "TRSHP", "lineId": "ALP", "drayStatus": "", "flexString01": "", "freightKind": "FCL", "startDate": "2026-01-01", "endDate": "", "freeDays": 24},
-        {"id": 66, "category": "TRSHP", "lineId": "MAXI", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15}
+        {"id": 66, "category": "TRSHP", "lineId": "MAXI", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
+        {"id": 67, "category": "TRSHP", "lineId": "SLS", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-07-01", "endDate": "", "freeDays": 15},
     ],
 
     "excludeLines5": [],
