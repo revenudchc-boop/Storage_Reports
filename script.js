@@ -7210,6 +7210,66 @@ function generateAdvancedReport() {
         { id: 'tab8', data: currentData8 || [], label: 'Storage Finalout' }
     ];
 
+    // ===== استخراج معلومات السفينة =====
+    let vesselInfo = {
+        carrierName: "—",
+        shippingDate: "—",
+        lineId: "—"
+    };
+
+    for (let [id, container] of containersMap.entries()) {
+        let sourceData = null;
+        let found = false;
+
+        for (let tab of tabs) {
+            if (tab.id === 'tab1' || tab.id === 'tab2' || tab.id === 'tab3' || tab.id === 'tab6' || tab.id === 'tab7') {
+                if (container.exprtList && container.exprtList.length > 0) {
+                    sourceData = container.exprtList[0];
+                    found = true;
+                    break;
+                } else if (container.exprt) {
+                    sourceData = container.exprt;
+                    found = true;
+                    break;
+                }
+            } else if (tab.id === 'tab4') {
+                if (container.strge) {
+                    sourceData = container.strge;
+                    found = true;
+                    break;
+                }
+            } else if (tab.id === 'tab5') {
+                if (container.trshpList && container.trshpList.length > 0) {
+                    sourceData = container.trshpList[0];
+                    found = true;
+                    break;
+                } else if (container.trshp) {
+                    sourceData = container.trshp;
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if (found && sourceData) {
+            let carrierName = sourceData["O/B Carrier Name"] || sourceData["I/B Carrier Name"] || "";
+            if (carrierName && carrierName !== "" && vesselInfo.carrierName === "—") {
+                vesselInfo.carrierName = carrierName;
+            }
+            let shippingDate = sourceData["O/B Carrier ATD"] || sourceData["O/B Carrier ATA"] || sourceData["I/B Carrier ATD"] || "";
+            if (shippingDate && shippingDate !== "" && vesselInfo.shippingDate === "—") {
+                vesselInfo.shippingDate = shippingDate;
+            }
+            let lineId = sourceData["Line ID"] || "";
+            if (lineId && lineId !== "" && vesselInfo.lineId === "—") {
+                vesselInfo.lineId = lineId;
+            }
+            if (vesselInfo.carrierName !== "—" && vesselInfo.shippingDate !== "—" && vesselInfo.lineId !== "—") {
+                break;
+            }
+        }
+    }
+
     // ===== تعريف أنواع الحاويات =====
     let columns = [
         { key: 'GP', label: 'عاديه (GP)', check: (item) => {
@@ -7263,7 +7323,7 @@ function generateAdvancedReport() {
         }}
     ];
 
-    // ===== دالة للحصول على الحالات المنطبقة على الحاوية =====
+    // ===== دالة لتحديد الحالات المنطبقة على الحاوية =====
     function getCategoriesForItem(item, source) {
         let cats = [];
 
@@ -7306,9 +7366,14 @@ function generateAdvancedReport() {
                 cats.push({ cat: 'EXPRT', days: getNet("EXPRT"), refDays: getDays("EXPRT"), isRef: isRefrigerated(item) });
             }
         } else if (source === 'tab4') {
-            if (hasCategory("STRGE")) cats.push({ cat: 'STRGE', days: getNet("STRGE"), refDays: 0, isRef: false });
+            if (hasCategory("STRGE")) {
+                cats.push({ cat: 'STRGE', days: getNet("STRGE"), refDays: getDays("STRGE"), isRef: isRefrigerated(item) });
+            }
         } else if (source === 'tab5') {
-            if (hasCategory("TRSHP")) cats.push({ cat: 'TRSHP', days: getNet("TRSHP"), refDays: 0, isRef: false });
+            // تبويب 5: TRSHP فقط مع أيام التبريد
+            if (hasCategory("TRSHP")) {
+                cats.push({ cat: 'TRSHP', days: getNet("TRSHP"), refDays: getDays("TRSHP"), isRef: isRefrigerated(item) });
+            }
         } else if (source === 'tab6') {
             if (hasCategory("EXPRT")) {
                 cats.push({ cat: 'EXPRT', days: getNet("EXPRT"), refDays: getDays("EXPRT"), isRef: isRefrigerated(item) });
@@ -7333,15 +7398,42 @@ function generateAdvancedReport() {
             label: tab.label,
             source: tab.id,
             categories: {},
-            exprtContainersByType: {}
+            containerSets: {}, // لتخزين أرقام الحاويات الفريدة لكل فئة ونوع
+            exprtContainersByType: {},
+            strgeContainersByType: {},
+            trshpContainersByType: {},
+            imprtContainersByType: {}
         };
 
+        // تهيئة العدادات
         for (let col of columns) {
             tabEntry.exprtContainersByType[col.key] = 0;
+            tabEntry.strgeContainersByType[col.key] = 0;
+            tabEntry.trshpContainersByType[col.key] = 0;
+            tabEntry.imprtContainersByType[col.key] = 0;
         }
+
+        // مجموعات مؤقتة لتخزين أرقام الحاويات الفريدة
+        let containerSets = {};
 
         for (let item of tab.data) {
             let cats = getCategoriesForItem(item, tab.id);
+
+            // تحديد نوع الحاوية
+            let matchedCol = null;
+            for (let col of columns) {
+                try {
+                    if (col.check(item)) {
+                        matchedCol = col;
+                        break;
+                    }
+                } catch(e) {}
+            }
+            if (!matchedCol) {
+                matchedCol = columns.find(c => c.key === 'GP') || columns[0];
+            }
+
+            let containerNo = item["Container No."] || "";
 
             for (let catObj of cats) {
                 let cat = catObj.cat;
@@ -7349,19 +7441,7 @@ function generateAdvancedReport() {
                 let refDays = catObj.refDays || 0;
                 let isRef = catObj.isRef || false;
 
-                let matchedCol = null;
-                for (let col of columns) {
-                    try {
-                        if (col.check(item)) {
-                            matchedCol = col;
-                            break;
-                        }
-                    } catch(e) {}
-                }
-                if (!matchedCol) {
-                    matchedCol = columns.find(c => c.key === 'GP') || columns[0];
-                }
-
+                // تهيئة الفئة للأيام
                 if (!tabEntry.categories[cat]) {
                     tabEntry.categories[cat] = {};
                     for (let col of columns) {
@@ -7369,15 +7449,37 @@ function generateAdvancedReport() {
                     }
                 }
 
+                // إضافة الأيام
                 tabEntry.categories[cat][matchedCol.key].total += days;
-
-                // ===== استخدام EXPRT Days للحاويات المبردة =====
                 if (isRef && refDays > 0) {
                     tabEntry.categories[cat][matchedCol.key].refrigerated += refDays;
                 }
 
+                // إضافة الحاوية إلى مجموعة فريدة لهذه الفئة والنوع
+                if (!containerSets[cat]) {
+                    containerSets[cat] = {};
+                    for (let col of columns) {
+                        containerSets[cat][col.key] = new Set();
+                    }
+                }
+                if (containerNo) {
+                    containerSets[cat][matchedCol.key].add(containerNo);
+                }
+            }
+        }
+
+        // تحويل المجموعات إلى أعداد
+        for (let cat in containerSets) {
+            for (let col of columns) {
+                let count = containerSets[cat][col.key] ? containerSets[cat][col.key].size : 0;
                 if (cat === 'EXPRT') {
-                    tabEntry.exprtContainersByType[matchedCol.key] += 1;
+                    tabEntry.exprtContainersByType[col.key] = count;
+                } else if (cat === 'STRGE') {
+                    tabEntry.strgeContainersByType[col.key] = count;
+                } else if (cat === 'TRSHP') {
+                    tabEntry.trshpContainersByType[col.key] = count;
+                } else if (cat === 'IMPRT') {
+                    tabEntry.imprtContainersByType[col.key] = count;
                 }
             }
         }
@@ -7397,6 +7499,12 @@ function generateAdvancedReport() {
         hour: '2-digit', minute: '2-digit'
     });
 
+    let shippingDateDisplay = vesselInfo.shippingDate;
+    if (shippingDateDisplay && shippingDateDisplay !== "—") {
+        let converted = convertDate(shippingDateDisplay);
+        if (converted) shippingDateDisplay = converted;
+    }
+
     function renderDaysCell(data) {
         let total = data?.total || 0;
         let ref = data?.refrigerated || 0;
@@ -7410,6 +7518,14 @@ function generateAdvancedReport() {
             displayText = `${total} <span style="color:#c62828; font-weight:bold; font-size:9px;">(power: ${ref})</span>`;
         }
         return `<td class="num-days">${displayText}</td>`;
+    }
+
+    function renderCountCell(count) {
+        let c = count || 0;
+        if (c === 0) {
+            return `<td class="empty-cell" style="font-size:10px;color:#999;">0</td>`;
+        }
+        return `<td class="num-containers" style="font-size:10px;color:#0a3d62;">${c}</td>`;
     }
 
     let html = `
@@ -7432,7 +7548,7 @@ function generateAdvancedReport() {
                 }
                 .report-header {
                     text-align: center;
-                    padding-bottom: 20px;
+                    padding-bottom: 15px;
                     border-bottom: 2px solid #0a3d62;
                     margin-bottom: 20px;
                 }
@@ -7445,6 +7561,21 @@ function generateAdvancedReport() {
                     color: #6c757d;
                     font-size: 14px;
                     margin-top: 5px;
+                }
+                .report-header .vessel-info {
+                    display: flex;
+                    justify-content: center;
+                    gap: 30px;
+                    margin-top: 10px;
+                    font-size: 14px;
+                    color: #0a3d62;
+                    background: #f0f8ff;
+                    padding: 8px 20px;
+                    border-radius: 8px;
+                    border: 1px solid #cce5ff;
+                }
+                .report-header .vessel-info span {
+                    font-weight: bold;
                 }
                 .report-date {
                     text-align: left;
@@ -7480,6 +7611,7 @@ function generateAdvancedReport() {
                 .count-row td:first-child { background: #f8e8a0; padding-right: 15px; font-weight: bold; }
 
                 .num-days { color: #1e6f5c; font-weight: bold; }
+                .num-containers { color: #0a3d62; font-weight: bold; }
                 .empty-cell { color: #adb5bd; font-style: italic; }
 
                 .footer {
@@ -7532,6 +7664,11 @@ function generateAdvancedReport() {
                 <div class="report-header">
                     <h1>📊 تقرير أيام التخزين حسب نوع الحاوية</h1>
                     <div class="subtitle">تصنيف حسب حالة الحاوية (EXPRT/TRSHP/STRGE)</div>
+                    <div class="vessel-info">
+                        <div>🚢 <span>السفينة:</span> ${vesselInfo.carrierName}</div>
+                        <div>📅 <span>تاريخ الرحلة:</span> ${shippingDateDisplay}</div>
+                        <div>🏷️ <span>الخط:</span> ${vesselInfo.lineId}</div>
+                    </div>
                 </div>
                 <div class="report-date">📅 تاريخ التقرير: ${currentDate}</div>
 
@@ -7561,7 +7698,11 @@ function generateAdvancedReport() {
     for (let tabIdx = 0; tabIdx < reportData.length; tabIdx++) {
         let tab = reportData[tabIdx];
         let tabLabel = tabs[tabIdx].label;
+        let isTab4 = tab.source === 'tab4';
+        let isTab5 = tab.source === 'tab5';
+        let isTab7 = tab.source === 'tab7';
 
+        // صف التبويب
         html += `
             <tr class="tab-row">
                 <td style="font-weight:bold; color:#0a3d62; font-size:13px;">${tabLabel}</td>
@@ -7581,19 +7722,39 @@ function generateAdvancedReport() {
                 <tr><td colspan="${columns.length + 1}" style="text-align:center; color:#6c757d; padding:10px;">
                     لا توجد بيانات في هذا التبويب
                 </td></tr>`;
-            let tabsWithTotal = ['tab1', 'tab2', 'tab3', 'tab6'];
-            if (tabsWithTotal.includes(tab.source)) {
+            // عرض صف الإجمالي للتبويبات الفارغة
+            if (isTab4) {
                 html += `
                     <tr class="count-row">
-                        <td style="padding-right:15px; font-weight:bold;">إجمالي عدد حاويات EXPRT</td>`;
-                for (let col of columns) {
-                    html += `<td style="text-align:center; font-weight:bold; background:#f8e8a0;">0</td>`;
+                        <td style="padding-right:15px; font-weight:bold;">إجمالي عدد حاويات STRGE</td>
+                        ${columns.map(col => `<td style="text-align:center; font-weight:bold; background:#f8e8a0;">0</td>`).join('')}
+                    </tr>`;
+            } else if (isTab5) {
+                html += `
+                    <tr class="count-row">
+                        <td style="padding-right:15px; font-weight:bold;">إجمالي عدد حاويات TRSHP</td>
+                        ${columns.map(col => `<td style="text-align:center; font-weight:bold; background:#f8e8a0;">0</td>`).join('')}
+                    </tr>`;
+            } else if (isTab7) {
+                html += `
+                    <tr class="count-row">
+                        <td style="padding-right:15px; font-weight:bold;">إجمالي عدد حاويات IMPRT</td>
+                        ${columns.map(col => `<td style="text-align:center; font-weight:bold; background:#f8e8a0;">0</td>`).join('')}
+                    </tr>`;
+            } else {
+                let tabsWithTotal = ['tab1', 'tab2', 'tab3', 'tab6'];
+                if (tabsWithTotal.includes(tab.source)) {
+                    html += `
+                        <tr class="count-row">
+                            <td style="padding-right:15px; font-weight:bold;">إجمالي عدد حاويات EXPRT</td>
+                            ${columns.map(col => `<td style="text-align:center; font-weight:bold; background:#f8e8a0;">0</td>`).join('')}
+                        </tr>`;
                 }
-                html += `</tr>`;
             }
             continue;
         }
 
+        // عرض كل حالة
         for (let cat of categories) {
             let catData = tab.categories[cat];
             let catLabel = cat;
@@ -7605,16 +7766,50 @@ function generateAdvancedReport() {
             html += `</tr>`;
         }
 
-        let tabsWithTotal = ['tab1', 'tab2', 'tab3', 'tab6'];
-        if (tabsWithTotal.includes(tab.source)) {
+        // ===== صفوف إجمالي عدد الحاويات حسب التبويب =====
+        if (isTab4) {
+            // تبويب 4: STRGE
             html += `
                 <tr class="count-row">
-                    <td style="padding-right:15px; font-weight:bold;">إجمالي عدد حاويات EXPRT</td>`;
+                    <td style="padding-right:15px; font-weight:bold;">إجمالي عدد حاويات STRGE</td>`;
             for (let col of columns) {
-                let count = tab.exprtContainersByType[col.key] || 0;
-                html += `<td style="text-align:center; font-weight:bold; background:#f8e8a0;">${count > 0 ? count : '0'}</td>`;
+                let count = tab.strgeContainersByType[col.key] || 0;
+                html += renderCountCell(count);
             }
             html += `</tr>`;
+        } else if (isTab5) {
+            // تبويب 5: TRSHP
+            html += `
+                <tr class="count-row">
+                    <td style="padding-right:15px; font-weight:bold;">إجمالي عدد حاويات TRSHP</td>`;
+            for (let col of columns) {
+                let count = tab.trshpContainersByType[col.key] || 0;
+                html += renderCountCell(count);
+            }
+            html += `</tr>`;
+        } else if (isTab7) {
+            // تبويب 7: IMPRT
+            html += `
+                <tr class="count-row">
+                    <td style="padding-right:15px; font-weight:bold;">إجمالي عدد حاويات IMPRT</td>`;
+            for (let col of columns) {
+                let count = tab.imprtContainersByType[col.key] || 0;
+                html += renderCountCell(count);
+            }
+            html += `</tr>`;
+        } else {
+            // تبويبات 1،2،3،6: EXPRT
+            let tabsWithTotal = ['tab1', 'tab2', 'tab3', 'tab6'];
+            if (tabsWithTotal.includes(tab.source)) {
+                html += `
+                    <tr class="count-row">
+                        <td style="padding-right:15px; font-weight:bold;">إجمالي عدد حاويات EXPRT</td>`;
+                for (let col of columns) {
+                    let count = tab.exprtContainersByType[col.key] || 0;
+                    html += renderCountCell(count);
+                }
+                html += `</tr>`;
+            }
         }
     }
 
@@ -7625,9 +7820,9 @@ function generateAdvancedReport() {
                 <div style="margin-top: 20px; font-size: 12px; color: #6c757d; text-align: center; background: #f8f9fa; padding: 10px; border-radius: 8px;">
                     <strong>📌 ملاحظة:</strong> القيم باللون الرمادي (<span class="empty-cell">—</span>) تعني عدم وجود أيام تخزين لهذه الفئة.
                     <span style="margin-right:15px;">🟢 <strong>EXPRT:</strong> صافي أيام التصدير</span>
-                    <span style="margin-right:15px;">🔴 <span style="color:#c62828; font-weight:bold;">(power: X)</span> تعني أيام EXPRT Days للحاويات المبردة فقط</span>
+                    <span style="margin-right:15px;">🔴 <span style="color:#c62828; font-weight:bold;">(power: X)</span> تعني أيام التبريد (RF) للحاويات المبردة</span>
                     <span style="margin-right:15px;">🔵 <strong>TRSHP / STRGE:</strong> أيام الترانزيت أو التخزين</span>
-                    <span style="margin-right:15px;">🟡 <strong>إجمالي عدد حاويات EXPRT:</strong> عدد الحاويات التي حالتها EXPRT (موزع حسب الأنواع)</span>
+                    <span style="margin-right:15px;">🟡 <strong>عدد الحاويات:</strong> عدد الحاويات الفريدة لكل حالة حسب نوع الحاوية</span>
                 </div>
 
                 <div class="footer">
