@@ -7742,10 +7742,9 @@ function generateAdvancedReport() {
                         <div>🚢 <span>السفينة:</span> ${vesselInfo.carrierName}</div>
                         <div>📅 <span>تاريخ الرحلة:</span> ${shippingDateDisplay}</div>
                         <div>🏷️ <span>الخط:</span> ${vesselInfo.lineId}</div>
+						<div class="report-date">📅 تاريخ التقرير: ${currentDate}</div>
                     </div>
                 </div>
-                <div class="report-date">📅 تاريخ التقرير: ${currentDate}</div>
-
                 <table>
                     <thead>
                         <tr>
@@ -7887,19 +7886,6 @@ function generateAdvancedReport() {
     html += `
                     </tbody>
                 </table>
-
-                <div style="margin-top: 20px; font-size: 12px; color: #6c757d; text-align: center; background: #f8f9fa; padding: 10px; border-radius: 8px;">
-                    <strong>📌 ملاحظة:</strong> القيم باللون الرمادي (<span class="empty-cell">—</span>) تعني عدم وجود أيام تخزين لهذه الفئة.
-                    <span style="margin-right:15px;">📏 <strong>تقسيم حسب المقاس:</strong> 20' و 40'</span>
-                    <span style="margin-right:15px;">🟢 <strong>EXPRT (صافي):</strong> أيام التصدير بعد خصم الحالات الخاصة</span>
-                    <span style="margin-right:15px;">🔴 <strong>EXPRT (خاص):</strong> أيام التصدير للحاويات التي تحقق (Flex TRUE أو Dray FORWARD/RETURN) <strong>(تظهر العلامات فقط هنا)</strong></span>
-                    <span style="margin-right:15px;">⭐ <strong>Flex TRUE:</strong> صادر خاص</span>
-                    <span style="margin-right:15px;">➡️ <strong>FORWARD:</strong> معاد توجيهه</span>
-                    <span style="margin-right:15px;">🔄 <strong>RETURN:</strong> مرتجع</span>
-                    <span style="margin-right:15px;">⬜ <strong>EMPTY:</strong> فارغ</span>
-                    <span style="margin-right:15px;">🔴 <span style="color:#c62828; font-weight:bold;">(power: X day)</span> أيام التبريد (RF)</span>
-                    <span style="margin-right:15px;">🟡 <strong>عدد الحاويات:</strong> عدد الحاويات الفريدة (بدون تكرار)</span>
-                </div>
 
                 <div class="footer">
                     تم إنشاؤه بواسطة نظام التخزين - تقرير تلقائي
