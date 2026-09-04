@@ -7191,20 +7191,6 @@ document.addEventListener("DOMContentLoaded", function() {
     }, 500);
 });
 
-document.addEventListener("DOMContentLoaded", function() {
-    let toolbar = document.querySelector('.upload-area');
-    if (toolbar) {
-        if (!document.getElementById('advancedReportBtn')) {
-            let reportBtn = document.createElement('button');
-            reportBtn.id = 'advancedReportBtn';
-            reportBtn.innerHTML = '📊 تقرير تفصيلي';
-            reportBtn.style.cssText = 'background: #8b5cf6; color: white; padding: 10px 24px; border-radius: 40px; border: none; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.3s; margin: 5px;';
-            reportBtn.onclick = generateAdvancedReport;
-            toolbar.appendChild(reportBtn);
-        }
-    }
-});
-
 // ============================================================
 // تقرير شامل - حسب حالات الحاويات والحالة (EXPRT/TRSHP/STRGE)
 // ============================================================
@@ -7277,46 +7263,63 @@ function generateAdvancedReport() {
         }}
     ];
 
-    // ===== دالة لتحديد الحالات المنطبقة على الحاوية =====
+    // ===== دالة للحصول على الحالات المنطبقة على الحاوية =====
     function getCategoriesForItem(item, source) {
         let cats = [];
 
-        // دالة مساعدة للتحقق من وجود حالة معينة (تعتمد على Net أو Days أو وجود تواريخ)
         function hasCategory(prefix) {
             let net = parseFloat(item[prefix + " Net"]) || 0;
             let days = parseFloat(item[prefix + " Days"]) || 0;
             let start = item[prefix + " Start"] || "";
             let end = item[prefix + " End"] || "";
-            // إذا كان Net أو Days > 0 أو كان هناك تاريخ بدء/نهاية
             return (net > 0 || days > 0 || start !== "" || end !== "");
         }
 
-        // الحصول على قيمة Net للحالة (حتى لو كانت 0، نأخذها للعرض)
         function getNet(prefix) {
             return parseFloat(item[prefix + " Net"]) || 0;
         }
 
+        function getDays(prefix) {
+            return parseFloat(item[prefix + " Days"]) || 0;
+        }
+
+        function isRefrigerated(item) {
+            let ref = item["Is Refrigerated"];
+            if (typeof ref === "boolean") return ref;
+            if (typeof ref === "string") return ref.trim().toLowerCase() === "true";
+            if (typeof ref === "number") return ref === 1;
+            return false;
+        }
+
         if (source === 'tab1') {
-            if (hasCategory("EXPRT")) cats.push({ cat: 'EXPRT', days: getNet("EXPRT") });
-            if (hasCategory("TRSHP")) cats.push({ cat: 'TRSHP', days: getNet("TRSHP") });
+            if (hasCategory("EXPRT")) {
+                cats.push({ cat: 'EXPRT', days: getNet("EXPRT"), refDays: getDays("EXPRT"), isRef: isRefrigerated(item) });
+            }
+            if (hasCategory("TRSHP")) cats.push({ cat: 'TRSHP', days: getNet("TRSHP"), refDays: 0, isRef: false });
         } else if (source === 'tab2') {
-            if (hasCategory("EXPRT")) cats.push({ cat: 'EXPRT', days: getNet("EXPRT") });
-            if (hasCategory("STRGE")) cats.push({ cat: 'STRGE', days: getNet("STRGE") });
+            if (hasCategory("EXPRT")) {
+                cats.push({ cat: 'EXPRT', days: getNet("EXPRT"), refDays: getDays("EXPRT"), isRef: isRefrigerated(item) });
+            }
+            if (hasCategory("STRGE")) cats.push({ cat: 'STRGE', days: getNet("STRGE"), refDays: 0, isRef: false });
         } else if (source === 'tab3') {
-            if (hasCategory("EXPRT")) cats.push({ cat: 'EXPRT', days: getNet("EXPRT") });
+            if (hasCategory("EXPRT")) {
+                cats.push({ cat: 'EXPRT', days: getNet("EXPRT"), refDays: getDays("EXPRT"), isRef: isRefrigerated(item) });
+            }
         } else if (source === 'tab4') {
-            if (hasCategory("STRGE")) cats.push({ cat: 'STRGE', days: getNet("STRGE") });
+            if (hasCategory("STRGE")) cats.push({ cat: 'STRGE', days: getNet("STRGE"), refDays: 0, isRef: false });
         } else if (source === 'tab5') {
-            if (hasCategory("TRSHP")) cats.push({ cat: 'TRSHP', days: getNet("TRSHP") });
+            if (hasCategory("TRSHP")) cats.push({ cat: 'TRSHP', days: getNet("TRSHP"), refDays: 0, isRef: false });
         } else if (source === 'tab6') {
-            if (hasCategory("EXPRT")) cats.push({ cat: 'EXPRT', days: getNet("EXPRT") });
-            if (hasCategory("STRGE")) cats.push({ cat: 'STRGE', days: getNet("STRGE") });
+            if (hasCategory("EXPRT")) {
+                cats.push({ cat: 'EXPRT', days: getNet("EXPRT"), refDays: getDays("EXPRT"), isRef: isRefrigerated(item) });
+            }
+            if (hasCategory("STRGE")) cats.push({ cat: 'STRGE', days: getNet("STRGE"), refDays: 0, isRef: false });
         } else if (source === 'tab7') {
             let net = parseFloat(item["Net"]) || 0;
-            if (net > 0) cats.push({ cat: 'IMPRT', days: net });
+            if (net > 0) cats.push({ cat: 'IMPRT', days: net, refDays: 0, isRef: false });
         } else if (source === 'tab8') {
             let days = parseFloat(item["أيام التخزين (جديد)"]) || 0;
-            if (days > 0) cats.push({ cat: 'STRGE', days: days });
+            if (days > 0) cats.push({ cat: 'STRGE', days: days, refDays: 0, isRef: false });
         }
 
         return cats;
@@ -7330,10 +7333,9 @@ function generateAdvancedReport() {
             label: tab.label,
             source: tab.id,
             categories: {},
-            exprtContainersByType: {} // إجمالي عدد حاويات EXPRT حسب النوع
+            exprtContainersByType: {}
         };
 
-        // تهيئة عداد الحاويات EXPRT
         for (let col of columns) {
             tabEntry.exprtContainersByType[col.key] = 0;
         }
@@ -7344,8 +7346,9 @@ function generateAdvancedReport() {
             for (let catObj of cats) {
                 let cat = catObj.cat;
                 let days = catObj.days;
+                let refDays = catObj.refDays || 0;
+                let isRef = catObj.isRef || false;
 
-                // تحديد نوع الحاوية
                 let matchedCol = null;
                 for (let col of columns) {
                     try {
@@ -7359,18 +7362,20 @@ function generateAdvancedReport() {
                     matchedCol = columns.find(c => c.key === 'GP') || columns[0];
                 }
 
-                // تهيئة الفئة إذا لم تكن موجودة
                 if (!tabEntry.categories[cat]) {
                     tabEntry.categories[cat] = {};
                     for (let col of columns) {
-                        tabEntry.categories[cat][col.key] = 0;
+                        tabEntry.categories[cat][col.key] = { total: 0, refrigerated: 0 };
                     }
                 }
 
-                // إضافة الأيام
-                tabEntry.categories[cat][matchedCol.key] += days;
+                tabEntry.categories[cat][matchedCol.key].total += days;
 
-                // إذا كانت الحالة EXPRT، نزيد عداد الحاويات لهذا النوع
+                // ===== استخدام EXPRT Days للحاويات المبردة =====
+                if (isRef && refDays > 0) {
+                    tabEntry.categories[cat][matchedCol.key].refrigerated += refDays;
+                }
+
                 if (cat === 'EXPRT') {
                     tabEntry.exprtContainersByType[matchedCol.key] += 1;
                 }
@@ -7392,20 +7397,19 @@ function generateAdvancedReport() {
         hour: '2-digit', minute: '2-digit'
     });
 
-    function renderDaysCell(days) {
-        let d = days || 0;
-        if (d === 0) {
+    function renderDaysCell(data) {
+        let total = data?.total || 0;
+        let ref = data?.refrigerated || 0;
+
+        if (total === 0 && ref === 0) {
             return `<td class="empty-cell">—</td>`;
         }
-        return `<td class="num-days">${d}</td>`;
-    }
 
-    function renderCountCell(count) {
-        let c = count || 0;
-        if (c === 0) {
-            return `<td class="empty-cell" style="font-size:10px;color:#999;">0</td>`;
+        let displayText = total;
+        if (ref > 0) {
+            displayText = `${total} <span style="color:#c62828; font-weight:bold; font-size:9px;">(power: ${ref})</span>`;
         }
-        return `<td class="num-containers" style="font-size:10px;color:#0a3d62;">${c}</td>`;
+        return `<td class="num-days">${displayText}</td>`;
     }
 
     let html = `
@@ -7476,7 +7480,6 @@ function generateAdvancedReport() {
                 .count-row td:first-child { background: #f8e8a0; padding-right: 15px; font-weight: bold; }
 
                 .num-days { color: #1e6f5c; font-weight: bold; }
-                .num-containers { color: #0a3d62; font-weight: bold; }
                 .empty-cell { color: #adb5bd; font-style: italic; }
 
                 .footer {
@@ -7555,12 +7558,10 @@ function generateAdvancedReport() {
                     </thead>
                     <tbody>`;
 
-    // عرض بيانات كل تبويب
     for (let tabIdx = 0; tabIdx < reportData.length; tabIdx++) {
         let tab = reportData[tabIdx];
         let tabLabel = tabs[tabIdx].label;
 
-        // صف التبويب
         html += `
             <tr class="tab-row">
                 <td style="font-weight:bold; color:#0a3d62; font-size:13px;">${tabLabel}</td>
@@ -7569,13 +7570,17 @@ function generateAdvancedReport() {
                 `).join('')}
             </tr>`;
 
-        let categories = Object.keys(tab.categories).sort();
+        let categories = Object.keys(tab.categories).sort((a, b) => {
+            if (a === 'EXPRT') return -1;
+            if (b === 'EXPRT') return 1;
+            return a.localeCompare(b);
+        });
+
         if (categories.length === 0) {
             html += `
                 <tr><td colspan="${columns.length + 1}" style="text-align:center; color:#6c757d; padding:10px;">
                     لا توجد بيانات في هذا التبويب
                 </td></tr>`;
-            // عرض صف الإجمالي حتى للتبويبات الفارغة
             let tabsWithTotal = ['tab1', 'tab2', 'tab3', 'tab6'];
             if (tabsWithTotal.includes(tab.source)) {
                 html += `
@@ -7589,22 +7594,19 @@ function generateAdvancedReport() {
             continue;
         }
 
-        // عرض كل حالة
         for (let cat of categories) {
             let catData = tab.categories[cat];
             let catLabel = cat;
 
             html += `<tr class="category-row"><td style="padding-right:15px; font-weight:bold;">${catLabel}</td>`;
             for (let col of columns) {
-                html += renderDaysCell(catData[col.key] || 0);
+                html += renderDaysCell(catData[col.key]);
             }
             html += `</tr>`;
         }
 
-        // ===== صف إجمالي عدد حاويات EXPRT (للتبويبات 1، 2، 3، 6 فقط) =====
         let tabsWithTotal = ['tab1', 'tab2', 'tab3', 'tab6'];
         if (tabsWithTotal.includes(tab.source)) {
-            let hasAny = Object.values(tab.exprtContainersByType).some(c => c > 0);
             html += `
                 <tr class="count-row">
                     <td style="padding-right:15px; font-weight:bold;">إجمالي عدد حاويات EXPRT</td>`;
@@ -7623,8 +7625,8 @@ function generateAdvancedReport() {
                 <div style="margin-top: 20px; font-size: 12px; color: #6c757d; text-align: center; background: #f8f9fa; padding: 10px; border-radius: 8px;">
                     <strong>📌 ملاحظة:</strong> القيم باللون الرمادي (<span class="empty-cell">—</span>) تعني عدم وجود أيام تخزين لهذه الفئة.
                     <span style="margin-right:15px;">🟢 <strong>EXPRT:</strong> صافي أيام التصدير</span>
-                    <span style="margin-right:15px;">🔵 <strong>TRSHP:</strong> صافي أيام الترانزيت</span>
-                    <span style="margin-right:15px;">🟣 <strong>STRGE:</strong> صافي أيام التخزين</span>
+                    <span style="margin-right:15px;">🔴 <span style="color:#c62828; font-weight:bold;">(power: X)</span> تعني أيام EXPRT Days للحاويات المبردة فقط</span>
+                    <span style="margin-right:15px;">🔵 <strong>TRSHP / STRGE:</strong> أيام الترانزيت أو التخزين</span>
                     <span style="margin-right:15px;">🟡 <strong>إجمالي عدد حاويات EXPRT:</strong> عدد الحاويات التي حالتها EXPRT (موزع حسب الأنواع)</span>
                 </div>
 
