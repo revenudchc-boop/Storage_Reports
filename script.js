@@ -7191,6 +7191,488 @@ document.addEventListener("DOMContentLoaded", function() {
     }, 500);
 });
 
+document.addEventListener("DOMContentLoaded", function() {
+    let toolbar = document.querySelector('.upload-area');
+    if (toolbar) {
+        if (!document.getElementById('advancedReportBtn')) {
+            let reportBtn = document.createElement('button');
+            reportBtn.id = 'advancedReportBtn';
+            reportBtn.innerHTML = '📊 تقرير تفصيلي';
+            reportBtn.style.cssText = 'background: #8b5cf6; color: white; padding: 10px 24px; border-radius: 40px; border: none; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.3s; margin: 5px;';
+            reportBtn.onclick = generateAdvancedReport;
+            toolbar.appendChild(reportBtn);
+        }
+    }
+});
+
+// ============================================================
+// تقرير شامل - حسب حالات الحاويات والحالة (EXPRT/TRSHP/STRGE)
+// ============================================================
+
+function generateAdvancedReport() {
+    console.log("🔍 بدء إنشاء التقرير التفصيلي...");
+
+    // ===== تجميع البيانات من جميع التبويبات =====
+    let tabs = [
+        { id: 'tab1', data: currentData1 || [], label: 'TRSHP + EXPRT' },
+        { id: 'tab2', data: currentData2 || [], label: 'STRGE + EXPRT + IMPRT' },
+        { id: 'tab3', data: currentData3 || [], label: 'EXPRT فقط' },
+        { id: 'tab4', data: currentData4 || [], label: 'STRGE فارغ (MTY) + IMPRT' },
+        { id: 'tab5', data: currentData5 || [], label: 'TRSHP فقط' },
+        { id: 'tab6', data: currentData6 || [], label: 'STRGE + EXPRT فقط' },
+        { id: 'tab7', data: currentData7 || [], label: 'IMPRT + FORWARD' },
+        { id: 'tab8', data: currentData8 || [], label: 'Storage Finalout' }
+    ];
+
+    // ===== تعريف أنواع الحاويات =====
+    let columns = [
+        { key: 'GP', label: 'عاديه (GP)', check: (item) => {
+            let type = item["Type"] || "";
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            return type === "GP" && !isOOG && !isHazard && !isRef;
+        }},
+        { key: 'RF', label: 'ثلاجه (RF)', check: (item) => {
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            return isRef && !isOOG && !isHazard;
+        }},
+        { key: 'OOG', label: 'غير منتظم (OOG)', check: (item) => {
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            return isOOG && !isRef && !isHazard;
+        }},
+        { key: 'Hazard', label: 'خطر (Hazard)', check: (item) => {
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            return isHazard && !isOOG && !isRef;
+        }},
+        { key: 'RF_OOG', label: 'ثلاجه+غير منتظم', check: (item) => {
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            return isRef && isOOG && !isHazard;
+        }},
+        { key: 'RF_Hazard', label: 'ثلاجه+خطر', check: (item) => {
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            return isRef && isHazard && !isOOG;
+        }},
+        { key: 'OOG_Hazard', label: 'غير منتظم+خطر', check: (item) => {
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            return isOOG && isHazard && !isRef;
+        }},
+        { key: 'RF_OOG_Hazard', label: 'ثلاجه+غير منتظم+خطر', check: (item) => {
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            return isRef && isOOG && isHazard;
+        }}
+    ];
+
+    // ===== دالة لتحديد الحالات المنطبقة على الحاوية =====
+    function getCategoriesForItem(item, source) {
+        let cats = [];
+
+        // دالة مساعدة للتحقق من وجود حالة معينة (تعتمد على Net أو Days أو وجود تواريخ)
+        function hasCategory(prefix) {
+            let net = parseFloat(item[prefix + " Net"]) || 0;
+            let days = parseFloat(item[prefix + " Days"]) || 0;
+            let start = item[prefix + " Start"] || "";
+            let end = item[prefix + " End"] || "";
+            // إذا كان Net أو Days > 0 أو كان هناك تاريخ بدء/نهاية
+            return (net > 0 || days > 0 || start !== "" || end !== "");
+        }
+
+        // الحصول على قيمة Net للحالة (حتى لو كانت 0، نأخذها للعرض)
+        function getNet(prefix) {
+            return parseFloat(item[prefix + " Net"]) || 0;
+        }
+
+        if (source === 'tab1') {
+            if (hasCategory("EXPRT")) cats.push({ cat: 'EXPRT', days: getNet("EXPRT") });
+            if (hasCategory("TRSHP")) cats.push({ cat: 'TRSHP', days: getNet("TRSHP") });
+        } else if (source === 'tab2') {
+            if (hasCategory("EXPRT")) cats.push({ cat: 'EXPRT', days: getNet("EXPRT") });
+            if (hasCategory("STRGE")) cats.push({ cat: 'STRGE', days: getNet("STRGE") });
+        } else if (source === 'tab3') {
+            if (hasCategory("EXPRT")) cats.push({ cat: 'EXPRT', days: getNet("EXPRT") });
+        } else if (source === 'tab4') {
+            if (hasCategory("STRGE")) cats.push({ cat: 'STRGE', days: getNet("STRGE") });
+        } else if (source === 'tab5') {
+            if (hasCategory("TRSHP")) cats.push({ cat: 'TRSHP', days: getNet("TRSHP") });
+        } else if (source === 'tab6') {
+            if (hasCategory("EXPRT")) cats.push({ cat: 'EXPRT', days: getNet("EXPRT") });
+            if (hasCategory("STRGE")) cats.push({ cat: 'STRGE', days: getNet("STRGE") });
+        } else if (source === 'tab7') {
+            let net = parseFloat(item["Net"]) || 0;
+            if (net > 0) cats.push({ cat: 'IMPRT', days: net });
+        } else if (source === 'tab8') {
+            let days = parseFloat(item["أيام التخزين (جديد)"]) || 0;
+            if (days > 0) cats.push({ cat: 'STRGE', days: days });
+        }
+
+        return cats;
+    }
+
+    // ===== بناء بيانات التقرير =====
+    let reportData = [];
+
+    for (let tab of tabs) {
+        let tabEntry = {
+            label: tab.label,
+            source: tab.id,
+            categories: {},
+            exprtContainersByType: {} // إجمالي عدد حاويات EXPRT حسب النوع
+        };
+
+        // تهيئة عداد الحاويات EXPRT
+        for (let col of columns) {
+            tabEntry.exprtContainersByType[col.key] = 0;
+        }
+
+        for (let item of tab.data) {
+            let cats = getCategoriesForItem(item, tab.id);
+
+            for (let catObj of cats) {
+                let cat = catObj.cat;
+                let days = catObj.days;
+
+                // تحديد نوع الحاوية
+                let matchedCol = null;
+                for (let col of columns) {
+                    try {
+                        if (col.check(item)) {
+                            matchedCol = col;
+                            break;
+                        }
+                    } catch(e) {}
+                }
+                if (!matchedCol) {
+                    matchedCol = columns.find(c => c.key === 'GP') || columns[0];
+                }
+
+                // تهيئة الفئة إذا لم تكن موجودة
+                if (!tabEntry.categories[cat]) {
+                    tabEntry.categories[cat] = {};
+                    for (let col of columns) {
+                        tabEntry.categories[cat][col.key] = 0;
+                    }
+                }
+
+                // إضافة الأيام
+                tabEntry.categories[cat][matchedCol.key] += days;
+
+                // إذا كانت الحالة EXPRT، نزيد عداد الحاويات لهذا النوع
+                if (cat === 'EXPRT') {
+                    tabEntry.exprtContainersByType[matchedCol.key] += 1;
+                }
+            }
+        }
+
+        reportData.push(tabEntry);
+    }
+
+    // ===== إنشاء نافذة التقرير =====
+    let reportWindow = window.open('', '_blank', 'width=1400,height=900,scrollbars=yes');
+    if (!reportWindow) {
+        alert("الرجاء السماح للنوافذ المنبثقة لعرض التقرير");
+        return;
+    }
+
+    let currentDate = new Date().toLocaleString('ar-EG', {
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    });
+
+    function renderDaysCell(days) {
+        let d = days || 0;
+        if (d === 0) {
+            return `<td class="empty-cell">—</td>`;
+        }
+        return `<td class="num-days">${d}</td>`;
+    }
+
+    function renderCountCell(count) {
+        let c = count || 0;
+        if (c === 0) {
+            return `<td class="empty-cell" style="font-size:10px;color:#999;">0</td>`;
+        }
+        return `<td class="num-containers" style="font-size:10px;color:#0a3d62;">${c}</td>`;
+    }
+
+    let html = `
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>تقرير تفصيلي - حالات الحاويات</title>
+            <style>
+                * { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; box-sizing: border-box; }
+                body { background: #f0f2f5; padding: 20px; direction: rtl; }
+                .report-container {
+                    max-width: 100%;
+                    margin: auto;
+                    background: white;
+                    border-radius: 16px;
+                    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+                    padding: 25px;
+                    overflow-x: auto;
+                }
+                .report-header {
+                    text-align: center;
+                    padding-bottom: 20px;
+                    border-bottom: 2px solid #0a3d62;
+                    margin-bottom: 20px;
+                }
+                .report-header h1 {
+                    color: #0a3d62;
+                    font-size: 24px;
+                    margin: 0;
+                }
+                .report-header .subtitle {
+                    color: #6c757d;
+                    font-size: 14px;
+                    margin-top: 5px;
+                }
+                .report-date {
+                    text-align: left;
+                    font-size: 12px;
+                    color: #6c757d;
+                    margin-bottom: 15px;
+                }
+
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 11px;
+                    border: 2px solid #0a3d62;
+                }
+                th, td {
+                    border: 1px solid #dee2e6;
+                    padding: 6px 4px;
+                    text-align: center;
+                    vertical-align: middle;
+                }
+
+                .col-header { background: #0a3d62; color: white; font-weight: bold; font-size: 11px; }
+                .col-sub-header { background: #1a5a7a; color: white; font-size: 10px; }
+                .col-sub-header-small { background: #2a7a9a; color: white; font-size: 9px; }
+
+                .tab-row { background: #e9ecef; font-weight: bold; }
+                .tab-row td:first-child { background: #dee2e6; font-weight: bold; color: #0a3d62; }
+
+                .category-row { background: #d1ecf1; }
+                .category-row td:first-child { background: #b8d4de; padding-right: 15px; font-weight: bold; }
+
+                .count-row { background: #fff3cd; }
+                .count-row td:first-child { background: #f8e8a0; padding-right: 15px; font-weight: bold; }
+
+                .num-days { color: #1e6f5c; font-weight: bold; }
+                .num-containers { color: #0a3d62; font-weight: bold; }
+                .empty-cell { color: #adb5bd; font-style: italic; }
+
+                .footer {
+                    margin-top: 20px;
+                    text-align: center;
+                    font-size: 12px;
+                    color: #6c757d;
+                    padding-top: 15px;
+                    border-top: 1px solid #dee2e6;
+                }
+
+                .print-btn {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 10px 24px;
+                    background: #0a3d62;
+                    color: white;
+                    border: none;
+                    border-radius: 30px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    z-index: 1000;
+                }
+                .print-btn:hover { background: #1a5a7a; }
+                .close-btn {
+                    position: fixed;
+                    top: 20px;
+                    right: 160px;
+                    padding: 10px 24px;
+                    background: #dc3545;
+                    color: white;
+                    border: none;
+                    border-radius: 30px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    z-index: 1000;
+                }
+                .close-btn:hover { background: #c82333; }
+
+                @media print {
+                    body { background: white; padding: 10px; }
+                    .report-container { box-shadow: none; border-radius: 0; padding: 10px; }
+                    .print-btn, .close-btn { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="report-container">
+                <div class="report-header">
+                    <h1>📊 تقرير أيام التخزين حسب نوع الحاوية</h1>
+                    <div class="subtitle">تصنيف حسب حالة الحاوية (EXPRT/TRSHP/STRGE)</div>
+                </div>
+                <div class="report-date">📅 تاريخ التقرير: ${currentDate}</div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th rowspan="3" style="background:#0a3d62; color:white; width:180px; min-width:150px; vertical-align:middle;">
+                                التبويب / الحالة
+                            </th>
+                            <th colspan="${columns.length}" style="background:#0a3d62; color:white; font-size:14px;">
+                                أنواع الحاويات
+                            </th>
+                        </tr>
+                        <tr>
+                            ${columns.map(col => `
+                                <th colspan="1" class="col-sub-header">${col.label}</th>
+                            `).join('')}
+                        </tr>
+                        <tr>
+                            ${columns.map(col => `
+                                <th class="col-sub-header-small">أيام</th>
+                            `).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+    // عرض بيانات كل تبويب
+    for (let tabIdx = 0; tabIdx < reportData.length; tabIdx++) {
+        let tab = reportData[tabIdx];
+        let tabLabel = tabs[tabIdx].label;
+
+        // صف التبويب
+        html += `
+            <tr class="tab-row">
+                <td style="font-weight:bold; color:#0a3d62; font-size:13px;">${tabLabel}</td>
+                ${columns.map(col => `
+                    <td style="background:#e9ecef; color:#6c757d; font-size:10px;">—</td>
+                `).join('')}
+            </tr>`;
+
+        let categories = Object.keys(tab.categories).sort();
+        if (categories.length === 0) {
+            html += `
+                <tr><td colspan="${columns.length + 1}" style="text-align:center; color:#6c757d; padding:10px;">
+                    لا توجد بيانات في هذا التبويب
+                </td></tr>`;
+            // عرض صف الإجمالي حتى للتبويبات الفارغة
+            let tabsWithTotal = ['tab1', 'tab2', 'tab3', 'tab6'];
+            if (tabsWithTotal.includes(tab.source)) {
+                html += `
+                    <tr class="count-row">
+                        <td style="padding-right:15px; font-weight:bold;">إجمالي عدد حاويات EXPRT</td>`;
+                for (let col of columns) {
+                    html += `<td style="text-align:center; font-weight:bold; background:#f8e8a0;">0</td>`;
+                }
+                html += `</tr>`;
+            }
+            continue;
+        }
+
+        // عرض كل حالة
+        for (let cat of categories) {
+            let catData = tab.categories[cat];
+            let catLabel = cat;
+
+            html += `<tr class="category-row"><td style="padding-right:15px; font-weight:bold;">${catLabel}</td>`;
+            for (let col of columns) {
+                html += renderDaysCell(catData[col.key] || 0);
+            }
+            html += `</tr>`;
+        }
+
+        // ===== صف إجمالي عدد حاويات EXPRT (للتبويبات 1، 2، 3، 6 فقط) =====
+        let tabsWithTotal = ['tab1', 'tab2', 'tab3', 'tab6'];
+        if (tabsWithTotal.includes(tab.source)) {
+            let hasAny = Object.values(tab.exprtContainersByType).some(c => c > 0);
+            html += `
+                <tr class="count-row">
+                    <td style="padding-right:15px; font-weight:bold;">إجمالي عدد حاويات EXPRT</td>`;
+            for (let col of columns) {
+                let count = tab.exprtContainersByType[col.key] || 0;
+                html += `<td style="text-align:center; font-weight:bold; background:#f8e8a0;">${count > 0 ? count : '0'}</td>`;
+            }
+            html += `</tr>`;
+        }
+    }
+
+    html += `
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 20px; font-size: 12px; color: #6c757d; text-align: center; background: #f8f9fa; padding: 10px; border-radius: 8px;">
+                    <strong>📌 ملاحظة:</strong> القيم باللون الرمادي (<span class="empty-cell">—</span>) تعني عدم وجود أيام تخزين لهذه الفئة.
+                    <span style="margin-right:15px;">🟢 <strong>EXPRT:</strong> صافي أيام التصدير</span>
+                    <span style="margin-right:15px;">🔵 <strong>TRSHP:</strong> صافي أيام الترانزيت</span>
+                    <span style="margin-right:15px;">🟣 <strong>STRGE:</strong> صافي أيام التخزين</span>
+                    <span style="margin-right:15px;">🟡 <strong>إجمالي عدد حاويات EXPRT:</strong> عدد الحاويات التي حالتها EXPRT (موزع حسب الأنواع)</span>
+                </div>
+
+                <div class="footer">
+                    تم إنشاؤه بواسطة نظام التخزين - تقرير تلقائي
+                </div>
+            </div>
+
+            <script>
+                let printBtn = document.createElement('button');
+                printBtn.className = 'print-btn';
+                printBtn.textContent = '🖨️ طباعة التقرير';
+                printBtn.onclick = function() { window.print(); };
+                document.body.appendChild(printBtn);
+
+                let closeBtn = document.createElement('button');
+                closeBtn.className = 'close-btn';
+                closeBtn.textContent = '✖ إغلاق';
+                closeBtn.onclick = function() { window.close(); };
+                document.body.appendChild(closeBtn);
+            <\/script>
+        </body>
+        </html>
+    `;
+
+    reportWindow.document.write(html);
+    reportWindow.document.close();
+
+    console.log("✅ تم إنشاء التقرير بنجاح");
+}
+
+// ===== إضافة زر التقرير =====
+document.addEventListener("DOMContentLoaded", function() {
+    let toolbar = document.querySelector('.upload-area');
+    if (toolbar) {
+        if (!document.getElementById('advancedReportBtn')) {
+            let reportBtn = document.createElement('button');
+            reportBtn.id = 'advancedReportBtn';
+            reportBtn.innerHTML = '📊 تقرير تفصيلي';
+            reportBtn.style.cssText = 'background: #8b5cf6; color: white; padding: 10px 24px; border-radius: 40px; border: none; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.3s; margin: 5px;';
+            reportBtn.onmouseover = function() { this.style.transform = 'translateY(-2px)'; };
+            reportBtn.onmouseout = function() { this.style.transform = 'translateY(0)'; };
+            reportBtn.onclick = generateAdvancedReport;
+            toolbar.appendChild(reportBtn);
+        }
+    }
+});
+
 // ============================================================
 // ========== دوال تحميل الإعدادات من GitHub تلقائياً ==========
 // ============================================================
