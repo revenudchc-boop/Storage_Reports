@@ -2440,7 +2440,7 @@ if (!vesselName) vesselName = "—";
 			"flex_04": flexString04,  // ← تغيير المسمى
 			"Is Bundled": isBundled, "Is Hazardous": isHazardous, "IMDG Class": imdgClass,
 			"Type": type, "Line ID": lineId,
-			"Notes": data.notes || "",   // ← أضف هذا السطر
+			"Notes": (data.notes === "On-Hire") ? "On-Hire" : "",
 			"IMPRT Start": imStart, "IMPRT End": imEnd, "IMPRT Days": imDays,
 			"STRGE Start": strgeStart, "STRGE End": strgeEnd, "STRGE Days": totalStrgeDays,
 			"STRGE Free": strgeFree, "STRGE Net": strgeNet, "Total Net": totalNet,
@@ -5494,7 +5494,7 @@ function processAndDisplay6() {
                 "Is Bundled": isBundled,
                 "Is Hazardous": isHazardous,
                 "IMDG Class": imdgClass,
-				"Notes": container.notes || "",
+				"Notes": (container.notes === "On-Hire") ? "On-Hire" : "",
                 "Type": type,
                 "Line ID": lineId,
                 "طريقة الحساب": method,
