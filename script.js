@@ -364,18 +364,19 @@ function processExcelFile(file) {
                 let equipId = row["Equip ID"];
                 if (!equipId || equipId === "") continue;
 
-                if (!containersMap.has(equipId)) {
-                    containersMap.set(equipId, {
-                        equipId: equipId,
-                        equipmentType: row["Equipment Type"] || "",
-                        lineId: row["Line ID"] || "",
-                        trshpList: [],
-                        exprtList: [],
-                        strge: null,
-                        imprt: null,
-                        trshpReturn: null
-                    });
-                }
+				if (!containersMap.has(equipId)) {
+					containersMap.set(equipId, {
+						equipId: equipId,
+						equipmentType: row["Equipment Type"] || "",
+						lineId: row["Line ID"] || "",
+						notes: row["Notes"] || "",   // ← السطر الجديد
+						trshpList: [],
+						exprtList: [],
+						strge: null,
+						imprt: null,
+						trshpReturn: null
+					});
+				}
                 let c = containersMap.get(equipId);
                 let cat = row["Category"];
                 let drayStatus = row["Dray Status"] || "";
@@ -700,6 +701,7 @@ const availableColumnsTab4 = {
         { name: "Line ID", label: "الخط", default: true },
         { name: "طريقة الحساب", label: "طريقة الحساب", default: false },
         { name: "Flex String 01", label: "Flex String 01", default: false },
+		{ name: "Notes", label: "ملاحظات", default: true },  // ← أضف هذا
         { name: "IMPRT Start", label: "بداية IMPRT", default: true },
         { name: "IMPRT End", label: "نهاية IMPRT", default: true },
         { name: "IMPRT Days", label: "أيام IMPRT", default: true },
@@ -754,6 +756,7 @@ const availableColumnsTab6 = {
         { name: "طريقة الحساب", label: "طريقة الحساب", default: false },
         { name: "Flex String 01", label: "Flex String 01", default: false },
 		{ name: "flex_04", label: "flex_04", default: false },  // ← أضف هذا
+		{ name: "Notes", label: "ملاحظات", default: true },  // ← أضف هذا
         { name: "STRGE Start", label: "بداية STRGE", default: true },
         { name: "STRGE End", label: "نهاية STRGE", default: true },
         { name: "STRGE Days", label: "أيام STRGE", default: true },
@@ -992,7 +995,8 @@ function loadLastFileFromStorage() {
 					exprtList: [],      // ← صح: مصفوفة
 					strge: null,
 					imprt: null,
-					trshpReturn: null
+					trshpReturn: null,
+					notes: row["Notes"] || "",   // ← السطر الجديد
 				});
             }
             let c = containersMap.get(equipId);
@@ -2325,14 +2329,15 @@ function processAndDisplay4() {
         if (container.strge && container.strge["Freight Kind"] === "MTY") {
             if (container.exprt) continue;
             
-            if (!tempMap.has(id)) {
-                tempMap.set(id, {
-                    imprt: null,
-                    strgeList: [],
-                    lineId: container.lineId,
-                    equipmentType: container.equipmentType
-                });
-            }
+			if (!tempMap.has(id)) {
+				tempMap.set(id, {
+					imprt: null,
+					strgeList: [],
+					lineId: container.lineId,
+					equipmentType: container.equipmentType,
+					notes: container.notes || ""   // ← السطر الجديد
+				});
+			}
             let data = tempMap.get(id);
 			data.strgeList.push({
 				start: convertDate(container.strge["Start Time"] || ""),
@@ -2389,7 +2394,12 @@ for (let st of data.strgeList) {
                 if (days < 0) days = 0;
             }
         }
-        
+                // ===== خصم On-Hire =====
+        if (data.notes === "On-Hire") {
+            days = days - 1;
+            if (days < 0) days = 0;
+        }
+
         totalStrgeDays += days;
         if (!strgeStart || st.start < strgeStart) strgeStart = st.start;
         if (!strgeEnd || st.end > strgeEnd) strgeEnd = st.end;
@@ -2430,6 +2440,7 @@ if (!vesselName) vesselName = "—";
 			"flex_04": flexString04,  // ← تغيير المسمى
 			"Is Bundled": isBundled, "Is Hazardous": isHazardous, "IMDG Class": imdgClass,
 			"Type": type, "Line ID": lineId,
+			"Notes": data.notes || "",   // ← أضف هذا السطر
 			"IMPRT Start": imStart, "IMPRT End": imEnd, "IMPRT Days": imDays,
 			"STRGE Start": strgeStart, "STRGE End": strgeEnd, "STRGE Days": totalStrgeDays,
 			"STRGE Free": strgeFree, "STRGE Net": strgeNet, "Total Net": totalNet,
@@ -5408,6 +5419,11 @@ function processAndDisplay6() {
             
             // حساب الأيام والتداخل
             let stDays = diffDays(stStart, stEnd);
+			// ===== خصم On-Hire (يوم واحد) =====
+			if (container.notes === "On-Hire") {
+				stDays = stDays - 1;
+				if (stDays < 0) stDays = 0;
+			}
             let exDays = diffDays(exStart, exEnd);
             
             // حساب الأيام المشتركة
@@ -5478,6 +5494,7 @@ function processAndDisplay6() {
                 "Is Bundled": isBundled,
                 "Is Hazardous": isHazardous,
                 "IMDG Class": imdgClass,
+				"Notes": container.notes || "",
                 "Type": type,
                 "Line ID": lineId,
                 "طريقة الحساب": method,
