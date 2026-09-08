@@ -7933,9 +7933,11 @@ function generateAdvancedReport() {
 }
 
 // ===== إضافة زر التقرير =====
+// ===== إضافة أزرار التقارير =====
 document.addEventListener("DOMContentLoaded", function() {
     let toolbar = document.querySelector('.upload-area');
     if (toolbar) {
+        // زر التقرير التفصيلي (الموجود)
         if (!document.getElementById('advancedReportBtn')) {
             let reportBtn = document.createElement('button');
             reportBtn.id = 'advancedReportBtn';
@@ -7946,8 +7948,673 @@ document.addEventListener("DOMContentLoaded", function() {
             reportBtn.onclick = generateAdvancedReport;
             toolbar.appendChild(reportBtn);
         }
+
+        // زر التقرير المجمع (الجديد)
+        if (!document.getElementById('consolidatedReportBtn')) {
+            let consBtn = document.createElement('button');
+            consBtn.id = 'consolidatedReportBtn';
+            consBtn.innerHTML = '📊 تقرير مجمع';
+            consBtn.style.cssText = 'background: #6c5ce7; color: white; padding: 10px 24px; border-radius: 40px; border: none; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.3s; margin: 5px;';
+            consBtn.onmouseover = function() { this.style.transform = 'translateY(-2px)'; };
+            consBtn.onmouseout = function() { this.style.transform = 'translateY(0)'; };
+            consBtn.onclick = generateConsolidatedReport;
+            toolbar.appendChild(consBtn);
+        }
     }
 });
+
+
+// ============================================================
+// تقرير مجمع - تجميع EXPRT من 1,2,6 و STRGE من 2,6 و خاص من 1,2,3,6
+// ============================================================
+
+function generateConsolidatedReport() {
+    console.log("🔍 بدء إنشاء التقرير المجمع (النسخة النهائية)...");
+
+    // ===== 1. تجهيز البيانات من التبويبات المطلوبة =====
+    const dataSources = {
+        tab1: currentData1 || [],
+        tab2: currentData2 || [],
+        tab3: currentData3 || [],
+        tab4: currentData4 || [],
+        tab5: currentData5 || [],
+        tab6: currentData6 || [],
+        tab7: currentData7 || [],
+        tab8: currentData8 || []
+    };
+
+    const totalRows = Object.values(dataSources).reduce((sum, arr) => sum + arr.length, 0);
+    if (totalRows === 0) {
+        alert("⚠️ لا توجد بيانات لعرض التقرير. يرجى تحميل ملف Excel أولاً.");
+        return;
+    }
+
+    // ===== 2. تعريف أنواع ومقاسات الحاويات (نفس التقرير التفصيلي) =====
+    const sizeTypes = [
+        { size: '20', label: '20\'', check: (item) => {
+            let s = item["Size"] || "";
+            return s.toString().startsWith("2") || s.toString().startsWith("20");
+        }},
+        { size: '40', label: '40\'', check: (item) => {
+            let s = item["Size"] || "";
+            return s.toString().startsWith("4") || s.toString().startsWith("40") || s.toString().startsWith("45");
+        }}
+    ];
+
+    const containerTypes = [
+        { key: 'GP', label: 'GP', check: (item) => {
+            let type = item["Type"] || "";
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            return type === "GP" && !isOOG && !isHazard && !isRef;
+        }},
+        { key: 'RF', label: 'RF', check: (item) => {
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            return isRef && !isOOG && !isHazard;
+        }},
+        { key: 'OOG', label: 'OOG', check: (item) => {
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            return isOOG && !isRef && !isHazard;
+        }},
+        { key: 'Hazard', label: 'Hazard', check: (item) => {
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            return isHazard && !isOOG && !isRef;
+        }},
+        { key: 'RF_OOG', label: 'RF+OOG', check: (item) => {
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            return isRef && isOOG && !isHazard;
+        }},
+        { key: 'RF_Hazard', label: 'RF+Hazard', check: (item) => {
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            return isRef && isHazard && !isOOG;
+        }},
+        { key: 'OOG_Hazard', label: 'OOG+Hazard', check: (item) => {
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            return isOOG && isHazard && !isRef;
+        }},
+        { key: 'RF_OOG_Hazard', label: 'RF+OOG+Hazard', check: (item) => {
+            let isRef = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            let isOOG = item["Is OOG"] === "true" || item["Is OOG"] === true;
+            let isHazard = item["Is Hazardous"] === "true" || item["Is Hazardous"] === true;
+            return isRef && isOOG && isHazard;
+        }}
+    ];
+
+    let columns = [];
+    for (let type of containerTypes) {
+        for (let size of sizeTypes) {
+            let colKey = size.size + '_' + type.key;
+            columns.push({
+                key: colKey,
+                label: size.label + ' ' + type.label,
+                check: (item) => type.check(item) && size.check(item)
+            });
+        }
+    }
+
+    // ===== 3. دالة مساعدة لتجميع البيانات (لـ EXPRT, TRSHP, STRGE) =====
+    function aggregateItems(dataArray, categoryKey, filterFn = null) {
+        let totals = {};
+        let containerSet = new Set();
+        columns.forEach(col => { totals[col.key] = 0; });
+
+        for (let item of dataArray) {
+            if (filterFn && !filterFn(item)) continue;
+
+            let containerNo = item["Container No."] || "";
+            if (!containerNo) continue;
+
+            let net = parseFloat(item[categoryKey + " Net"]) || 0;
+
+            let matchedCol = null;
+            for (let col of columns) {
+                try {
+                    if (col.check(item)) {
+                        matchedCol = col;
+                        break;
+                    }
+                } catch(e) {}
+            }
+            if (!matchedCol) matchedCol = columns.find(c => c.key === '20_GP') || columns[0];
+
+            containerSet.add(containerNo + "|" + matchedCol.key);
+
+            if (net > 0) {
+                totals[matchedCol.key] += net;
+            }
+        }
+
+        let countContainers = {};
+        columns.forEach(col => { countContainers[col.key] = 0; });
+        containerSet.forEach(key => {
+            let parts = key.split("|");
+            let colKey = parts[1];
+            if (countContainers[colKey] !== undefined) {
+                countContainers[colKey] += 1;
+            }
+        });
+
+        return { totals, countContainers };
+    }
+
+    // ===== 4. دالة لتجميع بيانات تبويب 7 (IMPRT + FORWARD) =====
+    function aggregateTab7(dataArray) {
+        let totals = {};
+        let containerSet = new Set();
+        columns.forEach(col => { totals[col.key] = 0; });
+
+        for (let item of dataArray) {
+            let containerNo = item["رقم الحاوية"] || "";
+            if (!containerNo) continue;
+
+            let net = parseFloat(item["Net"]) || 0;
+
+            let tempItem = {
+                "Type": item["النوع"] || "GP",
+                "Size": item["الحجم"] || "",
+                "Is Refrigerated": item["مبرد"] === "✅",
+                "Is OOG": item["OOG"] === "✅",
+                "Is Hazardous": item["خطر"] === "✅"
+            };
+
+            let matchedCol = null;
+            for (let col of columns) {
+                try {
+                    if (col.check(tempItem)) {
+                        matchedCol = col;
+                        break;
+                    }
+                } catch(e) {}
+            }
+            if (!matchedCol) matchedCol = columns.find(c => c.key === '20_GP') || columns[0];
+
+            containerSet.add(containerNo + "|" + matchedCol.key);
+
+            if (net > 0) {
+                totals[matchedCol.key] += net;
+            }
+        }
+
+        let countContainers = {};
+        columns.forEach(col => { countContainers[col.key] = 0; });
+        containerSet.forEach(key => {
+            let parts = key.split("|");
+            let colKey = parts[1];
+            if (countContainers[colKey] !== undefined) {
+                countContainers[colKey] += 1;
+            }
+        });
+
+        return { totals, countContainers };
+    }
+
+    // ===== 5. دالة لتجميع بيانات تبويب 8 (Storage Finalout) =====
+    function aggregateTab8(dataArray) {
+        let totals = {};
+        let containerSet = new Set();
+        columns.forEach(col => { totals[col.key] = 0; });
+
+        for (let item of dataArray) {
+            let containerNo = item["رقم الحاوية"] || "";
+            if (!containerNo) continue;
+
+            let days = parseFloat(item["أيام التخزين (جديد)"]) || 0;
+
+            let type = item["النوع"] || "";
+            let size = item["الحجم"] || "";
+            let isRef = type.includes("R") || type.includes("RF");
+            let isOOG = type.includes("OOG");
+            let isHazard = type.includes("Hazard") || type.includes("DG");
+
+            let tempItem = {
+                "Type": type,
+                "Size": size,
+                "Is Refrigerated": isRef,
+                "Is OOG": isOOG,
+                "Is Hazardous": isHazard
+            };
+
+            let matchedCol = null;
+            for (let col of columns) {
+                try {
+                    if (col.check(tempItem)) {
+                        matchedCol = col;
+                        break;
+                    }
+                } catch(e) {}
+            }
+            if (!matchedCol) matchedCol = columns.find(c => c.key === '20_GP') || columns[0];
+
+            containerSet.add(containerNo + "|" + matchedCol.key);
+
+            if (days > 0) {
+                totals[matchedCol.key] += days;
+            }
+        }
+
+        let countContainers = {};
+        columns.forEach(col => { countContainers[col.key] = 0; });
+        containerSet.forEach(key => {
+            let parts = key.split("|");
+            let colKey = parts[1];
+            if (countContainers[colKey] !== undefined) {
+                countContainers[colKey] += 1;
+            }
+        });
+
+        return { totals, countContainers };
+    }
+
+    // ===== 6. تجميع الفئات المطلوبة =====
+
+    // 6.1 EXPRT عادي (من 1,2,3,6 مع استبعاد TRUE)
+    let exprNormalData = [];
+    [1, 2, 3, 6].forEach(tabKey => {
+        exprNormalData = exprNormalData.concat(dataSources['tab' + tabKey]);
+    });
+    let exprNormalAgg = aggregateItems(exprNormalData, 'EXPRT', (item) => {
+        let flex = item["Flex String 01"] || "";
+        return flex !== "TRUE";
+    });
+
+    // 6.2 EXPRT خاص (من 1,2,3,6 مع TRUE فقط)
+    let exprSpecialData = [];
+    [1, 2, 3, 6].forEach(tabKey => {
+        exprSpecialData = exprSpecialData.concat(dataSources['tab' + tabKey]);
+    });
+    let exprSpecialAgg = aggregateItems(exprSpecialData, 'EXPRT', (item) => {
+        let flex = item["Flex String 01"] || "";
+        return flex === "TRUE";
+    });
+
+    // 6.3 TRSHP من تبويب 1 فقط
+    let trshpTab1Agg = aggregateItems(dataSources.tab1, 'TRSHP', null);
+
+    // 6.4 STRGE مجمع (من 2 و 6)
+    let strge26Data = [];
+    [2, 6].forEach(tabKey => {
+        strge26Data = strge26Data.concat(dataSources['tab' + tabKey]);
+    });
+    let strge26Agg = aggregateItems(strge26Data, 'STRGE', null);
+
+    // 6.5 STRGE من تبويب 4 فقط
+    let strgeTab4Agg = aggregateItems(dataSources.tab4, 'STRGE', null);
+
+    // 6.6 تبويب 5 (TRSHP فقط)
+    let tab5Agg = aggregateItems(dataSources.tab5, 'TRSHP', null);
+
+    // 6.7 تبويب 7 (IMPRT + FORWARD)
+    let tab7Agg = aggregateTab7(dataSources.tab7);
+
+    // 6.8 تبويب 8 (Storage Finalout)
+    let tab8Agg = aggregateTab8(dataSources.tab8);
+
+    // ===== 7. معلومات السفينة (نفس طريقة التقرير التفصيلي) =====
+    // ===== 7. معلومات السفينة (مطابق تماماً للتقرير التفصيلي) =====
+    let vesselInfo = {
+        carrierName: "—",
+        shippingDate: "—",
+        lineId: "—"
+    };
+
+    // نبحث في containersMap بنفس طريقة التقرير التفصيلي
+    for (let [id, container] of containersMap.entries()) {
+        let sourceData = null;
+        
+        // نبحث في EXPRT أولاً (من أي تبويب)
+        if (container.exprtList && container.exprtList.length > 0) {
+            sourceData = container.exprtList[0];
+        } else if (container.exprt) {
+            sourceData = container.exprt;
+        } else if (container.trshpList && container.trshpList.length > 0) {
+            sourceData = container.trshpList[0];
+        } else if (container.trshp) {
+            sourceData = container.trshp;
+        } else if (container.strge) {
+            sourceData = container.strge;
+        } else if (container.imprt) {
+            sourceData = container.imprt;
+        } else if (container.trshpReturn) {
+            sourceData = container.trshpReturn;
+        }
+        
+        if (sourceData) {
+            // O/B Carrier Name
+            if (vesselInfo.carrierName === "—") {
+                vesselInfo.carrierName = sourceData["O/B Carrier Name"] || sourceData["I/B Carrier Name"] || "—";
+            }
+            
+            // O/B Carrier ATD (تاريخ الشحن) - نفس طريقة التقرير التفصيلي
+            let atd = sourceData["O/B Carrier ATD"] || sourceData["O/B Carrier ATA"] || sourceData["I/B Carrier ATD"] || "";
+            if (atd && atd !== "") {
+                // لا نقوم بتحويل التاريخ هنا، بل نتركه كما هو ثم نحوله لاحقاً
+                if (vesselInfo.shippingDate === "—") {
+                    vesselInfo.shippingDate = atd;
+                }
+            }
+            
+            // Line ID
+            let lineId = sourceData["Line ID"];
+            if (lineId && lineId !== "" && vesselInfo.lineId === "—") {
+                vesselInfo.lineId = lineId;
+            }
+        }
+        
+        // إذا وجدنا جميع المعلومات، نوقف البحث
+        if (vesselInfo.carrierName !== "—" && vesselInfo.shippingDate !== "—" && vesselInfo.lineId !== "—") {
+            break;
+        }
+    }
+    
+    // إذا لم نجد اسم السفينة، نأخذ من currentData1 كاحتياطي
+    if (vesselInfo.carrierName === "—" && currentData1.length > 0) {
+        vesselInfo.carrierName = currentData1[0]["Vessel Name"] || currentData1[0]["O/B Carrier Name"] || currentData1[0]["I/B Carrier Name"] || "—";
+    }
+    
+    // إذا لم نجد تاريخ الرحلة، نأخذ من currentData1 كاحتياطي
+    if (vesselInfo.shippingDate === "—" && currentData1.length > 0) {
+        vesselInfo.shippingDate = currentData1[0]["O/B Carrier ATD"] || currentData1[0]["O/B Carrier ATA"] || currentData1[0]["I/B Carrier ATD"] || "—";
+    }
+
+    let shippingDateDisplay = vesselInfo.shippingDate;
+    if (shippingDateDisplay && shippingDateDisplay !== "—") {
+        let converted = convertDate(shippingDateDisplay);
+        if (converted) shippingDateDisplay = converted;
+    }
+
+    let currentDate = new Date().toLocaleString('ar-EG', {
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    });
+
+    // دوال عرض الخلايا
+    function renderDaysCell(total) {
+        if (total === 0) return `<td class="empty-cell">—</td>`;
+        return `<td class="num-days">${total} Day</td>`;
+    }
+
+	function renderCountCell(count) {
+		if (count === 0) return `<td class="empty-cell" style="font-size:10px;color:#999;">0</td>`;
+		let label = count === 1 ? "Cont" : "Cont";
+		return `<td class="num-containers" style="font-size:10px;color:#0a3d62;">${label}: ${count}</td>`;
+	}
+
+    // ===== 8. بناء HTML =====
+    let html = `
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>تقرير مجمع - أيام التخزين</title>
+            <style>
+                * { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; box-sizing: border-box; }
+                body { background: #f0f2f5; padding: 20px; direction: rtl; }
+                .report-container {
+                    max-width: 100%;
+                    margin: auto;
+                    background: white;
+                    border-radius: 16px;
+                    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+                    padding: 25px;
+                    overflow-x: auto;
+                }
+                .report-header {
+                    text-align: center;
+                    padding-bottom: 15px;
+                    border-bottom: 2px solid #0a3d62;
+                    margin-bottom: 20px;
+                }
+                .report-header h1 {
+                    color: #0a3d62;
+                    font-size: 24px;
+                    margin: 0;
+                }
+                .report-header .vessel-info {
+                    display: flex;
+                    justify-content: center;
+                    gap: 30px;
+                    margin-top: 10px;
+                    font-size: 14px;
+                    color: #0a3d62;
+                    background: #f0f8ff;
+                    padding: 8px 20px;
+                    border-radius: 8px;
+                    border: 1px solid #cce5ff;
+                }
+                .report-header .vessel-info span { font-weight: bold; }
+                .report-date {
+                    text-align: left;
+                    font-size: 12px;
+                    color: #6c757d;
+                    margin-bottom: 15px;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 10px;
+                    border: 2px solid #0a3d62;
+                }
+                th, td {
+                    border: 1px solid #dee2e6;
+                    padding: 4px 3px;
+                    text-align: center;
+                    vertical-align: middle;
+                }
+                .col-header { background: #0a3d62; color: white; font-weight: bold; font-size: 10px; }
+                .col-sub-header { background: #1a5a7a; color: white; font-size: 9px; }
+                .col-sub-header-small { background: #2a7a9a; color: white; font-size: 8px; }
+
+                .category-row { background: #d1ecf1; }
+                .category-row td:first-child { background: #b8d4de; padding-right: 10px; font-weight: bold; }
+                .special-row { background: #fce4ec; }
+                .special-row td:first-child { background: #f8bbd0; padding-right: 10px; font-weight: bold; color: #880e4f; }
+                .trshp-row { background: #d4edda; }
+                .trshp-row td:first-child { background: #b7d7c8; padding-right: 10px; font-weight: bold; }
+                .strge-row { background: #cce5ff; }
+                .strge-row td:first-child { background: #b0d4ee; padding-right: 10px; font-weight: bold; }
+                .strge-tab4-row { background: #fff3cd; }
+                .strge-tab4-row td:first-child { background: #f8e8a0; padding-right: 10px; font-weight: bold; }
+                .count-row { background: #f8f9fa; }
+                .count-row td:first-child { background: #e9ecef; padding-right: 10px; font-weight: bold; }
+                .tab5-row { background: #d5f5e3; }
+                .tab5-row td:first-child { background: #a9dfbf; padding-right: 10px; font-weight: bold; }
+                .tab7-row { background: #fadbd8; }
+                .tab7-row td:first-child { background: #f5b7b1; padding-right: 10px; font-weight: bold; }
+                .tab8-row { background: #e8daef; }
+                .tab8-row td:first-child { background: #d2b4de; padding-right: 10px; font-weight: bold; }
+
+                .num-days { color: #1e6f5c; font-weight: bold; }
+                .num-containers { color: #0a3d62; font-weight: bold; }
+                .empty-cell { color: #adb5bd; font-style: italic; }
+
+                .footer {
+                    margin-top: 20px;
+                    text-align: center;
+                    font-size: 12px;
+                    color: #6c757d;
+                    padding-top: 15px;
+                    border-top: 1px solid #dee2e6;
+                }
+
+                .print-btn {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 10px 24px;
+                    background: #0a3d62;
+                    color: white;
+                    border: none;
+                    border-radius: 30px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    z-index: 1000;
+                }
+                .print-btn:hover { background: #1a5a7a; }
+                .close-btn {
+                    position: fixed;
+                    top: 20px;
+                    right: 160px;
+                    padding: 10px 24px;
+                    background: #dc3545;
+                    color: white;
+                    border: none;
+                    border-radius: 30px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    z-index: 1000;
+                }
+                .close-btn:hover { background: #c82333; }
+
+                @media print {
+                    body { background: white; padding: 10px; }
+                    .report-container { box-shadow: none; border-radius: 0; padding: 10px; }
+                    .print-btn, .close-btn { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="report-container">
+                <div class="report-header">
+                    <h1>📊 تقرير مجمع - أيام التخزين</h1>
+                    <div class="vessel-info">
+                        <div>🚢 <span>السفينة:</span> ${vesselInfo.carrierName}</div>
+                        <div>📅 <span>تاريخ الرحلة:</span> ${shippingDateDisplay}</div>
+                        <div>🏷️ <span>الخط:</span> ${vesselInfo.lineId}</div>
+                        <div>📅 <span>تاريخ التقرير:</span> ${currentDate}</div>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th rowspan="3" style="background:#0a3d62; color:white; width:180px; min-width:150px; vertical-align:middle;">
+                                الفئة
+                            </th>
+                            <th colspan="${columns.length}" style="background:#0a3d62; color:white; font-size:12px;">
+                                أنواع ومقاسات الحاويات
+                            </th>
+                        </tr>
+                        <tr>
+                            ${columns.map(col => `<th colspan="1" class="col-sub-header">${col.label}</th>`).join('')}
+                        </tr>
+                        <tr>
+                            ${columns.map(col => `<th class="col-sub-header-small">أيام</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 1. EXPRT عادي -->
+                        <tr class="category-row">
+                            <td style="padding-right:10px; font-weight:bold;">📤 EXPRT (عادي) من 1,2,3,6</td>
+                            ${columns.map(col => renderDaysCell(exprNormalAgg.totals[col.key] || 0)).join('')}
+                        </tr>
+                        <tr class="count-row">
+                            <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات EXPRT (عادي)</td>
+                            ${columns.map(col => renderCountCell(exprNormalAgg.countContainers[col.key] || 0)).join('')}
+                        </tr>
+
+                        <!-- 2. EXPRT خاص -->
+                        <tr class="special-row">
+                            <td style="padding-right:10px; font-weight:bold;">⭐ EXPRT (خاص) من 1,2,3,6</td>
+                            ${columns.map(col => renderDaysCell(exprSpecialAgg.totals[col.key] || 0)).join('')}
+                        </tr>
+                        <tr class="count-row">
+                            <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات EXPRT (خاص)</td>
+                            ${columns.map(col => renderCountCell(exprSpecialAgg.countContainers[col.key] || 0)).join('')}
+                        </tr>
+
+                        <!-- 3. TRSHP من تبويب 1 -->
+                        <tr class="trshp-row">
+                            <td style="padding-right:10px; font-weight:bold;">🚛 TRSHP (من تبويب 1 فقط)</td>
+                            ${columns.map(col => renderDaysCell(trshpTab1Agg.totals[col.key] || 0)).join('')}
+                        </tr>
+
+                        <!-- 4. STRGE مجمع 2 و 6 -->
+                        <tr class="strge-row">
+                            <td style="padding-right:10px; font-weight:bold;">📦 STRGE (مجمع 2 و 6)</td>
+                            ${columns.map(col => renderDaysCell(strge26Agg.totals[col.key] || 0)).join('')}
+                        </tr>
+
+                        <!-- 5. STRGE فارغ (تبويب 4) -->
+                        <tr class="strge-tab4-row">
+                            <td style="padding-right:10px; font-weight:bold;">📦 STRGE فارغ (تبويب 4)</td>
+                            ${columns.map(col => renderDaysCell(strgeTab4Agg.totals[col.key] || 0)).join('')}
+                        </tr>
+                        <tr class="count-row">
+                            <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات STRGE فارغ (تبويب 4)</td>
+                            ${columns.map(col => renderCountCell(strgeTab4Agg.countContainers[col.key] || 0)).join('')}
+                        </tr>
+
+                        <!-- 6. تبويب 5 -->
+                        <tr class="tab5-row">
+                            <td style="padding-right:10px; font-weight:bold;">🚛 TRSHP فقط (تبويب 5)</td>
+                            ${columns.map(col => renderDaysCell(tab5Agg.totals[col.key] || 0)).join('')}
+                        </tr>
+                        <tr class="count-row">
+                            <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات TRSHP (تبويب 5)</td>
+                            ${columns.map(col => renderCountCell(tab5Agg.countContainers[col.key] || 0)).join('')}
+                        </tr>
+
+                        <!-- 7. تبويب 7 -->
+                        <tr class="tab7-row">
+                            <td style="padding-right:10px; font-weight:bold;">📥 IMPRT + FORWARD (تبويب 7)</td>
+                            ${columns.map(col => renderDaysCell(tab7Agg.totals[col.key] || 0)).join('')}
+                        </tr>
+                        <tr class="count-row">
+                            <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات IMPRT (تبويب 7)</td>
+                            ${columns.map(col => renderCountCell(tab7Agg.countContainers[col.key] || 0)).join('')}
+                        </tr>
+
+                        <!-- 8. تبويب 8 -->
+                        <tr class="tab8-row">
+                            <td style="padding-right:10px; font-weight:bold;">📋 Storage Finalout (تبويب 8)</td>
+                            ${columns.map(col => renderDaysCell(tab8Agg.totals[col.key] || 0)).join('')}
+                        </tr>
+                        <tr class="count-row">
+                            <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات Finalout (تبويب 8)</td>
+                            ${columns.map(col => renderCountCell(tab8Agg.countContainers[col.key] || 0)).join('')}
+                        </tr>
+                    </tbody>
+                </table>
+
+            </div>
+            <script>
+                let printBtn = document.createElement('button');
+                printBtn.className = 'print-btn';
+                printBtn.textContent = '🖨️ طباعة التقرير';
+                printBtn.onclick = function() { window.print(); };
+                document.body.appendChild(printBtn);
+
+                let closeBtn = document.createElement('button');
+                closeBtn.className = 'close-btn';
+                closeBtn.textContent = '✖ إغلاق';
+                closeBtn.onclick = function() { window.close(); };
+                document.body.appendChild(closeBtn);
+            <\/script>
+        </body>
+        </html>
+    `;
+
+    let reportWindow = window.open('', '_blank', 'width=1400,height=800,scrollbars=yes');
+    if (!reportWindow) {
+        alert("الرجاء السماح للنوافذ المنبثقة لعرض التقرير");
+        return;
+    }
+    reportWindow.document.write(html);
+    reportWindow.document.close();
+    console.log("✅ تم إنشاء التقرير المجمع بنجاح");
+}
 
 // ============================================================
 // ========== دوال تحميل الإعدادات من GitHub تلقائياً ==========
