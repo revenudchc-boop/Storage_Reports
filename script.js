@@ -8597,7 +8597,6 @@ function generateConsolidatedReport() {
         <body>
             <div class="report-container">
                 <div class="report-header">
-                    <h1>📊 تقرير مجمع - أيام التخزين</h1>
                     <div class="vessel-info">
                         <div>🚢 <span>السفينة:</span> ${vesselInfo.carrierName}</div>
                         <div>📅 <span>تاريخ الرحلة:</span> ${shippingDateDisplay}</div>
@@ -8625,89 +8624,79 @@ function generateConsolidatedReport() {
                     <tbody>
                         <!-- 1. EXPRT عادي -->
                         <tr class="category-row">
-                            <td style="padding-right:10px; font-weight:bold;">📤 EXPRT (عادي) من 1,2,3,6</td>
+                            <td style="padding-right:10px; font-weight:bold;">📤 Full Export Storage Days</td>
                             ${columns.map(col => renderDaysCell(exprNormalAgg.totals[col.key] || 0)).join('')}
                         </tr>
                         <!-- Power Export (RF) بعد EXPRT عادي مباشرة -->
                         <tr class="power-row">
-                            <td style="padding-right:10px; font-weight:bold;">⚡ Power Export (RF من 1,2,3,6)</td>
+                            <td style="padding-right:10px; font-weight:bold;">⚡ Full Export Power Days</td>
                             ${columns.map(col => renderDaysCell(powerExportAgg.totals[col.key] || 0)).join('')}
                         </tr>
                         <tr class="count-row">
-                            <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات EXPRT (عادي)</td>
+                            <td style="padding-right:10px; font-weight:bold;">📊 Full Export Count Normal</td>
                             ${columns.map(col => renderCountCell(exprNormalAgg.countContainers[col.key] || 0)).join('')}
                         </tr>
 
                         <!-- 2. EXPRT خاص -->
                         <tr class="special-row">
-                            <td style="padding-right:10px; font-weight:bold;">⭐ EXPRT (خاص) من 1,2,3,6</td>
+                            <td style="padding-right:10px; font-weight:bold;">⭐ Full Re_Export Storage Days</td>
                             ${columns.map(col => renderDaysCell(exprSpecialAgg.totals[col.key] || 0)).join('')}
                         </tr>
-                        <!-- Power Export (خاص) بعد EXPRT خاص مباشرة -->
+                        <!-- Full Re_Export Power Days بعد EXPRT خاص مباشرة -->
                         <tr class="power-special-row">
-                            <td style="padding-right:10px; font-weight:bold;">⚡ Power Export (خاص) ⭐</td>
+                            <td style="padding-right:10px; font-weight:bold;">⚡ Full Re_Export Power Days ⭐</td>
                             ${columns.map(col => renderDaysCell(powerExportSpecialAgg.totals[col.key] || 0)).join('')}
                         </tr>
                         <tr class="count-row">
-                            <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات EXPRT (خاص)</td>
+                            <td style="padding-right:10px; font-weight:bold;">📊 Full Re_Export Count</td>
                             ${columns.map(col => renderCountCell(exprSpecialAgg.countContainers[col.key] || 0)).join('')}
                         </tr>
 
                         <!-- 3. TRSHP من تبويب 1 -->
                         <tr class="trshp-row">
-                            <td style="padding-right:10px; font-weight:bold;">🚛 TRSHP (من تبويب 1 فقط)</td>
+                            <td style="padding-right:10px; font-weight:bold;">🚛 Empty Transit Storage(L.Full)</td>
                             ${columns.map(col => renderDaysCell(trshpTab1Agg.totals[col.key] || 0)).join('')}
                         </tr>
 
                         <!-- 4. STRGE مجمع 2 و 6 -->
                         <tr class="strge-row">
-                            <td style="padding-right:10px; font-weight:bold;">📦 STRGE (مجمع 2 و 6)</td>
+                            <td style="padding-right:10px; font-weight:bold;">📦Empty Export Storage(L.Full)</td>
                             ${columns.map(col => renderDaysCell(strge26Agg.totals[col.key] || 0)).join('')}
                         </tr>
 
-                        <!-- 5. STRGE فارغ (تبويب 4) -->
+                        <!-- 5. Empty Export Storage(L.Emtpy) -->
                         <tr class="strge-tab4-row">
-                            <td style="padding-right:10px; font-weight:bold;">📦 STRGE فارغ (تبويب 4)</td>
+                            <td style="padding-right:10px; font-weight:bold;">📦 Empty Export Storage(L.Empty)</td>
                             ${columns.map(col => renderDaysCell(strgeTab4Agg.totals[col.key] || 0)).join('')}
                         </tr>
                         <tr class="count-row">
-                            <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات STRGE فارغ (تبويب 4)</td>
+                            <td style="padding-right:10px; font-weight:bold;">📊 Empty Export Count</td>
                             ${columns.map(col => renderCountCell(strgeTab4Agg.countContainers[col.key] || 0)).join('')}
                         </tr>
 
                         <!-- 6. تبويب 5 -->
                         <tr class="tab5-row">
-                            <td style="padding-right:10px; font-weight:bold;">🚛 TRSHP فقط (تبويب 5)</td>
+                            <td style="padding-right:10px; font-weight:bold;">🚛 Transit Only Storage Days</td>
                             ${columns.map(col => renderDaysCell(tab5Agg.totals[col.key] || 0)).join('')}
                         </tr>
                         <!-- RF (تبويب 5) بعد TRSHP فقط مباشرة -->
                         <tr class="rf-tab5-row">
-                            <td style="padding-right:10px; font-weight:bold;">❄️ RF (تبويب 5 - TRSHP فقط)</td>
+                            <td style="padding-right:10px; font-weight:bold;">❄️ Transit Only Power Days</td>
                             ${columns.map(col => renderDaysCell(tab5RFAgg.totals[col.key] || 0)).join('')}
                         </tr>
                         <tr class="count-row">
-                            <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات TRSHP (تبويب 5)</td>
+                            <td style="padding-right:10px; font-weight:bold;">📊 Transit Only Count</td>
                             ${columns.map(col => renderCountCell(tab5Agg.countContainers[col.key] || 0)).join('')}
                         </tr>
 
                         <!-- 7. تبويب 7 -->
                         <tr class="tab7-row">
-                            <td style="padding-right:10px; font-weight:bold;">📥 IMPRT + FORWARD (تبويب 7)</td>
+                            <td style="padding-right:10px; font-weight:bold;">📥 FORWARD Storage Days</td>
                             ${columns.map(col => renderDaysCell(tab7Agg.totals[col.key] || 0)).join('')}
                         </tr>
                         <tr class="count-row">
-                            <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات IMPRT (تبويب 7)</td>
+                            <td style="padding-right:10px; font-weight:bold;">📊 FORWARD Storage Count</td>
                             ${columns.map(col => renderCountCell(tab7Agg.countContainers[col.key] || 0)).join('')}
-                        </tr>
-
-                        <!-- 8. تبويب 8 -->
-                        <tr class="tab8-row">
-                            <td style="padding-right:10px; font-weight:bold;">📋 Storage Finalout (تبويب 8)</td>
-                            ${columns.map(col => renderDaysCell(tab8Agg.totals[col.key] || 0)).join('')}
-                        </tr>
-                        <tr class="count-row">
-                            <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات Finalout (تبويب 8)</td>
-                            ${columns.map(col => renderCountCell(tab8Agg.countContainers[col.key] || 0)).join('')}
                         </tr>
                     </tbody>
                 </table>
