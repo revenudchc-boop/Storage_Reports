@@ -8223,22 +8223,26 @@ function generateConsolidatedReport() {
     // 6.1 EXPRT عادي (من 1,2,3,6 مع استبعاد TRUE)
     let exprNormalData = [];
     [1, 2, 3, 6].forEach(tabKey => {
-        exprNormalData = exprNormalData.concat(dataSources['tab' + tabKey]);
+        let data = dataSources['tab' + tabKey];
+        let filtered = data.filter(item => {
+            let flex = item["Flex String 01"] || "";
+            return flex !== "TRUE";
+        });
+        exprNormalData = exprNormalData.concat(filtered);
     });
-    let exprNormalAgg = aggregateItems(exprNormalData, 'EXPRT', (item) => {
-        let flex = item["Flex String 01"] || "";
-        return flex !== "TRUE";
-    });
+    let exprNormalAgg = aggregateItems(exprNormalData, 'EXPRT', null);
 
     // 6.2 EXPRT خاص (من 1,2,3,6 مع TRUE فقط)
     let exprSpecialData = [];
     [1, 2, 3, 6].forEach(tabKey => {
-        exprSpecialData = exprSpecialData.concat(dataSources['tab' + tabKey]);
+        let data = dataSources['tab' + tabKey];
+        let filtered = data.filter(item => {
+            let flex = item["Flex String 01"] || "";
+            return flex === "TRUE";
+        });
+        exprSpecialData = exprSpecialData.concat(filtered);
     });
-    let exprSpecialAgg = aggregateItems(exprSpecialData, 'EXPRT', (item) => {
-        let flex = item["Flex String 01"] || "";
-        return flex === "TRUE";
-    });
+    let exprSpecialAgg = aggregateItems(exprSpecialData, 'EXPRT', null);
 
     // 6.3 TRSHP من تبويب 1 فقط
     let trshpTab1Agg = aggregateItems(dataSources.tab1, 'TRSHP', null);
@@ -8262,19 +8266,125 @@ function generateConsolidatedReport() {
     // 6.8 تبويب 8 (Storage Finalout)
     let tab8Agg = aggregateTab8(dataSources.tab8);
 
-    // ===== 7. معلومات السفينة (نفس طريقة التقرير التفصيلي) =====
-    // ===== 7. معلومات السفينة (مطابق تماماً للتقرير التفصيلي) =====
+    // ===== 6.9 Power Export (RF من EXPRT عادي) =====
+    function calculatePowerExport(dataArray) {
+        let totals = {};
+        let containerSet = new Set();
+        columns.forEach(col => { totals[col.key] = 0; });
+
+        for (let item of dataArray) {
+            // 1. بس الحاويات المبردة
+            let isRefrigerated = item["Is Refrigerated"] === "true" || item["Is Refrigerated"] === true;
+            if (!isRefrigerated) continue;
+
+            let containerNo = item["Container No."] || "";
+            if (!containerNo) continue;
+
+            // 2. أيام الطاقة = EXPRT Days (قبل الخصم)
+            let days = parseFloat(item["EXPRT Days"]) || 0;
+
+            // 3. نوع الحاوية
+            let matchedCol = null;
+            for (let col of columns) {
+                try {
+                    if (col.check(item)) {
+                        matchedCol = col;
+                        break;
+                    }
+                } catch(e) {}
+            }
+            if (!matchedCol) matchedCol = columns.find(c => c.key === '20_GP') || columns[0];
+
+            containerSet.add(containerNo + "|" + matchedCol.key);
+            if (days > 0) {
+                totals[matchedCol.key] += days;
+            }
+        }
+
+        // عدد الحاويات الفريدة
+        let countContainers = {};
+        columns.forEach(col => { countContainers[col.key] = 0; });
+        containerSet.forEach(key => {
+            let parts = key.split("|");
+            let colKey = parts[1];
+            if (countContainers[colKey] !== undefined) {
+                countContainers[colKey] += 1;
+            }
+        });
+
+        return { totals, countContainers };
+    }
+
+    // ===== حساب Power Export =====
+    let powerExportAgg = calculatePowerExport(exprNormalData);        // العادي
+    let powerExportSpecialAgg = calculatePowerExport(exprSpecialData); // الخاص
+
+    // ===== 6.11 RF من تبويب 5 (TRSHP فقط) =====
+    function calculateTab5RF(dataArray) {
+        let totals = {};
+        let containerSet = new Set();
+        columns.forEach(col => { totals[col.key] = 0; });
+
+        for (let item of dataArray) {
+            // التحقق من Is Refrigerated بمرونة
+            let isRefrigerated = false;
+            let refValue = item["Is Refrigerated"];
+            if (refValue === "true" || refValue === true || refValue === "TRUE" || 
+                refValue === 1 || refValue === "1" || refValue === "Yes" || refValue === "yes") {
+                isRefrigerated = true;
+            }
+            
+            if (!isRefrigerated) continue;
+
+            let containerNo = item["Container No."] || "";
+            if (!containerNo) continue;
+
+            // استخدام TRSHP Days (قبل الخصم)
+            let days = parseFloat(item["TRSHP Days"]) || 0;
+
+            let matchedCol = null;
+            for (let col of columns) {
+                try {
+                    if (col.check(item)) {
+                        matchedCol = col;
+                        break;
+                    }
+                } catch(e) {}
+            }
+            if (!matchedCol) matchedCol = columns.find(c => c.key === '20_GP') || columns[0];
+
+            containerSet.add(containerNo + "|" + matchedCol.key);
+
+            if (days > 0) {
+                totals[matchedCol.key] += days;
+            }
+        }
+
+        let countContainers = {};
+        columns.forEach(col => { countContainers[col.key] = 0; });
+        containerSet.forEach(key => {
+            let parts = key.split("|");
+            let colKey = parts[1];
+            if (countContainers[colKey] !== undefined) {
+                countContainers[colKey] += 1;
+            }
+        });
+
+        return { totals, countContainers };
+    }
+
+    let tab5RFAgg = calculateTab5RF(dataSources.tab5);
+
+    // ===== 7. معلومات السفينة =====
     let vesselInfo = {
         carrierName: "—",
         shippingDate: "—",
         lineId: "—"
     };
 
-    // نبحث في containersMap بنفس طريقة التقرير التفصيلي
     for (let [id, container] of containersMap.entries()) {
         let sourceData = null;
         
-        // نبحث في EXPRT أولاً (من أي تبويب)
         if (container.exprtList && container.exprtList.length > 0) {
             sourceData = container.exprtList[0];
         } else if (container.exprt) {
@@ -8292,39 +8402,32 @@ function generateConsolidatedReport() {
         }
         
         if (sourceData) {
-            // O/B Carrier Name
             if (vesselInfo.carrierName === "—") {
                 vesselInfo.carrierName = sourceData["O/B Carrier Name"] || sourceData["I/B Carrier Name"] || "—";
             }
             
-            // O/B Carrier ATD (تاريخ الشحن) - نفس طريقة التقرير التفصيلي
             let atd = sourceData["O/B Carrier ATD"] || sourceData["O/B Carrier ATA"] || sourceData["I/B Carrier ATD"] || "";
             if (atd && atd !== "") {
-                // لا نقوم بتحويل التاريخ هنا، بل نتركه كما هو ثم نحوله لاحقاً
                 if (vesselInfo.shippingDate === "—") {
                     vesselInfo.shippingDate = atd;
                 }
             }
             
-            // Line ID
             let lineId = sourceData["Line ID"];
             if (lineId && lineId !== "" && vesselInfo.lineId === "—") {
                 vesselInfo.lineId = lineId;
             }
         }
         
-        // إذا وجدنا جميع المعلومات، نوقف البحث
         if (vesselInfo.carrierName !== "—" && vesselInfo.shippingDate !== "—" && vesselInfo.lineId !== "—") {
             break;
         }
     }
     
-    // إذا لم نجد اسم السفينة، نأخذ من currentData1 كاحتياطي
     if (vesselInfo.carrierName === "—" && currentData1.length > 0) {
         vesselInfo.carrierName = currentData1[0]["Vessel Name"] || currentData1[0]["O/B Carrier Name"] || currentData1[0]["I/B Carrier Name"] || "—";
     }
     
-    // إذا لم نجد تاريخ الرحلة، نأخذ من currentData1 كاحتياطي
     if (vesselInfo.shippingDate === "—" && currentData1.length > 0) {
         vesselInfo.shippingDate = currentData1[0]["O/B Carrier ATD"] || currentData1[0]["O/B Carrier ATA"] || currentData1[0]["I/B Carrier ATD"] || "—";
     }
@@ -8346,11 +8449,11 @@ function generateConsolidatedReport() {
         return `<td class="num-days">${total} Day</td>`;
     }
 
-	function renderCountCell(count) {
-		if (count === 0) return `<td class="empty-cell" style="font-size:10px;color:#999;">0</td>`;
-		let label = count === 1 ? "Cont" : "Cont";
-		return `<td class="num-containers" style="font-size:10px;color:#0a3d62;">${label}: ${count}</td>`;
-	}
+    function renderCountCell(count) {
+        if (count === 0) return `<td class="empty-cell" style="font-size:10px;color:#999;">0</td>`;
+        let label = count === 1 ? "Cont" : "Cont";
+        return `<td class="num-containers" style="font-size:10px;color:#0a3d62;">${label}: ${count}</td>`;
+    }
 
     // ===== 8. بناء HTML =====
     let html = `
@@ -8435,6 +8538,12 @@ function generateConsolidatedReport() {
                 .tab7-row td:first-child { background: #f5b7b1; padding-right: 10px; font-weight: bold; }
                 .tab8-row { background: #e8daef; }
                 .tab8-row td:first-child { background: #d2b4de; padding-right: 10px; font-weight: bold; }
+                .power-row { background: #e3f2fd; }
+                .power-row td:first-child { background: #bbdefb; padding-right: 10px; font-weight: bold; color: #0d47a1; }
+                .power-special-row { background: #fce4ec; }
+                .power-special-row td:first-child { background: #f8bbd0; padding-right: 10px; font-weight: bold; color: #880e4f; }
+                .rf-tab5-row { background: #d5f5e3; }
+                .rf-tab5-row td:first-child { background: #a9dfbf; padding-right: 10px; font-weight: bold; color: #1a6e3a; }
 
                 .num-days { color: #1e6f5c; font-weight: bold; }
                 .num-containers { color: #0a3d62; font-weight: bold; }
@@ -8519,6 +8628,11 @@ function generateConsolidatedReport() {
                             <td style="padding-right:10px; font-weight:bold;">📤 EXPRT (عادي) من 1,2,3,6</td>
                             ${columns.map(col => renderDaysCell(exprNormalAgg.totals[col.key] || 0)).join('')}
                         </tr>
+                        <!-- Power Export (RF) بعد EXPRT عادي مباشرة -->
+                        <tr class="power-row">
+                            <td style="padding-right:10px; font-weight:bold;">⚡ Power Export (RF من 1,2,3,6)</td>
+                            ${columns.map(col => renderDaysCell(powerExportAgg.totals[col.key] || 0)).join('')}
+                        </tr>
                         <tr class="count-row">
                             <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات EXPRT (عادي)</td>
                             ${columns.map(col => renderCountCell(exprNormalAgg.countContainers[col.key] || 0)).join('')}
@@ -8528,6 +8642,11 @@ function generateConsolidatedReport() {
                         <tr class="special-row">
                             <td style="padding-right:10px; font-weight:bold;">⭐ EXPRT (خاص) من 1,2,3,6</td>
                             ${columns.map(col => renderDaysCell(exprSpecialAgg.totals[col.key] || 0)).join('')}
+                        </tr>
+                        <!-- Power Export (خاص) بعد EXPRT خاص مباشرة -->
+                        <tr class="power-special-row">
+                            <td style="padding-right:10px; font-weight:bold;">⚡ Power Export (خاص) ⭐</td>
+                            ${columns.map(col => renderDaysCell(powerExportSpecialAgg.totals[col.key] || 0)).join('')}
                         </tr>
                         <tr class="count-row">
                             <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات EXPRT (خاص)</td>
@@ -8561,6 +8680,11 @@ function generateConsolidatedReport() {
                             <td style="padding-right:10px; font-weight:bold;">🚛 TRSHP فقط (تبويب 5)</td>
                             ${columns.map(col => renderDaysCell(tab5Agg.totals[col.key] || 0)).join('')}
                         </tr>
+                        <!-- RF (تبويب 5) بعد TRSHP فقط مباشرة -->
+                        <tr class="rf-tab5-row">
+                            <td style="padding-right:10px; font-weight:bold;">❄️ RF (تبويب 5 - TRSHP فقط)</td>
+                            ${columns.map(col => renderDaysCell(tab5RFAgg.totals[col.key] || 0)).join('')}
+                        </tr>
                         <tr class="count-row">
                             <td style="padding-right:10px; font-weight:bold;">📊 عدد حاويات TRSHP (تبويب 5)</td>
                             ${columns.map(col => renderCountCell(tab5Agg.countContainers[col.key] || 0)).join('')}
@@ -8587,7 +8711,6 @@ function generateConsolidatedReport() {
                         </tr>
                     </tbody>
                 </table>
-
             </div>
             <script>
                 let printBtn = document.createElement('button');
