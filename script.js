@@ -4311,8 +4311,14 @@ function renderAdvancedStatsTab2(data) {
     let rfExprtDays = refrigeratedContainers.reduce((s, i) => s + (i["EXPRT Days"] || 0), 0);
     let totalCount = uniqueData.length;
 
-    let size20Containers = uniqueData.filter(i => i["Size"]?.toString().startsWith("2"));
-    let size40Containers = uniqueData.filter(i => i["Size"]?.toString().startsWith("4"));
+	let size20Containers = uniqueData.filter(i => {
+		let s = (i["Size"] || "").toString().trim();
+		return s.startsWith("2");
+	});
+	let size40Containers = uniqueData.filter(i => {
+		let s = (i["Size"] || "").toString().trim();
+		return s.startsWith("4") || s.startsWith("95");
+	});
     let size20Count = size20Containers.length;
     let size40Count = size40Containers.length;
     let size20StrgeNet = size20Containers.reduce((s, i) => s + (i["STRGE Net"] || 0), 0);
@@ -4320,12 +4326,21 @@ function renderAdvancedStatsTab2(data) {
     let size20ExprtNet = size20Containers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
     let size40ExprtNet = size40Containers.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
 
-    let refrigerated40 = refrigeratedContainers.filter(i => i["Size"]?.toString().startsWith("4"));
+	let refrigerated40 = refrigeratedContainers.filter(i => {
+		let s = (i["Size"] || "").toString().trim();
+		return s.startsWith("4") || s.startsWith("95");
+	});
     let refrigerated40Count = refrigerated40.length;
     let refrigerated40Days = refrigerated40.reduce((s, i) => s + (i["EXPRT Days"] || 0), 0);
 
-    let flexTrue20 = flexTrueContainers.filter(i => i["Size"]?.toString().startsWith("2"));
-    let flexTrue40 = flexTrueContainers.filter(i => i["Size"]?.toString().startsWith("4"));
+	let flexTrue20 = flexTrueContainers.filter(i => {
+		let s = (i["Size"] || "").toString().trim();
+		return s.startsWith("2");
+	});
+	let flexTrue40 = flexTrueContainers.filter(i => {
+		let s = (i["Size"] || "").toString().trim();
+		return s.startsWith("4") || s.startsWith("95");
+	});
     let flexTrue20Net = flexTrue20.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
     let flexTrue40Net = flexTrue40.reduce((s, i) => s + (i["EXPRT Net"] || 0), 0);
 
@@ -7992,12 +8007,14 @@ function generateConsolidatedReport() {
     // ===== 2. تعريف أنواع ومقاسات الحاويات (نفس التقرير التفصيلي) =====
     const sizeTypes = [
         { size: '20', label: '20\'', check: (item) => {
-            let s = item["Size"] || "";
-            return s.toString().startsWith("2") || s.toString().startsWith("20");
+            let s = (item["Size"] || "").toString();
+            // 20 قدم: يبدأ بـ 2 (مثل 20, 22, 2200, 22G1)
+            return s.startsWith("2") || s === "20";
         }},
         { size: '40', label: '40\'', check: (item) => {
-            let s = item["Size"] || "";
-            return s.toString().startsWith("4") || s.toString().startsWith("40") || s.toString().startsWith("45");
+            let s = (item["Size"] || "").toString();
+            // 40 قدم: يبدأ بـ 4 (40, 42, 45) أو 95 (9500 = 45 قدم)
+            return s.startsWith("4") || s.startsWith("95") || s.startsWith("42") || s.startsWith("45");
         }}
     ];
 
