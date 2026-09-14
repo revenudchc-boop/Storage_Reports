@@ -1954,7 +1954,14 @@ function processAndDisplay1() {
                 let method = isExcl ? "🚫 سماح مستقل" : "🔄 تداخل سماح";
                 
                 let equipType = container.equipmentType;
-                let size = equipType.toString().match(/^(\d+)/)?.[1] || "";
+                let sizeRaw = equipType.toString().trim();
+let size = sizeRaw.match(/^(\d+)/)?.[1] || "";
+
+if (!size) {
+    if (sizeRaw.startsWith("L5")) size = "45";
+    else if (sizeRaw.startsWith("L4")) size = "40";
+    else if (sizeRaw.startsWith("L2")) size = "20";
+}
                 let vesselName = tr["I/B Carrier Name"] || "";
                 let lineName = ex["Line ID"] || "";
                 
@@ -2140,7 +2147,14 @@ if (isReturnDray) {
         
         let equipType = container.equipmentType;
         let isRefrigerated = st ? st["Is Refrigerated"] : (imprtData ? imprtData["Is Refrigerated"] : "");
-        let size = equipType.toString().match(/^(\d+)/)?.[1] || "";
+        let sizeRaw = equipType.toString().trim();
+let size = sizeRaw.match(/^(\d+)/)?.[1] || "";
+
+if (!size) {
+    if (sizeRaw.startsWith("L5")) size = "45";
+    else if (sizeRaw.startsWith("L4")) size = "40";
+    else if (sizeRaw.startsWith("L2")) size = "20";
+}
         let type = (isRefrigerated === "true" || equipType.includes("R1")) ? "RF" : "GP";
         // اسم السفينة من IMPRT فقط (حدث الدخول)
 		let vesselName = "";
@@ -2274,7 +2288,14 @@ function processAndDisplay3() {
             
             let equipType = container.equipmentType;
             let isRefrigerated = ex["Is Refrigerated"] || "";
-            let size = equipType.toString().match(/^(\d+)/)?.[1] || "";
+            let sizeRaw = equipType.toString().trim();
+let size = sizeRaw.match(/^(\d+)/)?.[1] || "";
+
+if (!size) {
+    if (sizeRaw.startsWith("L5")) size = "45";
+    else if (sizeRaw.startsWith("L4")) size = "40";
+    else if (sizeRaw.startsWith("L2")) size = "20";
+}
             let type = (isRefrigerated === "true" || equipType.includes("R1")) ? "RF" : "GP";
             let vesselName = ex["O/B Carrier Name"] || ex["I/B Carrier Name"] || "";
             let method = isExcl ? "🚫 سماح مستقل" : "🔄 تداخل سماح";
@@ -2419,8 +2440,16 @@ for (let st of data.strgeList) {
     
     let totalNet = strgeNet;
         
-        let equipType = data.equipmentType;
-        let size = equipType.toString().match(/^(\d+)/)?.[1] || "";
+	let equipType = data.equipmentType;
+	let sizeRaw = equipType.toString().trim();
+	let size = sizeRaw.match(/^(\d+)/)?.[1] || "";
+
+	// معالجة الأنواع التي تبدأ بحروف
+	if (!size) {
+		if (sizeRaw.startsWith("L5")) size = "45";
+		else if (sizeRaw.startsWith("L4")) size = "40";
+		else if (sizeRaw.startsWith("L2")) size = "20";
+	}
         let type = "GP";
         let vesselName = data.imprt ? (data.imprt.rawData ? data.imprt.rawData["I/B Carrier Name"] || "" : "") : "";
 if (!vesselName) vesselName = "—";
@@ -4775,7 +4804,14 @@ function processAndDisplay5() {
             remainingFree -= deduction;
             
             let equipType = container.equipmentType;
-            let size = equipType.toString().match(/^(\d+)/)?.[1] || "";
+            let sizeRaw = equipType.toString().trim();
+let size = sizeRaw.match(/^(\d+)/)?.[1] || "";
+
+if (!size) {
+    if (sizeRaw.startsWith("L5")) size = "45";
+    else if (sizeRaw.startsWith("L4")) size = "40";
+    else if (sizeRaw.startsWith("L2")) size = "20";
+}
             let isRefrigerated = period.rawData["Is Refrigerated"] || "";
             let type = (isRefrigerated === "true" || equipType.includes("R1")) ? "RF" : "GP";
             let isOOG = period.rawData["Is OOG"] || "";
@@ -5496,7 +5532,14 @@ function processAndDisplay6() {
             
             // معلومات الحاوية
             let equipType = container.equipmentType;
-            let size = equipType.toString().match(/^(\d+)/)?.[1] || "";
+            let sizeRaw = equipType.toString().trim();
+let size = sizeRaw.match(/^(\d+)/)?.[1] || "";
+
+if (!size) {
+    if (sizeRaw.startsWith("L5")) size = "45";
+    else if (sizeRaw.startsWith("L4")) size = "40";
+    else if (sizeRaw.startsWith("L2")) size = "20";
+}
             let isRefrigerated = ex["Is Refrigerated"] || "";
             let type = (isRefrigerated === "true" || equipType.includes("R1")) ? "RF" : "GP";
             let isOOG = ex["Is OOG"] || "";
@@ -5566,7 +5609,14 @@ function processAndDisplay7() {
     for (let [id, container] of containersMap.entries()) {
         let lineId = container.lineId || "";
         let equipType = container.equipmentType || "";
-        let size = equipType.toString().match(/^(\d+)/)?.[1] || "";
+        let sizeRaw = equipType.toString().trim();
+let size = sizeRaw.match(/^(\d+)/)?.[1] || "";
+
+if (!size) {
+    if (sizeRaw.startsWith("L5")) size = "45";
+    else if (sizeRaw.startsWith("L4")) size = "40";
+    else if (sizeRaw.startsWith("L2")) size = "20";
+}
         
         // ===== التحقق من وجود حالات أخرى =====
         let hasImprt = container.imprt !== null;
