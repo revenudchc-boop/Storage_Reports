@@ -6665,8 +6665,14 @@ function renderAdvancedStatsTab6(data) {
     let refrigerated40Count = refrigerated40.length;
     let refrigerated20StrgeNet = refrigerated20.reduce((s, i) => s + (i["STRGE Net"] || 0), 0);
     let refrigerated40StrgeNet = refrigerated40.reduce((s, i) => s + (i["STRGE Net"] || 0), 0);
-    let size20Containers = data.filter(i => i["Size"]?.toString().startsWith("2"));
-    let size40Containers = data.filter(i => i["Size"]?.toString().startsWith("4"));
+	let size20Containers = data.filter(i => {
+		let s = (i["Size"] || "").toString().trim();
+		return s.startsWith("2");
+	});
+	let size40Containers = data.filter(i => {
+		let s = (i["Size"] || "").toString().trim();
+		return s.startsWith("4") || s.startsWith("95");
+	});
     
     let size20Count = size20Containers.length;
     let size40Count = size40Containers.length;
