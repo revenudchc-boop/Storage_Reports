@@ -367,6 +367,36 @@ console.log("✅ فحص جميع الحقول نجح، بدء المعالجة..
             currentData6 = [];
             currentData7 = [];
             containersMap.clear();
+			
+			// ===== 🆕 مسح بطاقات الإجمالي والجداول القديمة =====
+for (let i = 1; i <= 8; i++) {
+    // مسح بطاقات الإجمالي
+    let statsDiv = document.getElementById("statsTab" + i);
+    if (statsDiv) {
+        statsDiv.innerHTML = "";
+        statsDiv.style.display = "none";
+    }
+    
+    // مسح الجداول
+    let tbody = document.getElementById("bodyTab" + i);
+    if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="30" style="text-align:center; padding:40px;">⏳ جاري تحميل البيانات...</td></tr>`;
+    }
+    
+    // إخفاء الفلاتر
+    let filtersDiv = document.getElementById("filtersTab" + i);
+    if (filtersDiv) {
+        filtersDiv.style.display = "none";
+    }
+    
+    // إخفاء الجداول
+    let wrapperDiv = document.getElementById("wrapperTab" + i);
+    if (wrapperDiv) {
+        wrapperDiv.style.display = "none";
+    }
+}
+
+console.log("🧹 تم مسح بطاقات الإجمالي والجداول القديمة");
 
             for (let row of rows) {
                 let equipId = row["Equip ID"];
@@ -973,8 +1003,8 @@ function loadLastFileFromStorage() {
         currentData4 = [];
         currentData5 = [];
         currentData6 = [];
-        currentData7 = [];  // ← أضف هذا
-		currentData8 = [];  // ← أضف هذا
+        currentData7 = [];
+        currentData8 = [];
 
         containersMap.clear();
         
@@ -990,37 +1020,84 @@ function loadLastFileFromStorage() {
         let sheet = workbook.Sheets[workbook.SheetNames[0]];
         let rows = XLSX.utils.sheet_to_json(sheet, { defval: "", range: 4 });
         
+        console.log(`📄 عدد الصفوف المقروءة من الملف المحفوظ: ${rows.length}`);
+        if (rows.length === 0) {
+            document.getElementById("footerMsg").innerHTML = "⚠️ الملف المحفوظ فارغ";
+            return;
+        }
+        
+        // ===== 🆕 كشف نوع الملف =====
+        let firstRow = rows[0];
+        let keys = Object.keys(firstRow);
+        console.log("🔍 أسماء الأعمدة في الملف المحفوظ:", keys);
+        
+        let hasUnitNbr = keys.some(k => k.trim() === "Unit Nbr");
+        let hasEquipId = keys.some(k => k.trim() === "Equip ID");
+        let isFinalout = hasUnitNbr && !hasEquipId;
+        
+        // ===== 🆕 فحص الحقول المطلوبة =====
+        let fieldCheck = checkExcelFields(rows, isFinalout ? "finalout" : "main");
+        if (!fieldCheck.valid) {
+            console.log("❌ فشل تحميل الملف المحفوظ بسبب نقص الحقول");
+            return;
+        }
+        
+        // ===== 🆕 إذا كان الملف FINALOUT =====
+        if (isFinalout) {
+            console.log("📂 الملف المحفوظ هو FINALOUT - معالجة كملف finalout");
+            processFinaloutFile(rows);
+            
+            document.getElementById("footerMsg").innerHTML = `✅ تم تحميل الملف المحفوظ (FINALOUT): ${savedFileName} | عدد الحاويات: ${currentData8.length}`;
+            
+            // تنشيط تبويب 8
+            let tab8Div = document.getElementById("tab8");
+            if (tab8Div) {
+                tab8Div.classList.add("active");
+                document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+                tab8Div.classList.add("active");
+                document.querySelectorAll(".tab-btn").forEach(b => {
+                    b.classList.remove("active");
+                    if (b.dataset.tab === "tab8") b.classList.add("active");
+                });
+            }
+            
+            return;  // ← إيقاف المعالجة العادية
+        }
+        
+        // ===== الملف الرئيسي (التبويبات 1-7) - المعالجة العادية =====
+        console.log("📂 الملف المحفوظ هو الملف الرئيسي");
+        
         for (let row of rows) {
             let equipId = row["Equip ID"];
             if (!equipId || equipId === "") continue;
             
             if (!containersMap.has(equipId)) {
-				containersMap.set(equipId, {
-					equipId: equipId,
-					equipmentType: row["Equipment Type"] || "",
-					lineId: row["Line ID"] || "",
-					trshpList: [],
-					exprtList: [],      // ← صح: مصفوفة
-					strge: null,
-					imprt: null,
-					trshpReturn: null,
-					notes: row["Notes"] || "",   // ← السطر الجديد
-				});
+                containersMap.set(equipId, {
+                    equipId: equipId,
+                    equipmentType: row["Equipment Type"] || "",
+                    lineId: row["Line ID"] || "",
+                    trshpList: [],
+                    exprtList: [],
+                    strge: null,
+                    imprt: null,
+                    trshpReturn: null,
+                    notes: row["Notes"] || "",
+                });
             }
             let c = containersMap.get(equipId);
             let cat = row["Category"];
             let drayStatus = row["Dray Status"] || "";
             
             if (cat === "TRSHP") {
-                c.trshpList.push(row);    // ← نضيف إلى المصفوفة
+                c.trshpList.push(row);
                 if (drayStatus === "RETURN") {
                     c.trshpReturn = row;
                 }
             }
             else if (cat === "EXPRT") {
-    if (!c.exprtList) c.exprtList = [];
-    c.exprtList.push(row);
-}
+                if (!c.exprtList) c.exprtList = [];
+                c.exprtList.push(row);
+            }
             else if (cat === "STRGE") c.strge = row;
             else if (cat === "IMPRT") c.imprt = row;
         }
@@ -1031,8 +1108,8 @@ function loadLastFileFromStorage() {
         processAndDisplay4();
         processAndDisplay5();
         processAndDisplay6();
-		processAndDisplay7();  // ← هنا المكان الصحيح
-		processAndDisplay8();
+        processAndDisplay7();
+        processAndDisplay8();
 
         updateHeaderInfo('1');
         
