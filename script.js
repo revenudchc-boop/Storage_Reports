@@ -339,6 +339,14 @@ function processExcelFile(file) {
             let hasUnitNbr = keys.some(k => k.trim() === "Unit Nbr");
             let hasEquipId = keys.some(k => k.trim() === "Equip ID");
             let isFinalout = hasUnitNbr && !hasEquipId;
+			
+// ===== 🆕 فحص شامل لجميع الحقول =====
+let fieldCheck = checkExcelFields(rows, isFinalout ? "finalout" : "main");
+if (!fieldCheck.valid) {
+    console.log("❌ فشل التحميل بسبب نقص الحقول");
+    return;  // ← إيقاف التحميل تماماً
+}
+console.log("✅ فحص جميع الحقول نجح، بدء المعالجة...");
 
             if (isFinalout) {
                 console.log("📂 تم التعرف على ملف FINALOUT (تبويب 8)");
@@ -9070,4 +9078,154 @@ function applyColumnPreferencesFromGitHub() {
     } catch (error) {
         console.warn('⚠️ فشل تطبيق تفضيلات الأعمدة:', error);
     }
+}
+
+// ============================================================
+// 🔍 دالة شاملة لفحص جميع حقول ملف Excel
+// ============================================================
+function checkExcelFields(rows, fileType = "main") {
+    
+    // ============================================
+    // القائمة الكاملة لجميع الحقول (47 حقل)
+    // ============================================
+    const ALL_MAIN_FIELDS = [
+        //"Batch ID",
+        //"Event Type",
+        //"Status",
+        "Equip ID",
+        "Line ID",
+        "Freight Kind",
+        "Equipment Type",
+        "Dray Status",
+        "Flex String 32",
+        "Notes",
+        "I/B Carrier ATA",
+        "O/B Carrier ATA",
+        "O/B Carrier ATD",
+        "Flex String 36",
+        "ISO Group",
+        "ISO Length",
+        "ISO Height",
+        "Category",
+        "Is OOG",
+        "Is Refrigerated",
+        "Flex String 04",
+        "Is Bundled",
+        "Is Hazardous",
+        "IMDG Class",
+        "Commodity ID",
+        "Start Time",
+        "End Time",
+        "PaidThruDate",
+        "Rule Start Time",
+        "Rule End Time",
+        "First Availability Day",
+        "Quay CheID",
+        "Is Locked",
+        "I/B Loc Type",
+        "I/B ID",
+        "I/B Visit ID",
+        "I/B Carrier Name",
+        "I/B Call Nbr",
+        "O/B Loc Type",
+        "O/B ID",
+        "O/B Visit ID",
+        "O/B Carrier Name",
+        "O/B Call Nbr",
+        "Flex String 01",
+        "Flex String 02",
+        "Flex String 21",
+        "Flex String 22"
+    ];
+    
+    // ============================================
+    // الحقول المطلوبة في ملف FINALOUT (12 حقل)
+    // ============================================
+    const ALL_FINALOUT_FIELDS = [
+        "Unit Nbr",
+        "Type ISO",
+        "Category",
+        "Orig",
+        "Dray Status",
+        "Order Number",
+        "Time In",
+        "Time Out",
+        "Storage Days Total",
+        "LCL-POSS",
+        "Line Op",
+        "Frght Kind"
+    ];
+    
+    // ============================================
+    // التحقق من وجود البيانات
+    // ============================================
+    if (!rows || rows.length === 0) {
+        alert("⚠️ الملف فارغ أو لا يحتوي على بيانات.");
+        return { valid: false, missing: ["الملف فارغ"], actualFields: [] };
+    }
+    
+    // ============================================
+    // تحديد قائمة الحقول حسب نوع الملف
+    // ============================================
+    let requiredFields = (fileType === "finalout") ? ALL_FINALOUT_FIELDS : ALL_MAIN_FIELDS;
+    
+    // ============================================
+    // الحصول على الأعمدة الفعلية
+    // ============================================
+    let actualFields = Object.keys(rows[0]).map(k => k.toString().trim());
+    console.log("🔍 الأعمدة الموجودة في الملف:", actualFields);
+    console.log(`📊 عدد الأعمدة الفعلية: ${actualFields.length}`);
+    console.log(`📊 عدد الحقول المطلوبة: ${requiredFields.length}`);
+    
+    // ============================================
+    // البحث عن الحقول الناقصة
+    // ============================================
+    let missingFields = [];
+    for (let field of requiredFields) {
+        let found = actualFields.some(f => 
+            f === field || 
+            f.toLowerCase() === field.toLowerCase() ||
+            f.replace(/\s+/g, '') === field.replace(/\s+/g, '')
+        );
+        if (!found) {
+            missingFields.push(field);
+        }
+    }
+    
+    // ============================================
+    // عرض النتيجة
+    // ============================================
+    if (missingFields.length > 0) {
+        let fileTypeLabel = (fileType === "finalout") 
+            ? "ملف FINALOUT (تبويب 8)" 
+            : "ملف البيانات الرئيسي (التبويبات 1-7)";
+        
+        let missingList = missingFields.map(f => `  ❌ ${f}`).join("\n");
+        
+        let message = `⚠️ لا يمكن تحميل الملف!\n\n`;
+        message += `نوع الملف: ${fileTypeLabel}\n\n`;
+        message += `الحقول التالية مفقودة (${missingFields.length} حقل):\n${missingList}\n\n`;
+        message += `يرجى التأكد من أن ملف Excel يحتوي على جميع الحقول المطلوبة.`;
+        
+        alert(message);
+        
+        let footer = document.getElementById("footerMsg");
+        if (footer) {
+            footer.innerHTML = `❌ فشل التحميل: ${missingFields.length} حقل مفقود — ${missingFields.join(" | ")}`;
+            footer.style.color = "#dc3545";
+            footer.style.fontWeight = "bold";
+        }
+        
+        console.error("❌ الحقول المفقودة:", missingFields);
+        console.error("❌ عدد الحقول المفقودة:", missingFields.length);
+        
+        return { valid: false, missing: missingFields, actualFields: actualFields };
+    }
+    
+    // ============================================
+    // جميع الحقول موجودة
+    // ============================================
+    console.log("✅ جميع الحقول المطلوبة موجودة");
+    console.log(`✅ تم فحص ${requiredFields.length} حقل بنجاح`);
+    return { valid: true, missing: [], actualFields: actualFields };
 }
