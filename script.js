@@ -2403,6 +2403,7 @@ if (!size) {
                 "Type": type,
                 "Line ID": lineId,
                 "Flex String 01": flexString01,
+				"Dray Status": drayStatus,   // ← 🆕 أضف هذا السطر
                 "EXPRT Start": exStart,
                 "EXPRT End": exEnd,
                 "EXPRT Days": exDays,
@@ -4537,6 +4538,13 @@ function renderAdvancedStatsTab2(data) {
 function renderAdvancedStatsTab3(data) {
     if (!data || data.length === 0) {
         return `<div style="padding:20px; text-align:center;">لا توجد بيانات</div>`;
+    }
+    
+    // ===== 🆕 استبعاد صفوف Dray Status = RETURN من الإحصائيات =====
+    data = data.filter(item => (item["Dray Status"] || "") !== "RETURN");
+    
+    if (data.length === 0) {
+        return `<div style="padding:20px; text-align:center;">لا توجد بيانات EXPRT صالحة للحساب</div>`;
     }
 
     // ========== تجميع الحاويات الفريدة ==========
@@ -8384,29 +8392,34 @@ function generateConsolidatedReport() {
 
     // ===== 6. تجميع الفئات المطلوبة =====
 
-    // 6.1 EXPRT عادي (من 1,2,3,6 مع استبعاد TRUE)
-    let exprNormalData = [];
-    [1, 2, 3, 6].forEach(tabKey => {
-        let data = dataSources['tab' + tabKey];
-        let filtered = data.filter(item => {
-            let flex = item["Flex String 01"] || "";
-            return flex !== "TRUE";
-        });
-        exprNormalData = exprNormalData.concat(filtered);
-    });
-    let exprNormalAgg = aggregateItems(exprNormalData, 'EXPRT', null);
+	// 6.1 EXPRT عادي (من 1,2,3,6 مع استبعاد TRUE)
+	let exprNormalData = [];
+	[1, 2, 3, 6].forEach(tabKey => {
+		let data = dataSources['tab' + tabKey];
+		let filtered = data.filter(item => {
+			let flex = item["Flex String 01"] || "";
+			// 🆕 استبعاد RETURN
+			let drayStatus = item["Dray Status"] || "";
+			return flex !== "TRUE" && drayStatus !== "RETURN";
+		});
+		exprNormalData = exprNormalData.concat(filtered);
+	});
+	let exprNormalAgg = aggregateItems(exprNormalData, 'EXPRT', null);
 
     // 6.2 EXPRT خاص (من 1,2,3,6 مع TRUE فقط)
-    let exprSpecialData = [];
-    [1, 2, 3, 6].forEach(tabKey => {
-        let data = dataSources['tab' + tabKey];
-        let filtered = data.filter(item => {
-            let flex = item["Flex String 01"] || "";
-            return flex === "TRUE";
-        });
-        exprSpecialData = exprSpecialData.concat(filtered);
+// 6.2 EXPRT خاص (من 1,2,3,6 مع TRUE فقط)
+let exprSpecialData = [];
+[1, 2, 3, 6].forEach(tabKey => {
+    let data = dataSources['tab' + tabKey];
+    let filtered = data.filter(item => {
+        let flex = item["Flex String 01"] || "";
+        // 🆕 استبعاد RETURN
+        let drayStatus = item["Dray Status"] || "";
+        return flex === "TRUE" && drayStatus !== "RETURN";
     });
-    let exprSpecialAgg = aggregateItems(exprSpecialData, 'EXPRT', null);
+    exprSpecialData = exprSpecialData.concat(filtered);
+});
+let exprSpecialAgg = aggregateItems(exprSpecialData, 'EXPRT', null);
 
     // 6.3 TRSHP من تبويب 1 فقط
     let trshpTab1Agg = aggregateItems(dataSources.tab1, 'TRSHP', null);
