@@ -44,6 +44,11 @@ let nextIdExprt6 = exprtPeriods6.length > 0 ? Math.max(...exprtPeriods6.map(p =>
 
 let selectedColumnsTab6 = JSON.parse(localStorage.getItem("selectedColumns_tab6")) || [];
 
+// ============================================================
+// 🛡️ حماية من الرفع المتكرر
+// ============================================================
+let _isUploadingToGitHub = false;
+
 // قائمة رئيسية موحدة للخطوط (مخزنة في LocalStorage)
 // قائمة رئيسية موحدة للخطوط (تحديث تلقائي للقائمة الافتراضية)
 let defaultLinesList = ["MSC", "ZIM", "ALP", "YML", "MSK", "CMA", "HLC", "COS", "COE", "ONE", "HMM", "KLN", "UAS", "ARK", "SJK", "HSD", "BMC", "LITC", "PLS", "MSL", "CSL", "OVP", "SID", "SLG", "WEC", "TCS", "TSM", "OOCL", "EMES", "MDK", "MKL", "VUX", "OWV", "NNS", "ARRC", "ADM", "HAI", "BWL", "LOT", "MED", "SLS", "VOL", "REL", "WSHI", "GFS", "UFS", "MGL", "MLN", "MOH", "GCS", "TAR", "HKL", "CSD", "HDS", "HSP", "TRK", "TRL", "CLH", "ESG", "ESL", "SIV", "SFT", "ROD"];
@@ -303,9 +308,12 @@ function saveFileToLocalStorage(fileData, fileName) {
 // دالة معالجة الملف عند التحميل
 function processExcelFile(file) {
     let reader = new FileReader();
-    reader.onload = function(evt) {
-        try {
-            let arrayBuffer = evt.target.result;
+reader.onload = function(evt) {
+    try {
+        // 🧹 تنظيف شامل قبل المعالجة
+        resetAllData();
+        
+        let arrayBuffer = evt.target.result;
 
             // محاولة حفظ الملف
             try {
@@ -455,7 +463,28 @@ console.log("🧹 تم مسح بطاقات الإجمالي والجداول ا�
                 applySavedColumnPreferences();
             }, 200);
 
-            document.getElementById("footerMsg").innerHTML = `✅ تم تحميل: ${file.name} | TRSHP+EXPRT: ${currentData1.length} | STRGE+EXPRT+IMPRT: ${currentData2.length} | EXPRT فقط: ${currentData3.length} | STRGE فارغ: ${currentData4.length} | TRSHP فقط: ${currentData5.length} | STRGE+EXPRT فقط: ${currentData6.length} | IMPRT+FORWARD: ${currentData7.length} | Storage Finalout: ${currentData8.length}`;
+            document.getElementById("footerMsg").innerHTML = `✅ تم تحميل: ${file.name} | ...`;
+            
+            // ===== 🆕 رفع الملف إلى GitHub بعد انتهاء المعالجة =====
+            setTimeout(async function() {
+                if (typeof _downloadingFromGitHub !== 'undefined' && _downloadingFromGitHub) {
+                    console.log("⏭️ تم تخطي الرفع (الملف قادم من GitHub)");
+                    return;
+                }
+                
+                // انتظر حتى تُحدَّث الرؤوس
+                let carrierName = document.getElementById("headerCarrierName")?.innerText?.trim() || "";
+                if (!carrierName || carrierName === "—" || carrierName === "UnknownShip") {
+                    console.log("⏳ الرؤوس لم تُحدَّث بعد، انتظار 2 ثانية إضافية...");
+                    await new Promise(r => setTimeout(r, 2000));
+                }
+                
+                let result = await saveFileToGitHub();
+                if (result && result.success) {
+                    console.log("✅ الملف مرفوع على GitHub");
+                }
+            }, 2500);
+            
         } catch(err) {
             console.error("❌ خطأ في معالجة الملف:", err);
             document.getElementById("footerMsg").innerHTML = `❌ خطأ: ${err.message}`;
@@ -463,6 +492,8 @@ console.log("🧹 تم مسح بطاقات الإجمالي والجداول ا�
     };
     reader.readAsArrayBuffer(file);
 }
+	
+
 
 function processFinaloutFile(rows) {
     console.log("🔄 معالجة ملف FINALOUT...");
@@ -1138,6 +1169,7 @@ function loadLastFileFromStorage() {
     } else {
         console.log("لا يوجد ملف محفوظ سابقاً");
     }
+	
 }
 
 // ========== دوال تحويل التواريخ والحسابات ==========
@@ -9165,18 +9197,16 @@ applyColumnPreferencesFromGitHub();
 }
 
 // ========== تحديث Header لتبويب 8 ==========
-// ========== تحديث Header لتبويب 8 ==========
 function updateStorageFinaloutHeader(headerInfo) {
-    // البحث عن العناصر الخاصة بتبويب 8
+    // ===== 1. العناصر الخاصة بـ FINALOUT =====
     let orderNumberSpan = document.getElementById("headerOrderNumber");
     let lineOpSpan = document.getElementById("headerLineOp");
     let countSpan = document.getElementById("headerCount");
 
-    // إذا لم تكن العناصر موجودة، نقوم بإنشائها داخل headerInfo دون مسح المحتوى الأصلي
+    // إنشاء العناصر إذا لم تكن موجودة
     if (!orderNumberSpan) {
         let headerDiv = document.getElementById("headerInfo");
         if (headerDiv) {
-            // نضيف عناصر جديدة بجانب العناصر القديمة (بدون مسحها)
             let newDiv = document.createElement('div');
             newDiv.id = 'finaloutHeader';
             newDiv.style.marginTop = '10px';
@@ -9189,28 +9219,54 @@ function updateStorageFinaloutHeader(headerInfo) {
             `;
             headerDiv.appendChild(newDiv);
         }
-        // إعادة الحصول على العناصر بعد إنشائها
         orderNumberSpan = document.getElementById("headerOrderNumber");
         lineOpSpan = document.getElementById("headerLineOp");
         countSpan = document.getElementById("headerCount");
     }
 
-    // تحديث قيم العناصر
+    // تحديث قيم FINALOUT
     if (orderNumberSpan) orderNumberSpan.textContent = headerInfo.orderNumber || "—";
     if (lineOpSpan) lineOpSpan.textContent = headerInfo.lineOp || "—";
     if (countSpan) countSpan.textContent = currentData8.length || 0;
 
-    // إظهار عناصر تبويب 8 وإخفاء العناصر الأصلية حسب التبويب النشط
-    // لكننا سنتركها ظاهرة دائماً، ويمكن إخفاؤها عند تحميل ملف عادي
-    // لكن الأفضل إظهار/إخفاء حسب وجود بيانات finalout
+    // إظهار/إخفاء حسب وجود بيانات FINALOUT
     let finaloutHeader = document.getElementById("finaloutHeader");
     if (finaloutHeader) {
-        if (currentData8 && currentData8.length > 0) {
-            finaloutHeader.style.display = 'block';
-        } else {
-            finaloutHeader.style.display = 'none';
+        finaloutHeader.style.display = (currentData8 && currentData8.length > 0) ? 'block' : 'none';
+    }
+
+    // ===== 🆕 2. تحديث الرؤوس الرئيسية (Carrier/Line/Date) =====
+    let carrierNameSpan = document.getElementById("headerCarrierName");
+    let lineIdSpan = document.getElementById("headerLineId");
+    let shippingDateSpan = document.getElementById("headerShippingDate");
+
+    // إذا كانت فارغة (—)، استخدم بيانات FINALOUT
+    if (carrierNameSpan && (carrierNameSpan.innerText === "—" || carrierNameSpan.innerText.trim() === "")) {
+        // استخدام Order Number كمعرّف أساسي (لأنه الأوضح)
+        if (headerInfo.orderNumber && headerInfo.orderNumber !== "—") {
+            carrierNameSpan.innerText = headerInfo.orderNumber;
+        } else if (headerInfo.lineOp && headerInfo.lineOp !== "—") {
+            carrierNameSpan.innerText = headerInfo.lineOp;
         }
     }
+
+    if (lineIdSpan && (lineIdSpan.innerText === "—" || lineIdSpan.innerText.trim() === "")) {
+        // استخدام Line Op كخط ملاحي
+        if (headerInfo.lineOp && headerInfo.lineOp !== "—") {
+            lineIdSpan.innerText = headerInfo.lineOp;
+        }
+    }
+
+if (shippingDateSpan && (shippingDateSpan.innerText === "—" || shippingDateSpan.innerText.trim() === "")) {
+    // في حالة FINALOUT: لا نضيف تاريخ (لأننا نستخدم Order Number)
+    // نتركه فارغاً أو نضع تاريخ اليوم فقط للعرض
+    let today = new Date();
+    let dateStr = today.getFullYear() + "/" + 
+                  String(today.getMonth() + 1).padStart(2, '0') + "/" + 
+                  String(today.getDate()).padStart(2, '0');
+    
+    shippingDateSpan.innerText = dateStr;
+}
 }
 // ===== استدعاء التحميل عند فتح الصفحة =====
 // هذا السطر سيتم تنفيذه بعد تحميل الصفحة بالكامل
@@ -10294,4 +10350,891 @@ function compareWithBillingFile(containers, billingData) {
         missingInBilling: missingInBilling,
         totalCompared: results.length
     };
+}
+
+// ============================================================
+// 🔑 إعداد GitHub Token
+// ============================================================
+function setupGitHubToken() {
+    let currentToken = localStorage.getItem("github_token") || "";
+    
+    let message = "🔑 إعداد GitHub Token\n\n";
+    if (currentToken) {
+        message += "يوجد رمز محفوظ حالياً.\n";
+        message += "هل تريد استبداله؟\n\n";
+        message += "اضغط OK لإدخال رمز جديد، أو Cancel للاحتفاظ بالحالي.";
+        if (!confirm(message)) {
+            return;
+        }
+    }
+    
+    let token = prompt("الصق GitHub Personal Access Token هنا:\n\n(يبدأ بـ github_pat_ أو ghp_)");
+    
+    if (!token) return;
+    
+    token = token.trim();
+    if (!token.startsWith("github_pat_") && !token.startsWith("ghp_")) {
+        alert("⚠️ الرمز غير صالح. يجب أن يبدأ بـ github_pat_ أو ghp_");
+        return;
+    }
+    
+    localStorage.setItem("github_token", token);
+    alert("✅ تم حفظ الرمز بنجاح!");
+    console.log("✅ GitHub Token محفوظ");
+}
+
+// ربط الزر
+document.addEventListener("DOMContentLoaded", function() {
+    let btn = document.getElementById("setTokenBtn");
+    if (btn) {
+        btn.addEventListener("click", setupGitHubToken);
+    }
+});
+
+// ============================================================
+// 📤 رفع الملف إلى GitHub
+// ============================================================
+async function saveFileToGitHub() {
+    // ===== 1. الإعدادات =====
+    const GITHUB_OWNER = "markingdchc";
+    const GITHUB_REPO = "marking.dchc";
+    const GITHUB_BRANCH = "main";
+    const UPLOAD_FOLDER = "uploads";
+    
+    // ===== 2. التحقق من الرمز =====
+    const token = localStorage.getItem("github_token");
+    if (!token) {
+        console.warn("⚠️ لا يوجد GitHub Token.");
+        showUploadNotification("warning", "⚠️ لا يوجد توكن", "يرجى إعداد GitHub Token أولاً.");
+        return { success: false, error: "لا يوجد توكن" };
+    }
+    
+    // ===== 3. التحقق من وجود ملف محفوظ =====
+    const fileData = localStorage.getItem("savedExcelFile");
+    const originalFileName = localStorage.getItem("savedExcelFileName");
+    
+    if (!fileData || !originalFileName) {
+        console.warn("⚠️ لا يوجد ملف محفوظ.");
+        return { success: false, error: "لا يوجد ملف" };
+    }
+    
+    // ===== 4. 🆕 فحص الحقول قبل الرفع =====
+    try {
+        const binaryString = atob(fileData);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        const workbook = XLSX.read(bytes, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "", range: 4 });
+        
+        if (rows.length === 0) {
+            console.log("⏭️ الملف فارغ، لا يمكن الرفع");
+            return { success: false, error: "الملف فارغ" };
+        }
+        
+        // تحديد نوع الملف
+        const keys = Object.keys(rows[0]);
+        const isFinalout = keys.some(k => k.trim() === "Unit Nbr") && 
+                          !keys.some(k => k.trim() === "Equip ID");
+        
+        // استدعاء دالة الفحص
+        const fieldCheck = checkExcelFields(rows, isFinalout ? "finalout" : "main");
+        
+        if (!fieldCheck.valid) {
+            console.log("⏭️ تم تخطي الرفع - حقول ناقصة:", fieldCheck.missing);
+            return { success: false, error: "الحقول ناقصة" };
+        }
+        
+        console.log("✅ فحص الحقول نجح - سيتم الرفع");
+        
+    } catch (err) {
+        console.error("❌ فشل فحص الملف:", err);
+        return { success: false, error: "فشل فحص الملف" };
+    }
+    
+    // ===== 5. حماية من الاستدعاء المتكرر =====
+    if (_isUploadingToGitHub) {
+        console.log("⏭️ تم تخطي الرفع (طلب سابق قيد التنفيذ)");
+        return { success: false, error: "طلب مرفوع بالفعل" };
+    }
+    _isUploadingToGitHub = true;
+    
+    try {
+        // ===== 6. استخراج بيانات الرحلة =====
+        let carrierName = document.getElementById("headerCarrierName")?.innerText?.trim() || "";
+        let shippingDate = document.getElementById("headerShippingDate")?.innerText?.trim() || "";
+        let lineId = document.getElementById("headerLineId")?.innerText?.trim() || "";
+        let orderNumber = document.getElementById("headerOrderNumber")?.innerText?.trim() || "";
+        let lineOp = document.getElementById("headerLineOp")?.innerText?.trim() || "";
+        
+        if (orderNumber === "—") orderNumber = "";
+        if (lineOp === "—") lineOp = "";
+        if (!carrierName || carrierName === "—") carrierName = "UnknownShip";
+        if (!lineId || lineId === "—") lineId = "UnknownLine";
+        if (!shippingDate || shippingDate === "—") {
+            let today = new Date();
+            shippingDate = today.getFullYear() + "/" + 
+                           String(today.getMonth() + 1).padStart(2, '0') + "/" + 
+                           String(today.getDate()).padStart(2, '0');
+        }
+        
+        // ===== 7. تنظيف الأسماء =====
+        const cleanName = (str) => str
+            .replace(/\s+/g, "_")
+            .replace(/[^\w\u0600-\u06FF\-\.]/g, "")
+            .substring(0, 50);
+        
+        const safeCarrier = cleanName(carrierName);
+        const safeLine = cleanName(lineId);
+        const safeDate = shippingDate.replace(/\//g, "-").replace(/[^\d\-]/g, "");
+        
+        // ===== 8. بناء اسم الملف =====
+        const extension = originalFileName.split('.').pop() || "xlsx";
+        let parts = [];
+        
+        if (orderNumber && orderNumber !== "") {
+            parts.push(cleanName(orderNumber));
+            if (lineOp && lineOp !== "") parts.push(cleanName(lineOp));
+        } else {
+            parts.push(safeCarrier);
+            parts.push(safeLine);
+            parts.push(safeDate);
+        }
+        
+        const newFileName = `${parts.join("_")}.${extension}`;
+        const filePath = UPLOAD_FOLDER ? `${UPLOAD_FOLDER}/${newFileName}` : newFileName;
+        
+        console.log("📤 جاري رفع الملف:", filePath);
+        
+        const footer = document.getElementById("footerMsg");
+        if (footer) {
+            footer.innerHTML = `⏳ جاري رفع الملف إلى GitHub: <strong>${newFileName}</strong>...`;
+            footer.style.color = "#17a2b8";
+        }
+        
+        // ===== 9. التحقق من وجود الملف =====
+        const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`;
+        
+        let existingSha = null;
+        const checkResponse = await fetch(`${apiUrl}?ref=${GITHUB_BRANCH}`, {
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Accept": "application/vnd.github+json"
+            }
+        });
+        
+        if (checkResponse.ok) {
+            const existingFile = await checkResponse.json();
+            existingSha = existingFile.sha;
+            console.log("🔄 الملف موجود، سيتم التحديث");
+        } else if (checkResponse.status === 404) {
+            console.log("🆕 ملف جديد، سيتم الإنشاء");
+        } else {
+            const err = await checkResponse.json();
+            throw new Error(`فشل التحقق: ${err.message}`);
+        }
+        
+        // ===== 10. رفع الملف =====
+        const body = {
+            message: existingSha 
+                ? `Update ${newFileName} - ${new Date().toLocaleString()}` 
+                : `Upload ${newFileName} - ${new Date().toLocaleString()}`,
+            content: fileData,
+            branch: GITHUB_BRANCH
+        };
+        
+        if (existingSha) body.sha = existingSha;
+        
+        const uploadResponse = await fetch(apiUrl, {
+            method: "PUT",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Accept": "application/vnd.github+json",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(body)
+        });
+        
+        if (!uploadResponse.ok) {
+            const err = await uploadResponse.json();
+            throw new Error(err.message || "فشل الرفع");
+        }
+        
+        const result = await uploadResponse.json();
+        const fileUrl = result.content.html_url;
+        
+        console.log("✅ تم الرفع بنجاح:", fileUrl);
+        
+        // ===== 11. عرض النتيجة =====
+        if (footer) {
+            footer.innerHTML = `✅ تم رفع الملف: <a href="${fileUrl}" target="_blank" style="color:#28a745;font-weight:bold;">${newFileName}</a>`;
+            footer.style.color = "#28a745";
+        }
+        
+        showUploadNotification(
+            "success",
+            "تم الرفع بنجاح",
+            `تم رفع الملف:\n${newFileName}`,
+            fileUrl
+        );
+        
+        return { success: true, url: fileUrl, fileName: newFileName };
+        
+    } catch (error) {
+        console.error("❌ خطأ في الرفع:", error);
+        
+        const footer = document.getElementById("footerMsg");
+        if (footer) {
+            footer.innerHTML = `❌ فشل رفع الملف: ${error.message}`;
+            footer.style.color = "#dc3545";
+        }
+        
+        showUploadNotification(
+            "error",
+            "فشل الرفع",
+            `تعذّر رفع الملف.\n\nالسبب: ${error.message}`
+        );
+        
+        if (error.message.includes("Bad credentials") || error.message.includes("401")) {
+            localStorage.removeItem("github_token");
+            if (typeof updateTokenButtonVisibility === "function") {
+                updateTokenButtonVisibility();
+            }
+        }
+        
+        return { success: false, error: error.message };
+        
+    } finally {
+        _isUploadingToGitHub = false;
+        console.log("🔓 تم إلغاء قفل الرفع");
+    }
+}
+
+// ============================================================
+// 📂 إعدادات GitHub
+// ============================================================
+const GH_OWNER = "markingdchc";
+const GH_REPO = "marking.dchc";
+const GH_BRANCH = "main";
+const GH_UPLOAD_FOLDER = "uploads"; // مجلد الملفات
+
+// ============================================================
+// 📂 جلب قائمة الملفات من GitHub
+// ============================================================
+let ghFilesList = [];
+
+async function loadGitHubFileList() {
+    const token = localStorage.getItem("github_token");
+    const statusEl = document.getElementById("ghStatus");
+    
+    if (statusEl) statusEl.textContent = "⏳ جاري جلب الملفات...";
+    
+    const apiUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_UPLOAD_FOLDER}?ref=${GH_BRANCH}`;
+    
+    try {
+        const headers = { "Accept": "application/vnd.github+json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+        
+        const response = await fetch(apiUrl, { headers });
+        
+        if (response.status === 404) {
+            console.warn("⚠️ مجلد uploads غير موجود في المستودع");
+            if (statusEl) statusEl.textContent = "⚠️ مجلد uploads غير موجود";
+            return [];
+        }
+        
+        if (!response.ok) {
+            throw new Error(`فشل الجلب: ${response.status}`);
+        }
+        
+        const files = await response.json();
+        if (!Array.isArray(files)) return [];
+        
+        // فلترة ملفات Excel
+        const excelFiles = files.filter(f => 
+            f.type === "file" && /\.(xlsx|xls)$/i.test(f.name)
+        );
+        
+        // استخراج البيانات من أسماء الملفات
+        const parsedFiles = [];
+        for (const file of excelFiles) {
+            const parsed = parseGitHubFileName(file.name);
+            if (parsed) {
+                parsedFiles.push({
+                    ...parsed,
+                    path: file.path,
+                    name: file.name,
+                    download_url: file.download_url,
+                    sha: file.sha
+                });
+            }
+        }
+        
+        console.log(`✅ تم العثور على ${parsedFiles.length} ملف Excel`, parsedFiles);
+        
+        if (statusEl) {
+            statusEl.textContent = `✅ ${parsedFiles.length} ملف متوفر`;
+            statusEl.style.color = "#28a745";
+        }
+        
+        return parsedFiles;
+        
+    } catch (error) {
+        console.error("❌ خطأ في جلب الملفات:", error);
+        if (statusEl) {
+            statusEl.textContent = `❌ فشل الجلب: ${error.message}`;
+            statusEl.style.color = "#dc3545";
+        }
+        return [];
+    }
+}
+
+// ============================================================
+// 🔍 استخراج بيانات من اسم الملف
+// الصيغة: ShipName_Line_YYYY-MM-DD.xlsx
+// ============================================================
+function parseGitHubFileName(fileName) {
+    // إزالة الامتداد
+    const nameWithoutExt = fileName.replace(/\.(xlsx|xls)$/i, "");
+    
+    // ===== محاولة 1: صيغة FINALOUT =====
+    // الصيغة: OrderNumber_LineOp (مثل FINALOUT202602_CMA)
+    // ملاحظة: Order Number يبدأ بـ FINALOUT
+    const finaloutMatch = nameWithoutExt.match(/^(FINALOUT\w+)_([A-Z0-9]+)$/i);
+    
+    if (finaloutMatch) {
+        return {
+            shipName: finaloutMatch[1],  // Order Number
+            line: finaloutMatch[2],      // Line Op
+            date: "",                    // لا يوجد تاريخ
+            orderNumber: finaloutMatch[1],
+            lineOp: finaloutMatch[2],
+            isFinalout: true,
+            fullFileName: fileName
+        };
+    }
+    
+    // ===== محاولة 2: صيغة الملف العادي =====
+    // الصيغة: ShipName_Line_YYYY-MM-DD
+    const normalMatch = nameWithoutExt.match(/^(.+?)_([A-Z0-9]+)_(\d{4}-\d{2}-\d{2})$/);
+    
+    if (normalMatch) {
+        return {
+            shipName: normalMatch[1].replace(/_/g, " ").trim(),
+            line: normalMatch[2].trim(),
+            date: normalMatch[3],
+            orderNumber: "",
+            lineOp: "",
+            isFinalout: false,
+            fullFileName: fileName
+        };
+    }
+    
+    // ===== محاولة 3: صيغة موسعة (مع Order Number و Line Op) =====
+    // ShipName_Line_Date_OrderNumber_LineOp
+    const extendedMatch = nameWithoutExt.match(/^(.+?)_([A-Z0-9]+)_(\d{4}-\d{2}-\d{2})_(.+)$/);
+    
+    if (extendedMatch) {
+        let shipName = extendedMatch[1].replace(/_/g, " ").trim();
+        let line = extendedMatch[2].trim();
+        let date = extendedMatch[3];
+        let extras = extendedMatch[4];
+        
+        // استخراج Order Number و Line Op
+        let extraParts = extras.split("_").filter(p => p.trim() !== "");
+        let orderNumber = "";
+        let lineOp = "";
+        
+        if (extraParts.length >= 2) {
+            orderNumber = extraParts[0];
+            lineOp = extraParts[extraParts.length - 1];
+        } else if (extraParts.length === 1) {
+            orderNumber = extraParts[0];
+        }
+        
+        return {
+            shipName: shipName,
+            line: line,
+            date: date,
+            orderNumber: orderNumber,
+            lineOp: lineOp,
+            isFinalout: false,
+            fullFileName: fileName
+        };
+    }
+    
+    console.warn("⚠️ لم يتم التعرف على صيغة اسم الملف:", fileName);
+    return null;
+}
+
+// ============================================================
+// 📋 ملء القوائم المنسدلة
+// ============================================================
+async function initGitHubFilesPanel() {
+    ghFilesList = await loadGitHubFileList();
+    
+    const shipSelect = document.getElementById("ghShipSelect");
+    if (!shipSelect) return;
+    
+    // ملء قائمة السفن
+    shipSelect.innerHTML = '<option value="">-- اختر السفينة --</option>';
+    
+    // جمع القيم الفريدة من shipName
+    const ships = [...new Set(ghFilesList.map(f => f.shipName))].sort();
+    ships.forEach(ship => {
+        const opt = document.createElement("option");
+        opt.value = ship;
+        opt.textContent = ship;
+        shipSelect.appendChild(opt);
+    });
+    
+    // إعادة تعيين القوائم
+    document.getElementById("ghLineSelect").innerHTML = '<option value="">-- اختر الخط --</option>';
+    document.getElementById("ghDateSelect").innerHTML = '<option value="">-- اختر التاريخ --</option>';
+    
+    console.log(`📋 تم تحميل ${ships.length} سفينة`, ships);
+}
+
+function updateLineDropdown() {
+    const ship = document.getElementById("ghShipSelect").value;
+    const lineSelect = document.getElementById("ghLineSelect");
+    const dateSelect = document.getElementById("ghDateSelect");
+    
+    lineSelect.innerHTML = '<option value="">-- اختر الخط --</option>';
+    dateSelect.innerHTML = '<option value="">-- اختر التاريخ --</option>';
+    
+    if (!ship) return;
+    
+    const lines = [...new Set(
+        ghFilesList.filter(f => f.shipName === ship).map(f => f.line)
+    )].sort();
+    
+    lines.forEach(line => {
+        const opt = document.createElement("option");
+        opt.value = line;
+        opt.textContent = line;
+        lineSelect.appendChild(opt);
+    });
+}
+
+function updateDateDropdown() {
+    const ship = document.getElementById("ghShipSelect").value;
+    const line = document.getElementById("ghLineSelect").value;
+    const dateSelect = document.getElementById("ghDateSelect");
+    
+    dateSelect.innerHTML = '<option value="">-- اختر التاريخ --</option>';
+    
+    if (!ship || !line) return;
+    
+    const matchingFiles = ghFilesList
+        .filter(f => f.shipName === ship && f.line === line)
+        .sort((a, b) => {
+            // ترتيب: FINALOUT أولاً ثم بالتاريخ تنازلياً
+            if (a.isFinalout && !b.isFinalout) return -1;
+            if (!a.isFinalout && b.isFinalout) return 1;
+            return (b.date || "").localeCompare(a.date || "");
+        });
+    
+    const seen = new Set();
+    matchingFiles.forEach(f => {
+        let key = (f.date || "") + "|" + (f.orderNumber || "") + "|" + (f.lineOp || "");
+        if (seen.has(key)) return;
+        seen.add(key);
+        
+        const opt = document.createElement("option");
+        opt.value = f.fullFileName;
+        
+        // نص العرض
+        let displayText = "";
+        if (f.isFinalout) {
+            // FINALOUT
+            displayText = "📋 " + f.orderNumber + " | 🚢 " + f.lineOp;
+        } else {
+            // ملف عادي
+            displayText = "📅 " + f.date;
+            if (f.orderNumber) displayText += " | 📋 " + f.orderNumber;
+            if (f.lineOp) displayText += " | 🚢 " + f.lineOp;
+        }
+        
+        opt.textContent = displayText;
+        opt.dataset.date = f.date || "";
+        opt.dataset.orderNumber = f.orderNumber || "";
+        opt.dataset.lineOp = f.lineOp || "";
+        opt.dataset.isFinalout = f.isFinalout ? "true" : "false";
+        opt.dataset.fullFileName = f.fullFileName;
+        
+        dateSelect.appendChild(opt);
+    });
+}
+
+// ============================================================
+// 📥 تحميل الملف المختار من GitHub
+// ============================================================
+let _downloadingFromGitHub = false; // ← لمنع رفع تلقائي مرة أخرى
+
+async function downloadSelectedGitHubFile() {
+    const ship = document.getElementById("ghShipSelect").value;
+    const line = document.getElementById("ghLineSelect").value;
+    const dateSelect = document.getElementById("ghDateSelect");
+    const selectedOption = dateSelect.options[dateSelect.selectedIndex];
+    const footer = document.getElementById("footerMsg");
+    
+    if (!ship || !line || !dateSelect.value) {
+        alert("⚠️ يرجى اختيار السفينة والخط والتاريخ");
+        return;
+    }
+    
+    // استخراج القيم من dataset
+    const fullFileName = selectedOption.dataset.fullFileName || "";
+    const isFinalout = selectedOption.dataset.isFinalout === "true";
+    
+    // البحث عن الملف المطابق
+    const match = ghFilesList.find(f => f.fullFileName === fullFileName);
+    
+    if (!match) {
+        alert("⚠️ لم يتم العثور على الملف المطابق");
+        return;
+    }
+       
+    if (footer) {
+        footer.innerHTML = `⏳ جاري تحميل: <strong>${match.name}</strong>...`;
+        footer.style.color = "#17a2b8";
+    }
+    
+    try {
+        const token = localStorage.getItem("github_token");
+        const headers = { "Accept": "application/vnd.github+json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+        
+        // استخدام API للحصول على المحتوى كـ base64
+        const apiUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${match.path}?ref=${GH_BRANCH}`;
+        const response = await fetch(apiUrl, { headers });
+        
+        if (!response.ok) {
+            throw new Error(`فشل التحميل: ${response.status}`);
+        }
+        
+        const fileInfo = await response.json();
+        const base64Content = fileInfo.content.replace(/\n/g, "");
+        
+        // ===== منع الرفع التلقائي =====
+        _downloadingFromGitHub = true;
+        
+        // حفظ الملف في localStorage
+        saveFileToLocalStorage(base64Content, match.name);
+        
+        // تحديث عرض اسم الملف
+        updateFileNameDisplay(match.name);
+        
+        // تحويل base64 إلى File object
+        const binaryString = atob(base64Content);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const blob = new Blob([bytes], { 
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
+        });
+        const file = new File([blob], match.name, { type: blob.type });
+        
+        // معالجة الملف
+        processExcelFile(file);
+        
+        console.log("✅ تم تحميل الملف من GitHub:", match.name);
+        
+        if (footer) {
+            footer.innerHTML = `✅ تم تحميل الملف من GitHub: <strong>${match.name}</strong>`;
+            footer.style.color = "#28a745";
+        }
+        
+        // إعادة تفعيل الرفع التلقائي بعد 5 ثوانٍ
+        setTimeout(() => { _downloadingFromGitHub = false; }, 5000);
+        
+    } catch (error) {
+        console.error("❌", error);
+        _downloadingFromGitHub = false;
+        
+        if (footer) {
+            footer.innerHTML = `❌ فشل التحميل: ${error.message}`;
+            footer.style.color = "#dc3545";
+        }
+        alert(`❌ فشل التحميل: ${error.message}`);
+    }
+}
+
+// ============================================================
+// 🎯 تهيئة اللوحة عند فتح الصفحة
+// ============================================================
+document.addEventListener("DOMContentLoaded", function() {
+    // تهيئة اللوحة بعد 2 ثانية (حتى يتم تحميل الـ Token)
+    setTimeout(async () => {
+        await initGitHubFilesPanel();
+    }, 2000);
+    
+    // ربط الأحداث
+    setTimeout(() => {
+        const shipSelect = document.getElementById("ghShipSelect");
+        const lineSelect = document.getElementById("ghLineSelect");
+        const downloadBtn = document.getElementById("ghDownloadBtn");
+        const refreshBtn = document.getElementById("ghRefreshBtn");
+        
+        if (shipSelect) shipSelect.addEventListener("change", updateLineDropdown);
+        if (lineSelect) lineSelect.addEventListener("change", updateDateDropdown);
+        if (downloadBtn) downloadBtn.addEventListener("click", downloadSelectedGitHubFile);
+        if (refreshBtn) refreshBtn.addEventListener("click", async function() {
+            await initGitHubFilesPanel();
+        });
+    }, 100);
+});
+
+// ============================================================
+// 🔑 إظهار/إخفاء زر التوكن حسب حالته
+// ============================================================
+function updateTokenButtonVisibility() {
+    const btn = document.getElementById("setTokenBtn");
+    if (!btn) return;
+    
+    const token = localStorage.getItem("github_token");
+    
+    if (token && token.trim() !== "") {
+        btn.style.display = "none";       // التوكن موجود → إخفاء
+    } else {
+        btn.style.display = "inline-block"; // لا يوجد → إظهار
+    }
+}
+
+// ============================================================
+// 🔑 إعداد التوكن
+// ============================================================
+function setupGitHubToken() {
+    let currentToken = localStorage.getItem("github_token") || "";
+    
+    if (currentToken) {
+        if (!confirm("يوجد رمز محفوظ حالياً.\nهل تريد استبداله؟")) return;
+    }
+    
+    let token = prompt("الصق GitHub Personal Access Token هنا:\n\n(يبدأ بـ github_pat_ أو ghp_)");
+    if (!token) return;
+    
+    token = token.trim();
+    if (!token.startsWith("github_pat_") && !token.startsWith("ghp_")) {
+        alert("⚠️ الرمز غير صالح");
+        return;
+    }
+    
+    localStorage.setItem("github_token", token);
+    alert("✅ تم حفظ الرمز بنجاح!");
+    
+    // 🆕 إخفاء الزر فوراً بعد الحفظ
+    updateTokenButtonVisibility();
+}
+
+// ============================================================
+// 🎯 تفعيل الزر عند تحميل الصفحة
+// ============================================================
+document.addEventListener("DOMContentLoaded", function() {
+    // تحديث حالة الزر عند فتح الصفحة
+    updateTokenButtonVisibility();
+    
+    // ربط الزر
+    const btn = document.getElementById("setTokenBtn");
+    if (btn) {
+        btn.addEventListener("click", setupGitHubToken);
+    }
+});
+
+// ============================================================
+// 🔔 دالة إظهار الإشعارات (نجاح / فشل / تحذير)
+// ============================================================
+function showUploadNotification(type, title, message, linkUrl) {
+    // إزالة أي إشعار موجود
+    let existing = document.getElementById("uploadNotification");
+    if (existing) existing.remove();
+    
+    // الألوان حسب النوع
+    let colors = {
+        success: { bg: "#28a745", icon: "✅" },
+        error:   { bg: "#dc3545", icon: "❌" },
+        warning: { bg: "#ffc107", icon: "⚠️" },
+        info:    { bg: "#17a2b8", icon: "ℹ️" }
+    };
+    
+    let c = colors[type] || colors.info;
+    
+    // بناء الإشعار
+    let notif = document.createElement("div");
+    notif.id = "uploadNotification";
+    notif.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        min-width: 320px;
+        max-width: 500px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+        z-index: 999999;
+        overflow: hidden;
+        animation: slideIn 0.3s ease-out;
+        direction: rtl;
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+    `;
+    
+    // الرأس
+    let header = document.createElement("div");
+    header.style.cssText = `
+        background: ${c.bg};
+        color: white;
+        padding: 12px 18px;
+        font-weight: bold;
+        font-size: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    `;
+    header.innerHTML = `
+        <span>${c.icon} ${title}</span>
+        <span style="cursor:pointer;font-size:22px;line-height:1;" onclick="this.closest('#uploadNotification').remove()">×</span>
+    `;
+    
+    // المحتوى
+    let body = document.createElement("div");
+    body.style.cssText = `
+        padding: 15px 18px;
+        font-size: 13px;
+        color: #333;
+        line-height: 1.6;
+        white-space: pre-line;
+    `;
+    body.textContent = message;
+    
+    // رابط GitHub (اختياري)
+    if (linkUrl) {
+        let linkDiv = document.createElement("div");
+        linkDiv.style.cssText = "margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;";
+        linkDiv.innerHTML = `
+            <a href="${linkUrl}" target="_blank" style="
+                display: inline-block;
+                background: ${c.bg};
+                color: white;
+                padding: 8px 16px;
+                border-radius: 6px;
+                text-decoration: none;
+                font-weight: bold;
+                font-size: 12px;
+            ">🔗 فتح الملف على GitHub</a>
+        `;
+        body.appendChild(linkDiv);
+    }
+    
+    // شريط التقدم
+    let progress = document.createElement("div");
+    progress.style.cssText = `
+        height: 4px;
+        background: ${c.bg};
+        width: 100%;
+        animation: progressBar 5s linear forwards;
+    `;
+    
+    notif.appendChild(header);
+    notif.appendChild(body);
+    notif.appendChild(progress);
+    
+    document.body.appendChild(notif);
+    
+    // إزالة تلقائية بعد 5 ثوان
+    setTimeout(() => {
+        if (notif && notif.parentNode) {
+            notif.style.animation = "slideOut 0.3s ease-in";
+            setTimeout(() => notif.remove(), 300);
+        }
+    }, 5000);
+}
+
+// ============================================================
+// 🎨 إضافة أنماط CSS للحركة
+// ============================================================
+(function addNotificationStyles() {
+    if (document.getElementById("notifStyles")) return;
+    let style = document.createElement("style");
+    style.id = "notifStyles";
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(120%); opacity: 0; }
+            to   { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to   { transform: translateX(120%); opacity: 0; }
+        }
+        @keyframes progressBar {
+            from { width: 100%; }
+            to   { width: 0%; }
+        }
+    `;
+    document.head.appendChild(style);
+})();
+
+// ============================================================
+// 🧹 دالة تنظيف شاملة قبل تحميل ملف جديد
+// ============================================================
+function resetAllData() {
+    console.log("🧹 بدء تنظيف جميع البيانات...");
+    
+    // ===== 1. مسح المصفوفات =====
+    currentData1 = [];
+    currentData2 = [];
+    currentData3 = [];
+    currentData4 = [];
+    currentData5 = [];
+    currentData6 = [];
+    currentData7 = [];
+    currentData8 = [];
+    
+    // ===== 2. مسح containersMap =====
+    containersMap.clear();
+    
+    // ===== 3. مسح بطاقات الإجمالي والجداول =====
+    for (let i = 1; i <= 8; i++) {
+        let statsDiv = document.getElementById("statsTab" + i);
+        if (statsDiv) {
+            statsDiv.innerHTML = "";
+            statsDiv.style.display = "none";
+        }
+        
+        let tbody = document.getElementById("bodyTab" + i);
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="30" style="text-align:center; padding:40px;">⏳ جاري تحميل البيانات...</td></tr>';
+        }
+        
+        let filtersDiv = document.getElementById("filtersTab" + i);
+        if (filtersDiv) filtersDiv.style.display = "none";
+        
+        let wrapperDiv = document.getElementById("wrapperTab" + i);
+        if (wrapperDiv) wrapperDiv.style.display = "none";
+    }
+    
+    // ===== 4. مسح الرؤوس =====
+    let carrierNameSpan = document.getElementById("headerCarrierName");
+    let shippingDateSpan = document.getElementById("headerShippingDate");
+    let lineIdSpan = document.getElementById("headerLineId");
+    let orderNumberSpan = document.getElementById("headerOrderNumber");
+    let lineOpSpan = document.getElementById("headerLineOp");
+    
+    if (carrierNameSpan) carrierNameSpan.textContent = "—";
+    if (shippingDateSpan) shippingDateSpan.textContent = "—";
+    if (lineIdSpan) lineIdSpan.textContent = "—";
+    if (orderNumberSpan) orderNumberSpan.textContent = "—";
+    if (lineOpSpan) lineOpSpan.textContent = "—";
+    
+    // ===== 5. إعادة تعيين اسم السفينة =====
+    if (typeof currentVesselName !== 'undefined') {
+        currentVesselName = "";
+    }
+    
+    console.log("✅ تم تنظيف جميع البيانات");
 }
