@@ -10580,6 +10580,7 @@ async function saveFileToGitHub() {
     
     try {
         // ===== 6. استخراج بيانات الرحلة =====
+        // ===== 6. استخراج بيانات الرحلة (مع Fallback من containersMap) =====
         let carrierName = document.getElementById("headerCarrierName")?.innerText?.trim() || "";
         let shippingDate = document.getElementById("headerShippingDate")?.innerText?.trim() || "";
         let lineId = document.getElementById("headerLineId")?.innerText?.trim() || "";
@@ -10588,6 +10589,49 @@ async function saveFileToGitHub() {
         
         if (orderNumber === "—") orderNumber = "";
         if (lineOp === "—") lineOp = "";
+        
+        // ===== 🆕 Fallback من containersMap إذا كانت الرؤوس فارغة =====
+        if (!carrierName || carrierName === "—" || carrierName === "UnknownShip" ||
+            !lineId || lineId === "—" || lineId === "UnknownLine" ||
+            !shippingDate || shippingDate === "—") {
+            
+            for (let [id, container] of containersMap.entries()) {
+                // اجمع كل المصادر المحتملة
+                let sources = [];
+                if (container.exprtList && container.exprtList.length > 0) sources.push(container.exprtList[0]);
+                if (container.trshpList && container.trshpList.length > 0) sources.push(container.trshpList[0]);
+                if (container.strge) sources.push(container.strge);
+                if (container.imprt) sources.push(container.imprt);
+                if (container.trshpReturn) sources.push(container.trshpReturn);
+                
+                for (let src of sources) {
+                    if (!carrierName || carrierName === "—" || carrierName === "UnknownShip") {
+                        let name = src["O/B Carrier Name"] || src["I/B Carrier Name"];
+                        if (name && name.trim() !== "") carrierName = name.trim();
+                    }
+                    if (!lineId || lineId === "—" || lineId === "UnknownLine") {
+                        let lid = src["Line ID"];
+                        if (lid && lid.trim() !== "") lineId = lid.trim();
+                    }
+                    if (!shippingDate || shippingDate === "—") {
+                        let atd = src["O/B Carrier ATD"] || src["O/B Carrier ATA"] || src["I/B Carrier ATA"];
+                        if (atd && atd.trim() !== "") {
+                            let converted = convertDate(atd);
+                            if (converted) shippingDate = converted;
+                        }
+                    }
+                }
+                
+                // إذا اكتملت كل القيم، اخرج من الحلقة
+                if (carrierName && carrierName !== "—" && carrierName !== "UnknownShip" &&
+                    lineId && lineId !== "—" && lineId !== "UnknownLine" &&
+                    shippingDate && shippingDate !== "—") {
+                    break;
+                }
+            }
+        }
+        
+        // ===== Fallback الأخير =====
         if (!carrierName || carrierName === "—") carrierName = "UnknownShip";
         if (!lineId || lineId === "—") lineId = "UnknownLine";
         if (!shippingDate || shippingDate === "—") {
