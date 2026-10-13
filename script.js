@@ -456,12 +456,17 @@ console.log("🧹 تم مسح بطاقات الإجمالي والجداول ا�
             processAndDisplay6();
             processAndDisplay7();
             processAndDisplay8();
+// 🔐 فلترة البيانات حسب خطوط المستخدم
+applyUserLineFilter();
 
             updateHeaderInfo('1');
 
-            setTimeout(function() {
-                applySavedColumnPreferences();
-            }, 200);
+// 🔐 فلترة البيانات حسب صلاحيات المستخدم
+setTimeout(() => {
+    if (typeof applyUserLineFilter === 'function') {
+        applyUserLineFilter();
+    }
+}, 300);
 
             document.getElementById("footerMsg").innerHTML = `✅ تم تحميل: ${file.name} | ...`;
             
@@ -10937,10 +10942,17 @@ function parseGitHubFileName(fileName) {
 async function initGitHubFilesPanel() {
     ghFilesList = await loadGitHubFileList();
     
+    // 🔐 فلترة الملفات حسب خطوط المستخدم
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (user && user.role !== 'admin' && !user.lineIds.includes('*')) {
+        const before = ghFilesList.length;
+        ghFilesList = ghFilesList.filter(f => user.lineIds.includes(f.line));
+        console.log(`🔐 فلترة GitHub: ${before} → ${ghFilesList.length} (الخطوط المسموحة: ${user.lineIds.join(', ')})`);
+    }
+    
     const shipSelect = document.getElementById("ghShipSelect");
     if (!shipSelect) return;
     
-    // ملء قائمة السفن
     shipSelect.innerHTML = '<option value="">-- اختر السفينة --</option>';
     
     // جمع القيم الفريدة من shipName
@@ -10952,7 +10964,6 @@ async function initGitHubFilesPanel() {
         shipSelect.appendChild(opt);
     });
     
-    // إعادة تعيين القوائم
     document.getElementById("ghLineSelect").innerHTML = '<option value="">-- اختر الخط --</option>';
     document.getElementById("ghDateSelect").innerHTML = '<option value="">-- اختر التاريخ --</option>';
     
@@ -10969,9 +10980,15 @@ function updateLineDropdown() {
     
     if (!ship) return;
     
-    const lines = [...new Set(
+    // 🔐 فلترة الخطوط حسب صلاحيات المستخدم
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    let lines = [...new Set(
         ghFilesList.filter(f => f.shipName === ship).map(f => f.line)
     )].sort();
+    
+    if (user && user.role !== 'admin' && !user.lineIds.includes('*')) {
+        lines = lines.filter(line => user.lineIds.includes(line));
+    }
     
     lines.forEach(line => {
         const opt = document.createElement("option");
@@ -10979,6 +10996,12 @@ function updateLineDropdown() {
         opt.textContent = line;
         lineSelect.appendChild(opt);
     });
+    
+    // 🔐 إذا كان هناك خط واحد فقط، اختره تلقائياً
+    if (lines.length === 1) {
+        lineSelect.value = lines[0];
+        updateDateDropdown();
+    }
 }
 
 function updateDateDropdown() {
@@ -10990,15 +11013,24 @@ function updateDateDropdown() {
     
     if (!ship || !line) return;
     
+    // 🔐 تأكد من أن الخط مسموح للمستخدم
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (user && user.role !== 'admin' && !user.lineIds.includes('*')) {
+        if (!user.lineIds.includes(line)) {
+            console.warn('⛔ الخط غير مسموح:', line);
+            return;
+        }
+    }
+    
     const matchingFiles = ghFilesList
         .filter(f => f.shipName === ship && f.line === line)
         .sort((a, b) => {
-            // ترتيب: FINALOUT أولاً ثم بالتاريخ تنازلياً
             if (a.isFinalout && !b.isFinalout) return -1;
             if (!a.isFinalout && b.isFinalout) return 1;
             return (b.date || "").localeCompare(a.date || "");
         });
     
+    // ✅ ✅ ✅ الجزء المُضاف ✅ ✅ ✅
     const seen = new Set();
     matchingFiles.forEach(f => {
         let key = (f.date || "") + "|" + (f.orderNumber || "") + "|" + (f.lineOp || "");
@@ -11008,13 +11040,10 @@ function updateDateDropdown() {
         const opt = document.createElement("option");
         opt.value = f.fullFileName;
         
-        // نص العرض
         let displayText = "";
         if (f.isFinalout) {
-            // FINALOUT
             displayText = "📋 " + f.orderNumber + " | 🚢 " + f.lineOp;
         } else {
-            // ملف عادي
             displayText = "📅 " + f.date;
             if (f.orderNumber) displayText += " | 📋 " + f.orderNumber;
             if (f.lineOp) displayText += " | 🚢 " + f.lineOp;
@@ -11029,7 +11058,7 @@ function updateDateDropdown() {
         
         dateSelect.appendChild(opt);
     });
-}
+}  // ← ← ← قوس إغلاق الدالة (كان مفقوداً!)
 
 // ============================================================
 // 📥 تحميل الملف المختار من GitHub
@@ -11403,3 +11432,59 @@ function resetAllData() {
     
     console.log("✅ تم تنظيف جميع البيانات");
 }
+
+// ============================================================
+// 🔐 فلترة البيانات حسب خطوط المستخدم
+// ============================================================
+function applyUserLineFilter() {
+    if (typeof getCurrentUser !== 'function') return;
+    
+    const user = getCurrentUser();
+    if (!user || user.role === 'admin' || user.lineIds.includes('*')) {
+        console.log('👑 Admin - لا فلترة');
+        return;
+    }
+    
+    console.log('🔍 فلترة البيانات للخطوط:', user.lineIds);
+    
+    // دالة مساعدة
+    const filterByLine = (arr) => {
+        if (!Array.isArray(arr)) return arr;
+        return arr.filter(item => {
+            const lineId = item["Line ID"] || item["الخط"] || "";
+            return user.lineIds.includes(lineId);
+        });
+    };
+    
+    // فلترة كل المصفوفات
+    currentData1 = filterByLine(currentData1);
+    currentData2 = filterByLine(currentData2);
+    currentData3 = filterByLine(currentData3);
+    currentData4 = filterByLine(currentData4);
+    currentData5 = filterByLine(currentData5);
+    currentData6 = filterByLine(currentData6);
+    currentData7 = filterByLine(currentData7);
+    currentData8 = filterByLine(currentData8);
+    
+    // فلترة containersMap
+    for (let [id, container] of [...containersMap.entries()]) {
+        if (!user.lineIds.includes(container.lineId)) {
+            containersMap.delete(id);
+        }
+    }
+    
+    console.log('✅ تمت الفلترة. عدد الحاويات:', containersMap.size);
+    
+    // إعادة عرض الجداول
+    try { renderTable1WithStats("bodyTab1", currentData1, "searchTab1", "typeTab1", "statsTab1"); } catch(e){}
+    try { renderTable2("bodyTab2", currentData2, "searchTab2", "typeTab2", "statsTab2"); } catch(e){}
+    try { renderTable3("bodyTab3", currentData3, "searchTab3", "typeTab3", "statsTab3"); } catch(e){}
+    try { renderTable4("bodyTab4", currentData4, "searchTab4", "typeTab4", "statsTab4"); } catch(e){}
+    try { renderTable5("bodyTab5", currentData5, "searchTab5", "typeTab5", "statsTab5"); } catch(e){}
+    try { renderTable6("bodyTab6", currentData6, "searchTab6", "typeTab6", "statsTab6"); } catch(e){}
+    try { renderTable7("bodyTab7", currentData7, "searchTab7", "typeTab7", "statsTab7"); } catch(e){}
+}
+
+// جعل الدالة متاحة عالمياً
+window.applyUserLineFilter = applyUserLineFilter;
+window.getCurrentUser = getCurrentUser;
