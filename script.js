@@ -493,7 +493,124 @@ console.log("🧹 تم مسح بطاقات الإجمالي والجداول ا�
     reader.readAsArrayBuffer(file);
 }
 	
-
+// ============================================================
+// 🆕 دالة معالجة Excel من Uint8Array مباشرة
+// ============================================================
+function processExcelFromBytes(bytes, fileName) {
+    try {
+        console.log("📦 استلام bytes:", bytes.length, "بايت");
+        console.log("📦 أول 8 بايت:", Array.from(bytes.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+        
+        // ===== 🧹 تنظيف شامل قبل المعالجة =====
+        resetAllData();
+        
+        // ===== قراءة الـ workbook =====
+        let workbook = XLSX.read(bytes, { type: 'array' });
+        console.log("📋 Sheets:", workbook.SheetNames);
+        
+        let sheet = workbook.Sheets[workbook.SheetNames[0]];
+        let rows = XLSX.utils.sheet_to_json(sheet, { defval: "", range: 4 });
+        
+        console.log(`📄 عدد الصفوف المقروءة: ${rows.length}`);
+        
+        if (rows.length === 0) {
+            document.getElementById("footerMsg").innerHTML = "⚠️ الملف فارغ أو التنسيق غير صحيح";
+            return;
+        }
+        
+        // ===== التحقق من نوع الملف =====
+        let firstRow = rows[0];
+        let keys = Object.keys(firstRow);
+        console.log("🔍 أسماء الأعمدة في الملف:", keys);
+        
+        let hasUnitNbr = keys.some(k => k.trim() === "Unit Nbr");
+        let hasEquipId = keys.some(k => k.trim() === "Equip ID");
+        let isFinalout = hasUnitNbr && !hasEquipId;
+        
+        // ===== فحص شامل لجميع الحقول =====
+        let fieldCheck = checkExcelFields(rows, isFinalout ? "finalout" : "main");
+        if (!fieldCheck.valid) {
+            console.log("❌ فشل التحميل بسبب نقص الحقول");
+            return;
+        }
+        console.log("✅ فحص جميع الحقول نجح، بدء المعالجة...");
+        
+        // ===== معالجة FINALOUT =====
+        if (isFinalout) {
+            console.log("📂 تم التعرف على ملف FINALOUT (تبويب 8)");
+            processFinaloutFile(rows);
+            document.getElementById("footerMsg").innerHTML = `✅ تم تحميل ملف FINALOUT: ${fileName} | عدد الحاويات: ${currentData8.length}`;
+            return;
+        }
+        
+        // ===== معالجة الملف العادي =====
+        console.log("📂 تم التعرف على ملف البيانات الرئيسي (تبويبات 1-7)");
+        
+        // بناء containersMap
+        for (let row of rows) {
+            let equipId = row["Equip ID"];
+            if (!equipId || equipId === "") continue;
+            
+            if (!containersMap.has(equipId)) {
+                containersMap.set(equipId, {
+                    equipId: equipId,
+                    equipmentType: row["Equipment Type"] || "",
+                    lineId: row["Line ID"] || "",
+                    notes: row["Notes"] || "",
+                    trshpList: [],
+                    exprtList: [],
+                    strge: null,
+                    imprt: null,
+                    trshpReturn: null
+                });
+            }
+            let c = containersMap.get(equipId);
+            let cat = row["Category"];
+            let drayStatus = row["Dray Status"] || "";
+            
+            if (cat === "TRSHP") {
+                c.trshpList.push(row);
+                if (drayStatus === "RETURN") {
+                    c.trshpReturn = row;
+                }
+            }
+            else if (cat === "EXPRT") {
+                if (!c.exprtList) c.exprtList = [];
+                c.exprtList.push(row);
+            }
+            else if (cat === "STRGE") {
+                c.strge = row;
+            }
+            else if (cat === "IMPRT") {
+                c.imprt = row;
+            }
+        }
+        
+        console.log(`📦 containersMap.size بعد القراءة: ${containersMap.size}`);
+        
+        // معالجة جميع التبويبات
+        processAndDisplay1();
+        processAndDisplay2();
+        processAndDisplay3();
+        processAndDisplay4();
+        processAndDisplay5();
+        processAndDisplay6();
+        processAndDisplay7();
+        processAndDisplay8();
+        
+        updateHeaderInfo('1');
+        
+        setTimeout(function() {
+            applySavedColumnPreferences();
+        }, 200);
+        
+        document.getElementById("footerMsg").innerHTML = `✅ تم تحميل: ${fileName} | TRSHP+EXPRT: ${currentData1.length} | STRGE+EXPRT+IMPRT: ${currentData2.length} | EXPRT فقط: ${currentData3.length} | STRGE فارغ: ${currentData4.length} | TRSHP فقط: ${currentData5.length} | STRGE+EXPRT فقط: ${currentData6.length} | IMPRT+FORWARD: ${currentData7.length} | Storage Finalout: ${currentData8.length}`;
+        
+    } catch(err) {
+        console.error("❌ خطأ في معالجة الملف:", err);
+        document.getElementById("footerMsg").innerHTML = `❌ خطأ: ${err.message}`;
+    }
+}
 
 function processFinaloutFile(rows) {
     console.log("🔄 معالجة ملف FINALOUT...");
@@ -10889,7 +11006,6 @@ async function downloadSelectedGitHubFile() {
     
     // استخراج القيم من dataset
     const fullFileName = selectedOption.dataset.fullFileName || "";
-    const isFinalout = selectedOption.dataset.isFinalout === "true";
     
     // البحث عن الملف المطابق
     const match = ghFilesList.find(f => f.fullFileName === fullFileName);
@@ -10905,44 +11021,49 @@ async function downloadSelectedGitHubFile() {
     }
     
     try {
-        const token = localStorage.getItem("github_token");
-        const headers = { "Accept": "application/vnd.github+json" };
-        if (token) headers["Authorization"] = `Bearer ${token}`;
+        // ===== 🆕 استخدام download_url مباشرة (يدعم الملفات الكبيرة) =====
+        const downloadUrl = match.download_url;
         
-        // استخدام API للحصول على المحتوى كـ base64
-        const apiUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${match.path}?ref=${GH_BRANCH}`;
-        const response = await fetch(apiUrl, { headers });
+        if (!downloadUrl) {
+            throw new Error("لا يوجد رابط تحميل للملف");
+        }
+        
+        console.log("📥 جاري تحميل الملف من:", downloadUrl);
+        
+        const response = await fetch(downloadUrl);
         
         if (!response.ok) {
             throw new Error(`فشل التحميل: ${response.status}`);
         }
         
-        const fileInfo = await response.json();
-        const base64Content = fileInfo.content.replace(/\n/g, "");
+        // ===== 🆕 قراءة كـ arrayBuffer مباشرة (بدون base64) =====
+        const arrayBuffer = await response.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        
+        console.log("📦 حجم الملف:", bytes.length, "بايت");
+        console.log("📦 أول 8 بايت:", Array.from(bytes.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' '));
         
         // ===== منع الرفع التلقائي =====
         _downloadingFromGitHub = true;
         
-        // حفظ الملف في localStorage
-        saveFileToLocalStorage(base64Content, match.name);
+        // ===== 🆕 حفظ في localStorage (بشكل آمن للملفات الكبيرة) =====
+        try {
+            let binary = '';
+            let chunkSize = 8192;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
+            let base64Data = btoa(binary);
+            saveFileToLocalStorage(base64Data, match.name);
+        } catch(e) {
+            console.warn("⚠️ فشل حفظ الملف:", e.message);
+        }
         
         // تحديث عرض اسم الملف
         updateFileNameDisplay(match.name);
         
-        // تحويل base64 إلى File object
-        const binaryString = atob(base64Content);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        const blob = new Blob([bytes], { 
-            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
-        });
-        const file = new File([blob], match.name, { type: blob.type });
-        
-        // معالجة الملف
-        processExcelFile(file);
+        // ===== 🆕 استدعاء معالجة مباشرة من bytes =====
+        processExcelFromBytes(bytes, match.name);
         
         console.log("✅ تم تحميل الملف من GitHub:", match.name);
         
