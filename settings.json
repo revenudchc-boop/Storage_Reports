@@ -313,7 +313,7 @@
         {"id": 66, "category": "TRSHP", "lineId": "MAXI", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
         {"id": 67, "category": "TRSHP", "lineId": "SLS", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-07-01", "endDate": "", "freeDays": 15},
         {"id": 68, "category": "TRSHP", "lineId": "SLS", "drayStatus": "", "flexString01": "", "freightKind": "MTY", "startDate": "2025-07-01", "endDate": "2026-06-30", "freeDays": 25},
-        {"id": 69, "category": "TRSHP", "lineId": "EMK", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15},
+        {"id": 69, "category": "TRSHP", "lineId": "EMK", "drayStatus": "", "flexString01": "", "freightKind": "", "startDate": "2026-01-01", "endDate": "", "freeDays": 15}
     ],
 
     "excludeLines5": [],
