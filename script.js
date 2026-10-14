@@ -44,12 +44,6 @@ let nextIdExprt6 = exprtPeriods6.length > 0 ? Math.max(...exprtPeriods6.map(p =>
 
 let selectedColumnsTab6 = JSON.parse(localStorage.getItem("selectedColumns_tab6")) || [];
 
-// 🆕 متغير حفظ بيانات الرأس للاستخدام في الرفع
-let headerDataForUpload = {
-    carrierName: "UnknownShip",
-    shippingDate: "",
-    lineId: "UnknownLine"
-};
 // ============================================================
 // 🛡️ حماية من الرفع المتكرر
 // ============================================================
@@ -466,11 +460,23 @@ console.log("🧹 تم مسح بطاقات الإجمالي والجداول ا�
 applyUserLineFilter();
 
             updateHeaderInfo('1');
-            
-            // 🆕 حساب بيانات الرأس من جميع التبويبات
+			
+			            // 🆕 تصحيح الرأس بعد التحميل (بدون ضغط أزرار)
             setTimeout(() => {
-                calculateBestHeaderData();
-            }, 300);
+                if (currentData2 && currentData2.length > 0) {
+                    updateHeaderFromDisplayData('2', currentData2);
+                } else if (currentData1 && currentData1.length > 0) {
+                    updateHeaderFromDisplayData('1', currentData1);
+                } else if (currentData6 && currentData6.length > 0) {
+                    updateHeaderFromDisplayData('6', currentData6);
+                } else if (currentData3 && currentData3.length > 0) {
+                    updateHeaderFromDisplayData('3', currentData3);
+                } else if (currentData5 && currentData5.length > 0) {
+                    updateHeaderFromDisplayData('5', currentData5);
+                } else if (currentData4 && currentData4.length > 0) {
+                    updateHeaderFromDisplayData('4', currentData4);
+                }
+            }, 200);
 
 // 🔐 فلترة البيانات حسب صلاحيات المستخدم
 setTimeout(() => {
@@ -615,6 +621,19 @@ function processExcelFromBytes(bytes, fileName) {
         processAndDisplay8();
         
         updateHeaderInfo('1');
+        
+        // 🆕 تصحيح الرأس بعد التحميل من GitHub
+        setTimeout(() => {
+            if (currentData2 && currentData2.length > 0) {
+                updateHeaderFromDisplayData('2', currentData2);
+            } else if (currentData1 && currentData1.length > 0) {
+                updateHeaderFromDisplayData('1', currentData1);
+            } else if (currentData6 && currentData6.length > 0) {
+                updateHeaderFromDisplayData('6', currentData6);
+            } else if (currentData3 && currentData3.length > 0) {
+                updateHeaderFromDisplayData('3', currentData3);
+            }
+        }, 200);
         
         setTimeout(function() {
             applySavedColumnPreferences();
@@ -7598,9 +7617,11 @@ function updateHeaderUI(carrierName, maxDate, lineIds) {
         if (h1Element) {
             h1Element.innerHTML = `📦 تقرير أيام التخزين - ${currentVesselName}`;
         }
+        let vesselNameSpan = document.getElementById("vesselNameTitle");
+        if (vesselNameSpan) {
+            vesselNameSpan.textContent = currentVesselName;
+        }
     }
-    
-    let lineIdText = lineIds.size > 0 ? Array.from(lineIds).join(", ") : "—";
     
     let carrierNameSpan = document.getElementById("headerCarrierName");
     let shippingDateSpan = document.getElementById("headerShippingDate");
@@ -7613,21 +7634,8 @@ function updateHeaderUI(carrierName, maxDate, lineIds) {
         shippingDateSpan.textContent = maxDate;
     }
     if (lineIdSpan) {
-        lineIdSpan.textContent = lineIdText;
+        lineIdSpan.textContent = lineIds.size > 0 ? Array.from(lineIds).join(", ") : "—";
     }
-    
-    // 🆕 حفظ القيم في المتغير العام (مع التحقق من الصلاحية)
-    if (carrierName && carrierName !== "—" && !carrierName.includes("Unknown") && !/[\u0600-\u06FF]/.test(carrierName)) {
-        headerDataForUpload.carrierName = carrierName;
-    }
-    if (maxDate && maxDate !== "—") {
-        headerDataForUpload.shippingDate = maxDate;
-    }
-    if (lineIdText && lineIdText !== "—") {
-        headerDataForUpload.lineId = lineIdText;
-    }
-    
-    console.log("💾 تم حفظ بيانات الرأس:", headerDataForUpload);
 }
 // ربط زر اختيار الأعمدة للتبويب 6
 document.getElementById("selectColumnsBtn6").onclick = () => openColumnModalTab6();
@@ -10612,25 +10620,59 @@ async function saveFileToGitHub() {
     _isUploadingToGitHub = true;
     
     try {
-        // ===== 6. استخراج بيانات الرحلة (من المتغير العام) =====
-        let carrierName = headerDataForUpload.carrierName || "UnknownShip";
-        let shippingDate = headerDataForUpload.shippingDate || "";
-        let lineId = headerDataForUpload.lineId || "UnknownLine";
-        let orderNumber = "";
-        let lineOp = "";
+        // ===== 6. استخراج بيانات الرحلة =====
+        // ===== 6. استخراج بيانات الرحلة (مع Fallback من containersMap) =====
+        let carrierName = document.getElementById("headerCarrierName")?.innerText?.trim() || "";
+        let shippingDate = document.getElementById("headerShippingDate")?.innerText?.trim() || "";
+        let lineId = document.getElementById("headerLineId")?.innerText?.trim() || "";
+        let orderNumber = document.getElementById("headerOrderNumber")?.innerText?.trim() || "";
+        let lineOp = document.getElementById("headerLineOp")?.innerText?.trim() || "";
         
-        // إذا كانت القيم فارغة، أعد حسابها
-        if (carrierName === "UnknownShip" || lineId === "UnknownLine" || !shippingDate) {
-            console.log("⚠️ القيم فارغة، إعادة حساب الرأس...");
-            calculateBestHeaderData();
+        if (orderNumber === "—") orderNumber = "";
+        if (lineOp === "—") lineOp = "";
+        
+        // ===== 🆕 Fallback من containersMap إذا كانت الرؤوس فارغة =====
+        if (!carrierName || carrierName === "—" || carrierName === "UnknownShip" ||
+            !lineId || lineId === "—" || lineId === "UnknownLine" ||
+            !shippingDate || shippingDate === "—") {
             
-            // قراءة القيم المحدثة
-            carrierName = headerDataForUpload.carrierName || "UnknownShip";
-            shippingDate = headerDataForUpload.shippingDate || "";
-            lineId = headerDataForUpload.lineId || "UnknownLine";
+            for (let [id, container] of containersMap.entries()) {
+                // اجمع كل المصادر المحتملة
+                let sources = [];
+                if (container.exprtList && container.exprtList.length > 0) sources.push(container.exprtList[0]);
+                if (container.trshpList && container.trshpList.length > 0) sources.push(container.trshpList[0]);
+                if (container.strge) sources.push(container.strge);
+                if (container.imprt) sources.push(container.imprt);
+                if (container.trshpReturn) sources.push(container.trshpReturn);
+                
+                for (let src of sources) {
+                    if (!carrierName || carrierName === "—" || carrierName === "UnknownShip") {
+                        let name = src["O/B Carrier Name"] || src["I/B Carrier Name"];
+                        if (name && name.trim() !== "") carrierName = name.trim();
+                    }
+                    if (!lineId || lineId === "—" || lineId === "UnknownLine") {
+                        let lid = src["Line ID"];
+                        if (lid && lid.trim() !== "") lineId = lid.trim();
+                    }
+                    if (!shippingDate || shippingDate === "—") {
+                        let atd = src["O/B Carrier ATD"] || src["O/B Carrier ATA"] || src["I/B Carrier ATA"];
+                        if (atd && atd.trim() !== "") {
+                            let converted = convertDate(atd);
+                            if (converted) shippingDate = converted;
+                        }
+                    }
+                }
+                
+                // إذا اكتملت كل القيم، اخرج من الحلقة
+                if (carrierName && carrierName !== "—" && carrierName !== "UnknownShip" &&
+                    lineId && lineId !== "—" && lineId !== "UnknownLine" &&
+                    shippingDate && shippingDate !== "—") {
+                    break;
+                }
+            }
         }
         
-        // Fallback الأخير
+        // ===== Fallback الأخير =====
         if (!carrierName || carrierName === "—") carrierName = "UnknownShip";
         if (!lineId || lineId === "—") lineId = "UnknownLine";
         if (!shippingDate || shippingDate === "—") {
@@ -10639,11 +10681,6 @@ async function saveFileToGitHub() {
                            String(today.getMonth() + 1).padStart(2, '0') + "/" + 
                            String(today.getDate()).padStart(2, '0');
         }
-        
-        console.log("📋 اسم الملف المستخدم:");
-        console.log("   🚢 السفينة:", carrierName);
-        console.log("   🏷️ الخط:", lineId);
-        console.log("   📅 التاريخ:", shippingDate);
         
         // ===== 7. تنظيف الأسماء =====
         const cleanName = (str) => str
@@ -11487,67 +11524,3 @@ function applyUserLineFilter() {
 // جعل الدالة متاحة عالمياً
 window.applyUserLineFilter = applyUserLineFilter;
 window.getCurrentUser = getCurrentUser;
-
-// ============================================================
-// 🆕 حساب بيانات الرأس من جميع التبويبات (بدون ضغط أزرار)
-// ============================================================
-function calculateBestHeaderData() {
-    console.log("🔍 بدء حساب بيانات الرأس من جميع التبويبات...");
-    
-    // 🛡️ احفظ الرأس الحالي
-    let savedCarrier = document.getElementById("headerCarrierName")?.innerText || "—";
-    let savedDate = document.getElementById("headerShippingDate")?.innerText || "—";
-    let savedLine = document.getElementById("headerLineId")?.innerText || "—";
-    
-    // 🆕 إعادة تعيين المتغير
-    headerDataForUpload = {
-        carrierName: "UnknownShip",
-        shippingDate: "",
-        lineId: "UnknownLine"
-    };
-    
-    // ترتيب الأولوية
-    let tabDataList = [
-        { tab: '2', data: currentData2 },
-        { tab: '1', data: currentData1 },
-        { tab: '6', data: currentData6 },
-        { tab: '3', data: currentData3 },
-        { tab: '5', data: currentData5 },
-        { tab: '4', data: currentData4 },
-        { tab: '7', data: currentData7 }
-    ];
-    
-    for (let { tab, data } of tabDataList) {
-        if (!data || data.length === 0) continue;
-        
-        console.log(`  🔄 فحص تبويب ${tab} (${data.length} صف)`);
-        
-        try {
-            updateHeaderFromDisplayData(tab, data);
-        } catch(e) {
-            console.warn(`  ⚠️ خطأ في تبويب ${tab}:`, e.message);
-            continue;
-        }
-        
-        // تحقق: هل حصلنا على اسم صالح؟
-        if (headerDataForUpload.carrierName !== "UnknownShip" &&
-            headerDataForUpload.carrierName !== "—" &&
-            !headerDataForUpload.carrierName.includes("Unknown")) {
-            
-            console.log(`  ✅ وجدنا اسماً صالحاً في تبويب ${tab}:`, headerDataForUpload.carrierName);
-            
-            if (headerDataForUpload.lineId !== "UnknownLine" &&
-                headerDataForUpload.shippingDate !== "") {
-                break;
-            }
-        }
-    }
-    
-    // 🛡️ أعد الرأس الأصلي للعرض (لأن `headerDataForUpload` محفوظة بالفعل)
-    document.getElementById("headerCarrierName").innerText = savedCarrier;
-    document.getElementById("headerShippingDate").innerText = savedDate;
-    document.getElementById("headerLineId").innerText = savedLine;
-    
-    console.log("✅ البيانات النهائية للرأس:", headerDataForUpload);
-    return headerDataForUpload;
-}
