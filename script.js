@@ -7498,10 +7498,16 @@ else if (tabId === '4') {
             
             // ========== التعديل: استخدام exprtList (المصفوفة) أولاً ==========
             let sourceData = null;
+            // 🆕 استبعاد سجلات EXPRT التي لها Dray Status = RETURN
             if (container.exprtList && container.exprtList.length > 0) {
-                sourceData = container.exprtList[0];  // نأخذ أول سجل EXPRT
+                sourceData = container.exprtList.find(ex => 
+                    (ex["Dray Status"] || "").trim() !== "RETURN"
+                ) || null;
             } else if (container.exprt) {
-                sourceData = container.exprt;         // للتوافق مع الإصدارات القديمة
+                let ex = container.exprt;
+                if ((ex["Dray Status"] || "").trim() !== "RETURN") {
+                    sourceData = ex;
+                }
             }
             
             if (sourceData) {
