@@ -6917,6 +6917,13 @@ function renderTable6(tbodyId, data, searchId, typeId, statsId) {
         return matchSearch && matchType;
     });
     
+    // 🆕 عرض الإحصائيات دائماً (قبل أي شرط)
+    let statsDivInitial = document.getElementById(statsId);
+    if (statsDivInitial && data.length > 0) {
+        statsDivInitial.innerHTML = renderAdvancedStatsTab6(data);
+        statsDivInitial.style.display = "flex";
+    }
+    
     // تطبيق تفضيلات الأعمدة المحفوظة
     let selected = selectedColumns.tab6;
     if (selected && selected.length > 0) {
@@ -6971,12 +6978,6 @@ function renderTable6(tbodyId, data, searchId, typeId, statsId) {
         }
     } else {
         // العرض العادي بدون تفضيلات
-        let statsDiv = document.getElementById(statsId);
-        if (statsDiv && data.length > 0) {
-            statsDiv.innerHTML = renderAdvancedStatsTab6(data);
-            statsDiv.style.display = "flex";
-        }
-        
         let tbody = document.getElementById(tbodyId);
         if (!tbody) return;
         tbody.innerHTML = "";
@@ -7010,7 +7011,7 @@ function renderTable6(tbodyId, data, searchId, typeId, statsId) {
                 <td>${item["Line ID"] || "—"}<\/td>
                 <td><span class="${methodClass}">${item["طريقة الحساب"] || "—"}</span><\/td>
                 <td>${flexHtml}<\/td>
-				<td>${item["flex_04"] || "—"}</td>  <!-- ← أضف هذا السطر -->
+                <td>${item["flex_04"] || "—"}</td>
                 <td>${item["STRGE Start"] || "—"}<\/td>
                 <td>${item["STRGE End"] || "—"}<\/td>
                 <td style="background:#e3f2fd;">${item["STRGE Days"] || "—"}<\/td>
