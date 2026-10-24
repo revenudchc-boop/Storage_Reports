@@ -526,6 +526,8 @@ setTimeout(() => {
                 let result = await saveFileToGitHub();
                 if (result && result.success) {
                     console.log("✅ الملف مرفوع على GitHub");
+					 // 🆕 إضافة هذا السطر لتشغيل إنشاء الـ PDF آلياً
+        await autoGenerateAndArchiveFullPDF(); 
                 }
             }, 2500);
             
@@ -11684,6 +11686,283 @@ function applyUserLineFilter() {
     try { renderTable5("bodyTab5", currentData5, "searchTab5", "typeTab5", "statsTab5"); } catch(e){}
     try { renderTable6("bodyTab6", currentData6, "searchTab6", "typeTab6", "statsTab6"); } catch(e){}
     try { renderTable7("bodyTab7", currentData7, "searchTab7", "typeTab7", "statsTab7"); } catch(e){}
+}
+
+// ============================================================
+// 📥 دالة أتمتة إنشاء ملف PDF شامل (حجم صغير + جودة عالية)
+// ============================================================
+async function autoGenerateAndArchiveFullPDF() {
+    if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
+        console.warn("⏳ جاري تحميل مكتبات PDF...");
+        return;
+    }
+
+    if (typeof applySavedColumnPreferences === 'function') {
+        applySavedColumnPreferences();
+    }
+
+    let names = buildArchiveFolderName();
+    if (!names || names.shipName.includes("UnknownShip") || names.lineId.includes("UnknownLine")) {
+        console.warn("⚠️ لا يمكن إنشاء PDF: اسم السفينة أو الخط غير معروف.");
+        return;
+    }
+
+    const folderName = names.folderName;
+    const fileName = `Storage_Report_${names.shipName}_${names.lineId}_${names.date}.pdf`.replace(/\s+/g, '_');
+
+    let tabsToPrint = [
+        { id: 'tab1', title: 'TRSHP + EXPRT' },
+        { id: 'tab2', title: 'STRGE + EXPRT + IMPRT' },
+        { id: 'tab3', title: 'EXPRT فقط' },
+        { id: 'tab4', title: 'STRGE فارغ (MTY) + IMPRT' },
+        { id: 'tab5', title: 'TRSHP فقط' },
+        { id: 'tab6', title: 'STRGE + EXPRT فقط' },
+        { id: 'tab7', title: 'IMPRT + FORWARD' },
+        { id: 'tab8', title: 'Storage Finalout' }
+    ];
+
+    let currentDate = new Date().toLocaleString('ar-EG', {
+        year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    let headerCarrierName = document.getElementById("headerCarrierName")?.innerText || "—";
+    let headerShippingDate = document.getElementById("headerShippingDate")?.innerText || "—";
+    let headerLineId = document.getElementById("headerLineId")?.innerText || "—";
+
+    let loading = document.createElement('div');
+    loading.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#0a3d62;color:white;padding:15px 30px;border-radius:8px;z-index:10000;font-weight:bold;box-shadow:0 10px 25px rgba(0,0,0,0.3);';
+    loading.innerHTML = '⏳ جاري إنشاء بيان التخزين...';
+    document.body.appendChild(loading);
+
+    let hiddenContainer = document.createElement('div');
+    hiddenContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: max-content; min-width: 1000px; background: white; z-index: -1; padding: 20px;';
+    document.body.appendChild(hiddenContainer);
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+        
+        let currentPageCount = 0;
+        const canvasScale = 1.2; // 🆕 تقليل الحجم مع الحفاظ على جودة مقبولة
+
+        for (let tab of tabsToPrint) {
+            let tabNum = tab.id.replace('tab', '');
+            let dataArray = null;
+            if (tabNum === '1') dataArray = currentData1;
+            else if (tabNum === '2') dataArray = currentData2;
+            else if (tabNum === '3') dataArray = currentData3;
+            else if (tabNum === '4') dataArray = currentData4;
+            else if (tabNum === '5') dataArray = currentData5;
+            else if (tabNum === '6') dataArray = currentData6;
+            else if (tabNum === '7') dataArray = currentData7;
+            else if (tabNum === '8') dataArray = currentData8;
+
+            if (!dataArray || dataArray.length === 0) continue;
+
+            let activeTab = document.getElementById(tab.id);
+            if (!activeTab) continue;
+
+            let statsElement = activeTab.querySelector('.stats');
+            let statsClone = statsElement ? statsElement.cloneNode(true) : null;
+            let tableWrapper = activeTab.querySelector('.table-wrapper');
+            let tableElement = tableWrapper ? tableWrapper.querySelector('table') : null;
+            
+            if (!tableElement) continue;
+
+            let statsContent = statsClone ? statsClone.cloneNode(true) : null;
+            let tableContent = tableElement.cloneNode(true);
+
+            let headerRow = tableContent.querySelector('thead tr');
+            if (headerRow) {
+                let th = document.createElement('th');
+                th.textContent = 'م';
+                th.style.width = '30px';
+                headerRow.insertBefore(th, headerRow.firstChild);
+            }
+            
+            let rows = tableContent.querySelectorAll('tbody tr');
+            rows.forEach((row, idx) => {
+                let td = document.createElement('td');
+                td.textContent = idx + 1;
+                td.style.fontWeight = 'bold';
+                td.style.backgroundColor = '#f8f9fa';
+                td.style.textAlign = 'center';
+                td.style.width = '30px';
+                row.insertBefore(td, row.firstChild);
+            });
+
+            let extraInfo = "";
+            if (tab.id === 'tab8') {
+                let orderNumber = document.getElementById("headerOrderNumber")?.innerText || "—";
+                let lineOp = document.getElementById("headerLineOp")?.innerText || "—";
+                let count = document.getElementById("headerCount")?.innerText || "0";
+                extraInfo = `
+                    <div style="text-align: right; margin-bottom: 10px; font-size: 11px; direction: rtl; background: #f8f9fa; padding: 6px; border-radius: 4px;">
+                        <div>📋 <strong>رقم الأمر:</strong> ${orderNumber}</div>
+                        <div>🚢 <strong>الخط المشغل:</strong> ${lineOp}</div>
+                        <div>📦 <strong>عدد الحاويات:</strong> ${count}</div>
+                    </div>
+                `;
+            }
+
+            hiddenContainer.innerHTML = `
+                <div style="width: 100%; padding: 10px; direction: rtl; background: white;">
+                    <div style="text-align: center; border-bottom: 2px solid #0a3d62; padding-bottom: 10px; margin-bottom: 15px;">
+                        <h1 style="color: #0a3d62; font-size: 18px; margin: 0;">📦 تقرير أيام التخزين</h1>
+                        <div style="color: #1e6f5c; font-size: 12px; font-weight: bold; margin-top: 5px;">
+                            ${tab.title} | 🚢 ${headerCarrierName} | 📅 ${headerShippingDate} | 🏷️ ${headerLineId}
+                        </div>
+                    </div>
+                    <div style="text-align: left; font-size: 10px; color: #6c757d; margin-bottom: 10px;">📅 تاريخ الطباعة: ${currentDate}</div>
+                    ${extraInfo}
+                    <div style="width: 100%; margin-bottom: 15px;">${statsContent ? statsContent.outerHTML : ''}</div>
+                    <div style="width: 100%; white-space: nowrap;">${tableContent.outerHTML}</div>
+                    
+                    <div style="display: flex; justify-content: space-between; margin-top: 30px; padding-top: 15px; border-top: 1px solid #0a3d62;">
+                        <div style="text-align: center; width: 30%;">
+                            <div style="height: 35px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
+                            <strong style="font-size: 10px;">Signature</strong>
+                            <div style="font-size: 9px;">Head of Operations</div>
+                        </div>
+                        <div style="text-align: center; width: 30%;">
+                            <div style="height: 35px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
+                            <strong style="font-size: 10px;">Signature</strong>
+                            <div style="font-size: 9px;">Document Auditor</div>
+                        </div>
+                        <div style="text-align: center; width: 30%;">
+                            <div style="height: 35px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
+                            <strong style="font-size: 10px;">Signature</strong>
+                            <div style="font-size: 9px;">Line Clerk</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; font-size: 9px; color: #6c757d; margin-top: 15px;">تم إنشاؤه بواسطة نظام التخزين</div>
+                </div>
+            `;
+
+            hiddenContainer.querySelectorAll('th').forEach(th => {
+                th.style.background = '#0a3d62'; th.style.color = 'white'; th.style.padding = '6px'; th.style.border = '1px solid #ddd';
+            });
+            hiddenContainer.querySelectorAll('td').forEach(td => {
+                td.style.padding = '5px'; td.style.border = '1px solid #ddd'; td.style.fontSize = '10px';
+            });
+
+            await new Promise(r => setTimeout(r, 100));
+
+            const canvas = await html2canvas(hiddenContainer, {
+                scale: canvasScale, 
+                backgroundColor: '#ffffff',
+                logging: false,
+                useCORS: true,
+                imageTimeout: 0
+            });
+
+            const margin = 8;
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const contentWidth = pdfWidth - (margin * 2);
+            const availableHeightMM = pdfHeight - (margin * 2);
+
+            const imgWidth = canvas.width;
+            const imgHeight = canvas.height;
+            
+            const scaleX = contentWidth / imgWidth;
+            const pageHeightPx = availableHeightMM / scaleX;
+
+            const containerRect = hiddenContainer.getBoundingClientRect();
+            let rowBottoms = [];
+            
+            let theadEl = hiddenContainer.querySelector('thead');
+            if (theadEl) {
+                let thRect = theadEl.getBoundingClientRect();
+                rowBottoms.push((thRect.bottom - containerRect.top) * canvasScale);
+            }
+            
+            let bodyRows = hiddenContainer.querySelectorAll('tbody tr');
+            bodyRows.forEach(tr => {
+                let rect = tr.getBoundingClientRect();
+                let bottomY = (rect.bottom - containerRect.top) * canvasScale;
+                if (bottomY > 0 && bottomY <= imgHeight) {
+                    rowBottoms.push(bottomY);
+                }
+            });
+            
+            rowBottoms.push(imgHeight);
+            rowBottoms.sort((a, b) => a - b);
+
+            let currentY = 0;
+            
+            while (currentY < imgHeight) {
+                if (currentPageCount > 0) pdf.addPage();
+                
+                let maxAvailableY = currentY + pageHeightPx;
+                let actualEndY = maxAvailableY;
+                
+                if (maxAvailableY >= imgHeight) {
+                    actualEndY = imgHeight;
+                } else {
+                    let bestCut = currentY;
+                    for (let rBottom of rowBottoms) {
+                        if (rBottom > currentY + 10 && rBottom <= maxAvailableY) {
+                            bestCut = rBottom;
+                        } else if (rBottom > maxAvailableY) {
+                            break;
+                        }
+                    }
+                    
+                    if (bestCut === currentY) {
+                        bestCut = maxAvailableY;
+                    }
+                    actualEndY = bestCut;
+                }
+
+                const sliceCanvas = document.createElement('canvas');
+                sliceCanvas.width = imgWidth;
+                sliceCanvas.height = actualEndY - currentY;
+                const ctx = sliceCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, currentY, imgWidth, sliceCanvas.height, 0, 0, sliceCanvas.width, sliceCanvas.height);
+
+                // 🆕 ضغط الصورة بجودة 0.75 لتقليل الحجم
+                const imgData = sliceCanvas.toDataURL('image/jpeg', 0.75);
+                const sliceHeightMM = sliceCanvas.height * scaleX;
+                
+                pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, sliceHeightMM);
+                
+                currentY = actualEndY;
+                currentPageCount++;
+            }
+        }
+
+        document.body.removeChild(hiddenContainer);
+        document.body.removeChild(loading);
+
+        if (currentPageCount === 0) throw new Error("لا توجد بيانات لإنشاء الملف");
+
+        const pdfBase64 = pdf.output('datauristring');
+        const base64Data = pdfBase64.split(',')[1].replace(/\s/g, '');
+
+        const result = await uploadBase64ToArchive(folderName, fileName, base64Data);
+
+        if (result.success) {
+            let footer = document.getElementById("footerMsg");
+            if (footer) {
+                footer.innerHTML = `✅ تم حفظ تقرير PDF الشامل في الأرشيف: <strong>${fileName}</strong>`;
+                footer.style.color = "#28a745";
+            }
+            if (typeof showUploadNotification === 'function') {
+                showUploadNotification("success", "تم إنشاء PDF", `تم حفظ التقرير باسم: ${fileName}`);
+            }
+        } else {
+            throw new Error(result.error || "فشل الرفع");
+        }
+
+    } catch (error) {
+        console.error("❌ خطأ في PDF:", error);
+        if (hiddenContainer.parentNode) document.body.removeChild(hiddenContainer);
+        if (loading.parentNode) document.body.removeChild(loading);
+        
+        let footer = document.getElementById("footerMsg");
+        if (footer) footer.innerHTML = `❌ فشل إنشاء PDF: ${error.message}`;
+    }
 }
 
 // جعل الدالة متاحة عالمياً
