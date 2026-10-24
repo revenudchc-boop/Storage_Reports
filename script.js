@@ -11046,6 +11046,14 @@ function parseGitHubFileName(fileName) {
 // 📋 ملء القوائم المنسدلة
 // ============================================================
 async function initGitHubFilesPanel() {
+    const statusEl = document.getElementById("ghStatus");
+    if (statusEl) statusEl.textContent = "⏳ جاري جلب البيانات من الأرشيف...";
+
+    const token = localStorage.getItem("github_token");
+    const GH_OWNER = "markingdchc";
+    const GH_REPO = "marking.dchc";
+    const GH_BRANCH = "main";
+
     const folders = await loadArchiveFolders();
     ghFilesList = [];
 
@@ -11058,39 +11066,72 @@ async function initGitHubFilesPanel() {
         
         if (isDatedFolder) {
             const match = folder.name.match(/^(.*?)_(\d{4}-\d{2}-\d{2})$/);
-            folderShipName = match[1].replace(/_/g, " "); // YM_WORLD تصبح YM WORLD
-            folderDate = match[2];                        // 2026-10-08
+            folderShipName = match[1].replace(/_/g, " ");
+            folderDate = match[2];
         } else {
-            folderShipName = folder.name;                 // NNSALP أو FINALOUT
-            folderDate = "";                              // بدون تاريخ
+            folderShipName = folder.name;
+            folderDate = "";
         }
 
-        for (let file of folder.files) {
-            // تجاهل الملفات التي ليست إكسيل
-            if (!/\.(xlsx|xls)$/i.test(file.name)) continue;
-
-            let parsed = parseGitHubFileName(file.name);
-            if (!parsed) continue;
-
-            // 🆕 الفلتر الحاسم: منع المستندات العشوائية التي لا تطابق نوع المجلد
-            // إذا كان المجلد يحتوي على تاريخ، نرفض الملفات التي لا تحتوي على تاريخ (مثل JOHANNES.xlsx)
-            if (isDatedFolder && parsed.isFinalout === true) continue;
-            // إذا كان المجلد بدون تاريخ (Order No)، نرفض الملفات التي تحتوي على تاريخ
-            if (!isDatedFolder && parsed.isFinalout === false) continue;
-
-            // إضافة الملف للقائمة النهائية
-            ghFilesList.push({
-                shipName: folderShipName,                // نأخذ اسم السفينة من المجلد
-                line: parsed.line || "ALL",              // نأخذ الخط من الملف
-                date: folderDate,                        // نأخذ التاريخ من المجلد
-                isFinalout: !isDatedFolder,              // هل هو Order No؟
-                fullFileName: file.name,
-                path: file.path,
-                name: file.name,
-                download_url: file.download_url,
-                sha: file.sha,
-                folderName: folder.name
+        // 2. محاولة قراءة ملف _info.json (لضمان ظهور المجلدات الفارغة وكل الخطوط)
+        let info = null;
+        try {
+            const infoUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/archive/${folder.name}/_info.json?ref=${GH_BRANCH}`;
+            const resp = await fetch(infoUrl, {
+                headers: token ? { "Authorization": `Bearer ${token}` } : {}
             });
+            if (resp.ok) {
+                const data = await resp.json();
+                info = JSON.parse(decodeURIComponent(escape(atob(data.content.replace(/\n/g, '')))));
+            }
+        } catch (e) {
+            console.warn(`⚠️ لم يتم العثور على _info.json للمجلد ${folder.name}`);
+        }
+
+        // 3. إضافة المجلد للقائمة
+        if (info) {
+            let lines = info.lines || [];
+            if (lines.length === 0) lines = ["ALL"];
+
+            // 🆕 التعديل: نمر على جميع الخطوط الموجودة في الملف ونضيفها كلها
+            for (let line of lines) {
+                ghFilesList.push({
+                    shipName: folderShipName,
+                    line: line, // نأخذ كل خط على حدة
+                    date: folderDate,
+                    isFinalout: !isDatedFolder,
+                    fullFileName: folder.name,
+                    path: folder.path,
+                    name: folder.name,
+                    download_url: "",
+                    sha: folder.sha,
+                    folderName: folder.name
+                });
+            }
+        } else {
+            // خطة بديلة للمجلدات القديمة (التي لا تحتوي على _info.json)
+            for (let file of folder.files) {
+                if (!/\.(xlsx|xls)$/i.test(file.name)) continue;
+
+                let parsed = parseGitHubFileName(file.name);
+                if (!parsed) continue;
+
+                if (isDatedFolder && parsed.isFinalout === true) continue;
+                if (!isDatedFolder && parsed.isFinalout === false) continue;
+
+                ghFilesList.push({
+                    shipName: folderShipName,
+                    line: parsed.line || "ALL",
+                    date: folderDate,
+                    isFinalout: !isDatedFolder,
+                    fullFileName: file.name,
+                    path: file.path,
+                    name: file.name,
+                    download_url: file.download_url,
+                    sha: file.sha,
+                    folderName: folder.name
+                });
+            }
         }
     }
     
@@ -11107,7 +11148,7 @@ async function initGitHubFilesPanel() {
     
     shipSelect.innerHTML = '<option value="">-- اختر السفينة --</option>';
     
-    // جمع القيم الفريدة من shipName (ستكون أسماء السفن النظيفة فقط)
+    // جمع القيم الفريدة من shipName
     const ships = [...new Set(ghFilesList.map(f => f.shipName))].sort();
     ships.forEach(ship => {
         const opt = document.createElement("option");
@@ -11119,6 +11160,7 @@ async function initGitHubFilesPanel() {
     document.getElementById("ghLineSelect").innerHTML = '<option value="">-- اختر الخط --</option>';
     document.getElementById("ghDateSelect").innerHTML = '<option value="">-- اختر التاريخ --</option>';
     
+    if (statusEl) statusEl.textContent = `✅ ${ghFilesList.length} عنصر متوفر`;
     console.log(`📋 تم تحميل ${ships.length} سفينة`, ships);
 }
 
