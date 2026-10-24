@@ -229,7 +229,10 @@ if (!names.isFinalout &&
 }
 
 // ============================================================
-// 🆕 تحديث _info.json (مع معالجة خطأ 409 Conflict تلقائياً)
+// 🆕 تحديث _info.json
+// ============================================================
+// ============================================================
+// 🆕 تحديث _info.json
 // ============================================================
 async function updateArchiveInfo(folderName, newData, lineId) {
     const token = localStorage.getItem("github_token");
@@ -238,77 +241,59 @@ async function updateArchiveInfo(folderName, newData, lineId) {
     const infoPath = `${ARCHIVE_FOLDER}/${folderName}/_info.json`;
     const apiUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${infoPath}`;
 
-    let retries = 3; // عدد المحاولات في حال التعارض
-    
-    while (retries > 0) {
-        try {
-            let existingInfo = {};
-            let existingSha = null;
+    try {
+        let existingInfo = {};
+        let existingSha = null;
 
-            const getResp = await fetch(`${apiUrl}?ref=${GH_BRANCH}`, {
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Accept": "application/vnd.github+json"
-                }
-            });
-
-            if (getResp.ok) {
-                const data = await getResp.json();
-                existingSha = data.sha;
-                try {
-                    existingInfo = JSON.parse(decodeURIComponent(escape(atob(data.content.replace(/\n/g, '')))));
-                } catch (e) {
-                    existingInfo = {};
-                }
+        const getResp = await fetch(`${apiUrl}?ref=${GH_BRANCH}`, {
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Accept": "application/vnd.github+json"
             }
+        });
 
-            let existingLines = existingInfo.lines || [];
-            if (lineId && !existingLines.includes(lineId)) {
-                existingLines.push(lineId);
+        if (getResp.ok) {
+            const data = await getResp.json();
+            existingSha = data.sha;
+            try {
+                existingInfo = JSON.parse(decodeURIComponent(escape(atob(data.content.replace(/\n/g, '')))));
+            } catch (e) {
+                existingInfo = {};
             }
-
-            const mergedInfo = {
-                ...existingInfo,
-                ...newData,
-                lines: existingLines,
-                documents: existingInfo.documents || []
-            };
-
-            const body = {
-                message: `Update info for ${folderName}`,
-                content: btoa(unescape(encodeURIComponent(JSON.stringify(mergedInfo, null, 2)))),
-                branch: GH_BRANCH
-            };
-            if (existingSha) body.sha = existingSha;
-
-            const putResp = await fetch(apiUrl, {
-                method: "PUT",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Accept": "application/vnd.github+json",
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(body)
-            });
-
-            if (putResp.ok) {
-                console.log(`✅ [GitHub] تم تحديث _info.json للمجلد: ${folderName}`);
-                return; // نجح التحديث، نخرج من الحلقة
-            } else if (putResp.status === 409) {
-                console.warn(`⚠️ [GitHub] تعارض في _info.json، إعادة المحاولة... (${retries})`);
-                retries--;
-                await new Promise(r => setTimeout(r, 1500)); // انتظار 1.5 ثانية قبل المحاولة مجدداً
-            } else {
-                const err = await putResp.json();
-                console.warn("⚠️ [GitHub] فشل تحديث _info.json:", err.message);
-                return;
-            }
-
-        } catch (e) {
-            console.warn("⚠️ [الأرشيف] استثناء أثناء تحديث _info.json:", e.message);
-            retries--;
-            await new Promise(r => setTimeout(r, 1500));
         }
+
+        // 🆕 إدارة قائمة الخطوط المسجلة
+        let existingLines = existingInfo.lines || [];
+        if (lineId && !existingLines.includes(lineId)) {
+            existingLines.push(lineId);
+        }
+
+        const mergedInfo = {
+            ...existingInfo,
+            ...newData,
+            lines: existingLines,
+            documents: existingInfo.documents || []
+        };
+
+        const body = {
+            message: `Update info for ${folderName}`,
+            content: btoa(unescape(encodeURIComponent(JSON.stringify(mergedInfo, null, 2)))),
+            branch: GH_BRANCH
+        };
+        if (existingSha) body.sha = existingSha;
+
+        await fetch(apiUrl, {
+            method: "PUT",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Accept": "application/vnd.github+json",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(body)
+        });
+
+    } catch (e) {
+        console.warn("⚠️ [الأرشيف] فشل تحديث _info.json:", e.message);
     }
 }
 
@@ -444,6 +429,10 @@ async function openArchiveInternal(filterShip, filterDate) {
                 .preview-body iframe { width: 100%; height: 100%; border: none; border-radius: 8px; background: white; }
                 .preview-body .no-preview { color: white; text-align: center; font-size: 18px; padding: 40px; }
                 .preview-body .no-preview button { margin-top: 15px; background: #28a745; color: white; border: none; padding: 12px 30px; border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 15px; }
+				#excelTable { width:100%; border-collapse:collapse; font-size:12px; direction:ltr; background:white; }
+				#excelTable td, #excelTable th { border:1px solid #ccc; padding:6px; text-align:center; white-space:nowrap; }
+				#excelTable tr:nth-child(even) { background:#f9f9f9; }
+				#excelTable tr:first-child td { background:#0a3d62; color:white; font-weight:bold; }
             </style>
         </head>
         <body>
@@ -482,6 +471,27 @@ async function openArchiveInternal(filterShip, filterDate) {
             </div>
             <script>
                 window.archiveOpener = window.opener;
+				// 🆕 تحميل XLSX عند الحاجة فقط
+window._xlsxLoadingPromise = null;
+window.ensureXLSX = function() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (window._xlsxLoadingPromise) return window._xlsxLoadingPromise;
+
+    window._xlsxLoadingPromise = new Promise(function(resolve, reject) {
+        let s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+        s.onload  = function() {
+            if (window.XLSX) resolve(window.XLSX);
+            else reject(new Error('تم التحميل لكن XLSX غير معرّف'));
+        };
+        s.onerror = function() {
+            reject(new Error('فشل تحميل مكتبة XLSX من CDN — تحقق من الاتصال'));
+        };
+        document.head.appendChild(s);
+    });
+
+    return window._xlsxLoadingPromise;
+};
                 window.isAdminUser = ${isAdminUser};
 				// 🆕 دالة تنسيق حجم الملف (داخل نافذة الأرشيف)
                 window.formatFileSize = function(bytes) {
@@ -526,43 +536,97 @@ async function openArchiveInternal(filterShip, filterDate) {
                     document.body.removeChild(a);
                 };
                 
-                window.viewFileInArchive = function(url, fileName) {
-                    console.log("👁️ معاينة:", fileName);
-                    
-                    window.currentPreviewUrl = url;
-                    window.currentPreviewName = fileName || 'file';
-                    
-                    let modal = document.getElementById('previewModal');
-                    let body = document.getElementById('previewBody');
-                    let title = document.getElementById('previewTitle');
-                    
-                    title.textContent = '👁️ ' + (fileName || 'معاينة الملف');
-                    
-                    let ext = (fileName || '').toLowerCase().split('.').pop();
-                    
-                    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) {
-                        body.innerHTML = '<img src="' + url + '" alt="' + fileName + '">';
-                    } else if (ext === 'pdf') {
-                        // 🆕 حل مشكلة CORS: استخدام Google Docs Viewer أو Microsoft Office Viewer
-                        let googleViewerUrl = 'https://docs.google.com/viewer?embedded=true&url=' + encodeURIComponent(url);
-                        body.innerHTML = 
-                            '<iframe src="' + googleViewerUrl + '" ' +
-                            'style="width:100%;height:100%;border:none;background:white;" ' +
-                            'allowfullscreen></iframe>' +
-                            '<div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:white;padding:6px 12px;border-radius:20px;font-size:11px;">' +
-                            'إذا لم يظهر الملف، <a href="#" onclick="window.downloadPreviewFile(); return false;" style="color:#4facfe;text-decoration:underline;">اضغط هنا للتنزيل</a>' +
-                            '</div>';
-                    } else {
-                        body.innerHTML = 
-                            '<div class="no-preview">' +
-                            '📄 لا يمكن معاينة هذا النوع (' + ext + ') مباشرة' +
-                            '<br>' +
-                            '<button onclick="window.downloadPreviewFile()">📥 تنزيل الملف</button>' +
-                            '</div>';
-                    }
-                    
-                    modal.classList.add('active');
-                };
+				window.viewFileInArchive = async function(url, fileName) {
+					console.log("👁️ معاينة:", fileName);
+
+					window.currentPreviewUrl = url;
+					window.currentPreviewName = fileName || 'file';
+
+					let modal = document.getElementById('previewModal');
+					let body  = document.getElementById('previewBody');
+					let title = document.getElementById('previewTitle');
+
+					title.textContent = '👁️ ' + (fileName || 'معاينة الملف');
+
+					let ext = (fileName || '').toLowerCase().split('.').pop();
+
+					// ============================================================
+					// 🆕 تحميل XLSX ديناميكياً عند الحاجة (بدل الاعتماد على <script> في <head>)
+					// ============================================================
+					function ensureXLSX() {
+						if (window.XLSX) return Promise.resolve(window.XLSX);
+						if (window._xlsxLoadingPromise) return window._xlsxLoadingPromise;
+
+						window._xlsxLoadingPromise = new Promise(function(resolve, reject) {
+							let s = document.createElement('script');
+							s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+							s.onload = function() {
+								if (window.XLSX) resolve(window.XLSX);
+								else reject(new Error('تم التحميل لكن XLSX غير معرّف'));
+							};
+							s.onerror = function() {
+								reject(new Error('فشل تحميل مكتبة XLSX من CDN — تحقق من الاتصال بالإنترنت'));
+							};
+							document.head.appendChild(s);
+						});
+
+						return window._xlsxLoadingPromise;
+					}
+
+					// ---------- صور ----------
+					if (['jpg','jpeg','png','gif','webp','bmp','svg'].includes(ext)) {
+						body.innerHTML = '<img src="' + url + '" alt="' + fileName + '">';
+					}
+					// ---------- PDF ----------
+					else if (ext === 'pdf') {
+						let googleViewerUrl = 'https://docs.google.com/viewer?embedded=true&url=' + encodeURIComponent(url);
+						body.innerHTML =
+							'<iframe src="' + googleViewerUrl + '" style="width:100%;height:100%;border:none;background:white;" allowfullscreen></iframe>' +
+							'<div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:white;padding:6px 12px;border-radius:20px;font-size:11px;">' +
+							'إذا لم يظهر، <a href="#" onclick="window.downloadPreviewFile();return false;" style="color:#4facfe;text-decoration:underline;">اضغط هنا للتنزيل</a>' +
+							'</div>';
+					}
+					// ---------- Excel (قراءة فقط) ----------
+					else if (ext === 'xls' || ext === 'xlsx') {
+						body.innerHTML = '<div style="color:white;text-align:center;padding:40px;font-size:18px;">⏳ جاري تحميل مكتبة Excel...</div>';
+
+						try {
+							// 1️⃣ نضمن أن XLSX محمّلة أولاً
+							await ensureXLSX();
+
+							// 2️⃣ نحدّث الرسالة
+							body.innerHTML = '<div style="color:white;text-align:center;padding:40px;font-size:18px;">⏳ جاري تحميل الملف...</div>';
+
+							// 3️⃣ نحمّل الملف
+							let response = await fetch(url);
+							if (!response.ok) throw new Error('فشل تحميل الملف (HTTP ' + response.status + ')');
+
+							let arrayBuffer = await response.arrayBuffer();
+							let workbook = XLSX.read(arrayBuffer, { type: 'array' });
+							let sheetName = workbook.SheetNames[0];
+							let sheet = workbook.Sheets[sheetName];
+
+							// 4️⃣ تحويلها لجدول HTML للقراءة فقط
+							let htmlTable = XLSX.utils.sheet_to_html(sheet, { id: 'excelTable', editable: false });
+
+							body.innerHTML = '<div style="background:white;padding:10px;width:100%;height:100%;overflow:auto;">' + htmlTable + '</div>';
+						}
+						catch (error) {
+							console.error("خطأ في معاينة الإكسيل:", error);
+							body.innerHTML =
+								'<div class="no-preview">📄 فشل تحميل ملف الإكسيل<br>' + error.message +
+								'<br><button onclick="window.downloadPreviewFile()">📥 تنزيل الملف</button></div>';
+						}
+					}
+					// ---------- أنواع أخرى ----------
+					else {
+						body.innerHTML =
+							'<div class="no-preview">📄 لا يمكن معاينة هذا النوع (' + ext + ') مباشرة' +
+							'<br><button onclick="window.downloadPreviewFile()">📥 تنزيل الملف</button></div>';
+					}
+
+					modal.classList.add('active');
+				};
                 
                 window.closePreview = function() {
                     let modal = document.getElementById('previewModal');
@@ -1605,7 +1669,8 @@ async function uploadBase64ToArchive(folderName, fileName, base64Data) {
                 result.github.path = filePath;
                 console.log(`✅ [GitHub] تم: ${filePath}`);
                 
-
+                // تحديث _info.json
+                await updateArchiveInfo(folderName, {});
             } else {
                 const err = await resp.json();
                 result.github.error = err.message;
