@@ -229,10 +229,7 @@ if (!names.isFinalout &&
 }
 
 // ============================================================
-// 🆕 تحديث _info.json
-// ============================================================
-// ============================================================
-// 🆕 تحديث _info.json
+// 🆕 تحديث _info.json (مع معالجة خطأ 409 Conflict تلقائياً)
 // ============================================================
 async function updateArchiveInfo(folderName, newData, lineId) {
     const token = localStorage.getItem("github_token");
@@ -241,59 +238,77 @@ async function updateArchiveInfo(folderName, newData, lineId) {
     const infoPath = `${ARCHIVE_FOLDER}/${folderName}/_info.json`;
     const apiUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${infoPath}`;
 
-    try {
-        let existingInfo = {};
-        let existingSha = null;
+    let retries = 3; // عدد المحاولات في حال التعارض
+    
+    while (retries > 0) {
+        try {
+            let existingInfo = {};
+            let existingSha = null;
 
-        const getResp = await fetch(`${apiUrl}?ref=${GH_BRANCH}`, {
-            headers: {
-                "Authorization": `Bearer ${token}`,
-                "Accept": "application/vnd.github+json"
+            const getResp = await fetch(`${apiUrl}?ref=${GH_BRANCH}`, {
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Accept": "application/vnd.github+json"
+                }
+            });
+
+            if (getResp.ok) {
+                const data = await getResp.json();
+                existingSha = data.sha;
+                try {
+                    existingInfo = JSON.parse(decodeURIComponent(escape(atob(data.content.replace(/\n/g, '')))));
+                } catch (e) {
+                    existingInfo = {};
+                }
             }
-        });
 
-        if (getResp.ok) {
-            const data = await getResp.json();
-            existingSha = data.sha;
-            try {
-                existingInfo = JSON.parse(decodeURIComponent(escape(atob(data.content.replace(/\n/g, '')))));
-            } catch (e) {
-                existingInfo = {};
+            let existingLines = existingInfo.lines || [];
+            if (lineId && !existingLines.includes(lineId)) {
+                existingLines.push(lineId);
             }
+
+            const mergedInfo = {
+                ...existingInfo,
+                ...newData,
+                lines: existingLines,
+                documents: existingInfo.documents || []
+            };
+
+            const body = {
+                message: `Update info for ${folderName}`,
+                content: btoa(unescape(encodeURIComponent(JSON.stringify(mergedInfo, null, 2)))),
+                branch: GH_BRANCH
+            };
+            if (existingSha) body.sha = existingSha;
+
+            const putResp = await fetch(apiUrl, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Accept": "application/vnd.github+json",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (putResp.ok) {
+                console.log(`✅ [GitHub] تم تحديث _info.json للمجلد: ${folderName}`);
+                return; // نجح التحديث، نخرج من الحلقة
+            } else if (putResp.status === 409) {
+                console.warn(`⚠️ [GitHub] تعارض في _info.json، إعادة المحاولة... (${retries})`);
+                retries--;
+                await new Promise(r => setTimeout(r, 1500)); // انتظار 1.5 ثانية قبل المحاولة مجدداً
+            } else {
+                const err = await putResp.json();
+                console.warn("⚠️ [GitHub] فشل تحديث _info.json:", err.message);
+                return;
+            }
+
+        } catch (e) {
+            console.warn("⚠️ [الأرشيف] استثناء أثناء تحديث _info.json:", e.message);
+            retries--;
+            await new Promise(r => setTimeout(r, 1500));
         }
-
-        // 🆕 إدارة قائمة الخطوط المسجلة
-        let existingLines = existingInfo.lines || [];
-        if (lineId && !existingLines.includes(lineId)) {
-            existingLines.push(lineId);
-        }
-
-        const mergedInfo = {
-            ...existingInfo,
-            ...newData,
-            lines: existingLines,
-            documents: existingInfo.documents || []
-        };
-
-        const body = {
-            message: `Update info for ${folderName}`,
-            content: btoa(unescape(encodeURIComponent(JSON.stringify(mergedInfo, null, 2)))),
-            branch: GH_BRANCH
-        };
-        if (existingSha) body.sha = existingSha;
-
-        await fetch(apiUrl, {
-            method: "PUT",
-            headers: {
-                "Authorization": `Bearer ${token}`,
-                "Accept": "application/vnd.github+json",
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(body)
-        });
-
-    } catch (e) {
-        console.warn("⚠️ [الأرشيف] فشل تحديث _info.json:", e.message);
     }
 }
 
@@ -1590,8 +1605,7 @@ async function uploadBase64ToArchive(folderName, fileName, base64Data) {
                 result.github.path = filePath;
                 console.log(`✅ [GitHub] تم: ${filePath}`);
                 
-                // تحديث _info.json
-                await updateArchiveInfo(folderName, {});
+
             } else {
                 const err = await resp.json();
                 result.github.error = err.message;
