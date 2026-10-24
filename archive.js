@@ -577,23 +577,27 @@ window.viewFileInArchive = async function(url, fileName) {
     }
     // ---------- Excel ----------
     else if (ext === 'xls' || ext === 'xlsx') {
-        body.innerHTML = '<div style="color:white;text-align:center;padding:40px;font-size:18px;">⏳ تحميل مكتبة Excel...</div>';
+        // إظهار شاشة التحميل
+        modal.classList.add('active');
+        body.innerHTML = '<div style="color:white;text-align:center;padding:40px;font-size:18px;">⏳ جاري قراءة الملف...</div>';
 
         try {
             await ensureXLSX();
-            body.innerHTML = '<div style="color:white;text-align:center;padding:40px;font-size:18px;">⏳ تحميل الملف...</div>';
-
+            
             let response = await fetch(url);
             if (!response.ok) throw new Error('HTTP ' + response.status);
             let arrayBuffer = await response.arrayBuffer();
+            
+            // إعطاء المتصفح فرصة للتحديث
+            await new Promise(r => setTimeout(r, 50));
+
             let workbook = XLSX.read(arrayBuffer, { type: 'array' });
             let sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-            // قراءة البيانات كمصفوفة 2D
             let data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false, blankrows: false });
             if (!data || data.length === 0) throw new Error('الورقة فارغة');
 
-            // اكتشاف صف الرؤوس (أول صف به عمودان غير فارغين على الأقل)
+            // اكتشاف صف الرؤوس
             let headerIdx = 0;
             for (let i = 0; i < Math.min(data.length, 5); i++) {
                 if ((data[i] || []).filter(c => String(c).trim() !== '').length >= 2) { headerIdx = i; break; }
@@ -612,7 +616,7 @@ window.viewFileInArchive = async function(url, fileName) {
                     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
             }
 
-            // بناء الجدول يدوياً (thead + tbody)
+            // بناء الجدول
             let tHtml = '<table id="excelTable"><thead>';
             metaRows.forEach(r => {
                 tHtml += '<tr class="meta-row">';
@@ -631,7 +635,7 @@ window.viewFileInArchive = async function(url, fileName) {
 
             body.innerHTML =
                 '<style>' +
-                    '#excelTable { border-collapse: collapse; }' +
+                    '#excelTable { border-collapse: collapse; width: 100%; }' +
                     '#excelTable th, #excelTable td { box-sizing: border-box; border: 1px solid #ccc; padding: 6px 10px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }' +
                     '#excelTable thead th { position: sticky; top: 0; z-index: 10; background: #0a3d62; color: white; font-weight: bold; }' +
                     '#excelTable thead tr.meta-row td { background: #e9ecef; color: #333; font-weight: bold; }' +
@@ -641,16 +645,16 @@ window.viewFileInArchive = async function(url, fileName) {
                 '<div style="width:100%;height:100%;display:flex;flex-direction:column;background:#525659;">' +
                     '<div style="background:#0a3d62;color:white;padding:10px 15px;display:flex;gap:10px;align-items:center;box-shadow:0 2px 6px rgba(0,0,0,0.4);flex-shrink:0;">' +
                         '<span style="font-size:18px;">🔍</span>' +
-                        '<input type="text" id="excelSearchInput" placeholder="ابحث داخل الجدول (كل الأعمدة)..." style="flex:1;padding:10px 15px;border-radius:20px;border:none;font-size:14px;direction:rtl;outline:none;">' +
+                        '<input type="text" id="excelSearchInput" placeholder="ابحث داخل الجدول..." style="flex:1;padding:10px 15px;border-radius:20px;border:none;font-size:14px;direction:rtl;outline:none;">' +
                         '<span id="excelSearchCount" style="font-size:12px;font-weight:bold;min-width:90px;text-align:center;"></span>' +
                         '<button id="excelSearchClear" style="background:#dc3545;color:white;border:none;padding:8px 16px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:12px;">✖ مسح</button>' +
                     '</div>' +
-                    '<div id="excelTableContainer" style="flex:1;overflow:scroll;background:white;padding:10px;">' +
+                    '<div id="excelTableContainer" style="flex:1;overflow:auto;background:white;padding:10px;">' +
                         tHtml +
                     '</div>' +
                 '</div>';
 
-            // قياس الأعمدة وتثبيتها + ربط البحث
+            // 🛠️ تثبيت عرض الأعمدة بشكل آمن وسريع (دون تجميد المتصفح)
             setTimeout(function() {
                 let input    = document.getElementById('excelSearchInput');
                 let counter  = document.getElementById('excelSearchCount');
@@ -658,65 +662,73 @@ window.viewFileInArchive = async function(url, fileName) {
                 let tableEl  = document.getElementById('excelTable');
                 if (!input || !tableEl) return;
 
-                // 1) حرر الجدول لأخذ القياسات الطبيعية
-                tableEl.style.tableLayout = 'auto';
-                tableEl.style.width = 'max-content';
-                tableEl.style.minWidth = '0';
-                tableEl.style.maxWidth = 'none';
-                tableEl.getBoundingClientRect(); // force reflow
+                try {
+                    tableEl.style.tableLayout = 'auto';
+                    tableEl.style.width = 'max-content';
 
-                // 2) قس عرض كل عمود = أوسع خلية فيه
-                let numCols = tableEl.querySelectorAll('thead tr.header-row th').length;
-                let colWidths = new Array(numCols).fill(60);
+                    // قياس أول 20 صفاً فقط (لتجنب البطء)
+                    let sampleRows = Array.from(tableEl.querySelectorAll('tr')).slice(0, 20);
+                    let numCols = tableEl.querySelectorAll('thead tr.header-row th').length;
+                    let colWidths = new Array(numCols).fill(80); 
 
-                tableEl.querySelectorAll('tr').forEach(function(tr) {
-                    for (let j = 0; j < tr.cells.length && j < numCols; j++) {
-                        let cell = tr.cells[j];
-                        if (!cell) continue;
-                        cell.style.whiteSpace = 'nowrap';
-                        cell.style.overflow = 'visible';
-                        cell.style.textOverflow = 'clip';
-                        let w = cell.getBoundingClientRect().width;
-                        if (w > colWidths[j]) colWidths[j] = w;
-                    }
-                });
+                    sampleRows.forEach(tr => {
+                        Array.from(tr.cells).forEach(c => {
+                            c.style.whiteSpace = 'nowrap';
+                            c.style.overflow = 'visible';
+                            c.style.textOverflow = 'clip';
+                        });
+                    });
 
-                // 3) أضف هامش أمان 4px لكل عمود (للحدود) وبناء colgroup
-                let totalW = 0;
-                let colgroup = document.createElement('colgroup');
-                colWidths.forEach(function(w) {
-                    w = Math.ceil(w) + 4;
-                    totalW += w;
-                    let col = document.createElement('col');
-                    col.style.width = w + 'px';
-                    colgroup.appendChild(col);
-                });
-                tableEl.insertBefore(colgroup, tableEl.firstChild);
+                    tableEl.getBoundingClientRect(); 
 
-                // 4) قفل العرض
-                tableEl.style.tableLayout = 'fixed';
-                tableEl.style.width = totalW + 'px';
-                tableEl.style.minWidth = totalW + 'px';
-                tableEl.style.maxWidth = 'none';
+                    sampleRows.forEach(tr => {
+                        Array.from(tr.cells).forEach((c, j) => {
+                            if (j < numCols) {
+                                let w = c.getBoundingClientRect().width;
+                                if (w > colWidths[j]) colWidths[j] = w;
+                            }
+                        });
+                    });
 
-                // 5) استعد overflow للقص النظيف
-                tableEl.querySelectorAll('td, th').forEach(function(c) {
-                    c.style.overflow = 'hidden';
-                    c.style.textOverflow = 'ellipsis';
-                });
+                    let totalW = 0;
+                    let colgroup = document.createElement('colgroup');
+                    colWidths.forEach(w => {
+                        let finalW = Math.ceil(w) + 6; 
+                        totalW += finalW;
+                        let col = document.createElement('col');
+                        col.style.width = finalW + 'px';
+                        colgroup.appendChild(col);
+                    });
+                    tableEl.insertBefore(colgroup, tableEl.firstChild);
 
-                // 6) البحث — يلمس tbody فقط (الرأس محمي)
+                    tableEl.style.tableLayout = 'fixed';
+                    tableEl.style.width = totalW + 'px';
+                    tableEl.style.minWidth = totalW + 'px';
+
+                    tableEl.querySelectorAll('td, th').forEach(c => {
+                        c.style.overflow = 'hidden';
+                        c.style.textOverflow = 'ellipsis';
+                    });
+
+                } catch(e) {
+                    console.warn("خطأ في القياس:", e);
+                }
+
+                // 🔍 تسريع البحث بتخزين نصوص الصفوف مسبقاً
+                let tbodyRows = Array.from(tableEl.querySelectorAll('tbody tr'));
+                let rowTexts = tbodyRows.map(tr => tr.textContent.toLowerCase());
+
                 function runSearch() {
                     let q = input.value.toLowerCase().trim();
-                    let tbody = tableEl.querySelector('tbody');
-                    if (!tbody) return;
-                    let rows = tbody.querySelectorAll('tr');
-                    let visible = 0, total = rows.length;
-                    rows.forEach(function(tr) {
-                        let match = (q === '') || (tr.textContent.toLowerCase().indexOf(q) !== -1);
-                        tr.style.display = match ? '' : 'none';
+                    let visible = 0;
+                    let total = tbodyRows.length;
+
+                    for (let i = 0; i < total; i++) {
+                        let match = (q === '') || (rowTexts[i].indexOf(q) !== -1);
+                        tbodyRows[i].style.display = match ? '' : 'none';
                         if (match) visible++;
-                    });
+                    }
+
                     if (q) {
                         counter.textContent = '👁️ ' + visible + ' / ' + total;
                         counter.style.color = visible > 0 ? '#4facfe' : '#ff6b6b';
@@ -725,23 +737,27 @@ window.viewFileInArchive = async function(url, fileName) {
                     }
                 }
 
-                input.addEventListener('input', runSearch);
+                let debounceTimer;
+                input.addEventListener('input', function() {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(runSearch, 150); // تأخير بسيط لمنع التجميد
+                });
+
                 input.addEventListener('keydown', function(e) {
                     if (e.key === 'Escape') { input.value = ''; runSearch(); }
                 });
+
                 clearBtn.addEventListener('click', function() {
                     input.value = ''; runSearch(); input.focus();
                 });
-                input.focus();
 
+                input.focus();
             }, 100);
 
         }
         catch (error) {
             console.error("خطأ في معاينة الإكسيل:", error);
-            body.innerHTML =
-                '<div class="no-preview">📄 فشل تحميل ملف الإكسيل<br>' + error.message +
-                '<br><button onclick="window.downloadPreviewFile()">📥 تنزيل الملف</button></div>';
+            body.innerHTML = '<div class="no-preview" style="color:white;text-align:center;padding:40px;">📄 فشل تحميل ملف الإكسيل<br>' + error.message + '<br><button onclick="window.downloadPreviewFile()" style="margin-top:15px;background:#28a745;color:white;border:none;padding:10px 20px;border-radius:20px;cursor:pointer;font-weight:bold;">📥 تنزيل الملف</button></div>';
         }
     }
     // ---------- أنواع أخرى ----------
