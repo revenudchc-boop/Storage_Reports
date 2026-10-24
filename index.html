@@ -14,7 +14,21 @@
         .header { background: #0a3d62; color: white; padding: 20px 25px; }
         .header h1 { margin: 0; font-size: 1.8rem; }
         .header p { margin: 5px 0 0; opacity: 0.9; }
-        .upload-area { padding: 25px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; text-align: center; }
+        .upload-area {
+            padding: 25px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            text-align: center;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            min-height: 90px;
+        }
+        .upload-area > * {
+            flex-shrink: 0;
+        }
         .file-input { display: none; }
         .file-label { background: #0a3d62; color: white; padding: 12px 28px; border-radius: 40px; cursor: pointer; display: inline-block; font-weight: bold; font-size: 16px; transition: 0.3s; margin: 5px; border: none; }
         .file-label:hover { background: #1e6f5c; transform: translateY(-2px); }
@@ -191,58 +205,63 @@
 
 <div class="container" id="appContainer" style="display:none;">
     <div class="header">
-        <h1>📦 تقرير أيام التخزين</h1>
-        <p>فترات سماح متسلسلة لكل حالة (TRSHP / EXPRT / STRGE / IMPRT)</p>
+	    <div id="userBar"></div>
+        <h1>📦 إداره السفينه</h1>
         <div id="headerInfo" style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 13px; display: flex; justify-content: space-between; flex-wrap: wrap;">
             <div>🚢 <strong>سفينه الشحن (O/B Carrier Name):</strong> <span id="headerCarrierName">—</span></div>
             <div>📅 <strong>تاريخ الشحن (O/B Carrier ATD):</strong> <span id="headerShippingDate">—</span></div>
             <div>🏷️ <strong>الخط (Line ID):</strong> <span id="headerLineId">—</span></div>
         </div>
-        <div id="userBar"></div>
+
     </div>
 
-    <div class="upload-area" style="display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;">
-        <div id="githubFilesPanel" style="background:#e8f4f8;margin:15px 25px;padding:15px 20px;border-radius:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid #b8daff;">
-            <div style="font-weight:bold;color:#0a3d62;font-size:15px;">📂 تحميل من GitHub:</div>
-
-            <select id="ghShipSelect" style="padding:8px 12px;border-radius:8px;border:1px solid #ced4da;min-width:180px;font-size:14px;">
-                <option value="">-- اختر السفينة --</option>
-            </select>
-
-            <select id="ghLineSelect" style="padding:8px 12px;border-radius:8px;border:1px solid #ced4da;min-width:140px;font-size:14px;">
-                <option value="">-- اختر الخط --</option>
-            </select>
-
-            <select id="ghDateSelect" style="padding:8px 12px;border-radius:8px;border:1px solid #ced4da;min-width:140px;font-size:14px;">
-                <option value="">-- اختر التاريخ --</option>
-            </select>
-
-            <button id="ghDownloadBtn" style="background:#17a2b8;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-weight:bold;font-size:14px;">📥 تحميل الملف</button>
-
-            <button id="ghRefreshBtn" style="background:#6c757d;color:white;border:none;padding:10px 20px;border-radius:30px;cursor:pointer;font-weight:bold;font-size:14px;">🔄 تحديث القائمة</button>
-
-            <span id="ghStatus" style="font-size:13px;color:#6c757d;"></span>
-        </div>
-        <input type="file" id="fileInput" class="file-input" accept=".xls, .xlsx" />
-        <label for="fileInput" class="file-label">📂 تحميل ملف</label>
-        <div id="currentFileName" style="background: #e9ecef; padding: 8px 16px; border-radius: 20px; font-size: 14px; color: #0a3d62;">
-            📄 لا يوجد ملف محمل
-        </div>
-        <button id="exportAllBtn" class="export-all-btn">📥 تصدير جميع التبويبات</button>
-
-        <button id="setTokenBtn" style="background:#6c757d;color:white;padding:12px 28px;border-radius:40px;cursor:pointer;font-weight:bold;font-size:16px;margin:5px;border:none;display:none;">🔑 إعداد GitHub Token</button>
-
-        <button id="manageUsersBtn" style="background:#8b5cf6;color:white;padding:12px 28px;border-radius:40px;cursor:pointer;font-weight:bold;font-size:16px;margin:5px;border:none;">👥 إدارة المستخدمين</button>
-
-        <button id="interactiveReportBtn" style="background: #e67e22; color: white; padding: 12px 28px; border-radius: 40px; cursor: pointer; display: inline-block; font-weight: bold; font-size: 16px; transition: 0.3s; margin: 5px; border: none;">📊 تقرير مجمع تفاعلي</button>
+<!-- 🆕 صف اسم الملف المحمل (منفصل في الأعلى) -->
+<div id="currentFileBar" style="background: #e8f4f8; margin: 0 25px 15px 25px; padding: 10px 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; border: 1px solid #b8daff;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-weight: bold; color: #0a3d62;">📄 الملف الحالي:</span>
+        <span id="currentFileName" style="background: #fff; padding: 6px 14px; border-radius: 20px; font-size: 13px; color: #0a3d62; border: 1px solid #dee2e6;">
+            لا يوجد ملف محمل
+        </span>
     </div>
+</div>
 
-    <!-- قسم إدارة الخطوط العامة -->
-    <div style="background: #e8f4f8; margin: 0 25px 15px 25px; padding: 12px 20px; border-radius: 12px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-        <div style="font-weight: bold; color: #0a3d62;">🏷️ إدارة الخطوط العامة:</div>
-        <input type="text" id="newGlobalLineName" placeholder="📝 اكتب اسم خط جديد (مثال: MAERSK, CMA-CGM, ...)" style="flex:2; padding: 8px 12px; border-radius: 8px; border: 1px solid #ced4da;">
-        <button id="addGlobalLineBtn" style="background: #28a745; color: white; border: none; padding: 8px 20px; border-radius: 30px; cursor: pointer; font-weight: bold;">➕ إضافة خط للجميع</button>
-    </div>
+<!-- 🆕 لوحة تحميل من GitHub -->
+<div id="githubFilesPanel" style="background:#e8f4f8;margin:0 25px 15px 25px;padding:12px 18px;border-radius:12px;display:flex;gap:10px;align-items:center;flex-wrap:nowrap;overflow-x:auto;border:1px solid #b8daff;">
+    <select id="ghShipSelect" style="padding:8px 12px;border-radius:8px;border:1px solid #ced4da;min-width:180px;font-size:14px;">
+        <option value="">-- اختر السفينة --</option>
+    </select>
+    
+    <select id="ghLineSelect" style="padding:8px 12px;border-radius:8px;border:1px solid #ced4da;min-width:140px;font-size:14px;">
+        <option value="">-- اختر الخط --</option>
+    </select>
+    
+    <select id="ghDateSelect" style="padding:8px 12px;border-radius:8px;border:1px solid #ced4da;min-width:140px;font-size:14px;">
+        <option value="">-- اختر التاريخ --</option>
+    </select>
+    
+    <button id="ghDownloadBtn" style="background:#17a2b8;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-weight:bold;font-size:14px;">📥 تحميل الملف</button>
+    
+    <button id="ghRefreshBtn" style="background:#6c757d;color:white;border:none;padding:10px 20px;border-radius:30px;cursor:pointer;font-weight:bold;font-size:14px;">🔄 تحديث القائمة</button>
+    
+    <span id="ghStatus" style="font-size:13px;color:#6c757d;"></span>
+</div>
+
+<!-- 🆕 شريط الأزرار الرئيسية (صف واحد) -->
+<div class="upload-area" style="display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;">
+    <input type="file" id="fileInput" class="file-input" accept=".xls, .xlsx" />
+    <label for="fileInput" class="file-label" style="margin: 0;">📂 تحميل ملف</label>
+    <button id="exportAllBtn" class="export-all-btn" style="margin: 0;">📥 تصدير جميع التبويبات</button>
+    <button id="setTokenBtn" style="background:#6c757d;color:white;padding:12px 28px;border-radius:40px;cursor:pointer;font-weight:bold;font-size:16px;border:none;display:none;">🔑 إعداد GitHub Token</button>
+     <!--<button id="manageUsersBtn" style="background:#8b5cf6;color:white;padding:12px 28px;border-radius:40px;cursor:pointer;font-weight:bold;font-size:16px;border:none;">👥 إدارة المستخدمين</button>-->
+    <button id="interactiveReportBtn" style="background: #e67e22; color: white; padding: 12px 28px; border-radius: 40px; cursor: pointer; font-weight: bold; font-size: 16px; border: none;">📊 تقرير مجمع تفاعلي</button>
+</div>
+
+<!-- قسم إدارة الخطوط العامة (مخفي - غير مفعّل) -->
+<div id="generalLinesManager" style="background: #e8f4f8; margin: 0 25px 15px 25px; padding: 12px 20px; border-radius: 12px; display: none; gap: 15px; align-items: center; flex-wrap: wrap;">
+    <div style="font-weight: bold; color: #0a3d62;">🏷️ إدارة الخطوط العامة:</div>
+    <input type="text" id="newGlobalLineName" placeholder="📝 اكتب اسم خط جديد (مثال: MAERSK, CMA-CGM, ...)" style="flex:2; padding: 8px 12px; border-radius: 8px; border: 1px solid #ced4da;">
+    <button id="addGlobalLineBtn" style="background: #28a745; color: white; border: none; padding: 8px 20px; border-radius: 30px; cursor: pointer; font-weight: bold;">➕ إضافة خط للجميع</button>
+</div>
 
     <div class="tabs">
         <button class="tab-btn active" data-tab="tab1">📋 TRSHP + EXPRT</button>
@@ -887,6 +906,8 @@
 </div>
 
 <script src="auth.js"></script>
+<script src="local-server.js"></script>
+<script src="archive.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

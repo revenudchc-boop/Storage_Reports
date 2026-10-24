@@ -262,6 +262,7 @@ function applyPermissions() {
         '#fileInput', '.file-label',           // رفع الملفات
         '#addGlobalLineBtn', '#newGlobalLineName', // إدارة الخطوط
         '#manageUsersBtn',                      // إدارة المستخدمين
+		'#archiveBtn',
 		'#setTokenBtn',                         // زر التوكن
         '.settings-btn'                         // أزرار الإعدادات
     ];
