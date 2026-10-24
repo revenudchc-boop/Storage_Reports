@@ -1742,181 +1742,56 @@ function hideArchiveNotification() {
 // ============================================================
 // 🎯 ربط زر الأرشيف + حدث تغيير السفينة
 // ============================================================
-// ============================================================
-// ➕ حدث مستقل لنافذة إنشاء مجلد أرشيف جديد
-// ============================================================
 document.addEventListener("DOMContentLoaded", function() {
-    // 1. ربط زر الفتح وتعبئة قائمة السفن المتاحة
+    let toolbar = document.querySelector('.upload-area');
+    if (!toolbar) return;
+
+    if (!document.getElementById('archiveBtn')) {
+        let archiveBtn = document.createElement('button');
+        archiveBtn.id = 'archiveBtn';
+        archiveBtn.innerHTML = '📂 أرشيف السفن';
+        archiveBtn.style.cssText = 'background: #0a3d62; color: white; padding: 12px 28px; border-radius: 40px; cursor: pointer; display: inline-block; font-weight: bold; font-size: 16px; margin: 5px; border: none; transition: 0.3s;';
+        archiveBtn.onmouseover = function() { this.style.transform = 'translateY(-2px)'; };
+        archiveBtn.onmouseout = function() { this.style.transform = 'translateY(0)'; };
+        archiveBtn.onclick = openArchiveWindow;
+        toolbar.appendChild(archiveBtn);
+    }
+
     setTimeout(() => {
-        let createBtn = document.getElementById("createArchiveBtn");
-        if (createBtn) {
-            createBtn.onclick = function() {
-                // تصفير الحقول
-                document.getElementById('newArchiveShip').value = '';
-                document.getElementById('newArchiveDate').value = '';
-                document.getElementById('linesContainer').innerHTML = `
-                    <div class="line-input-group" style="display: flex; gap: 5px;">
-                        <input type="text" class="newArchiveLineInput" placeholder="مثال: YML" style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px;">
-                    </div>
-                `;
-
-                // 🆕 تعبئة قائمة السفن المتاحة من الأرشيف الحالي
-                let shipsList = document.getElementById('shipsList');
-                if (shipsList) {
-                    shipsList.innerHTML = ''; // تفريغ القائمة
-                    
-                    if (typeof ghFilesList !== 'undefined' && ghFilesList.length > 0) {
-                        // استخراج أسماء السفن الفريدة
-                        let uniqueShips = [...new Set(ghFilesList.map(f => f.shipName))].sort();
-                        uniqueShips.forEach(ship => {
-                            let option = document.createElement('option');
-                            option.value = ship;
-                            shipsList.appendChild(option);
-                        });
-                    }
+        let shipSelect = document.getElementById('ghShipSelect');
+        let dateSelect = document.getElementById('ghDateSelect');
+        
+        // 🆕 دالة موحدة لفحص الأرشيف
+        function checkArchiveFromSelectors() {
+            let shipName = shipSelect ? shipSelect.value : "";
+            let shipDate = "";
+            
+            if (dateSelect && dateSelect.value) {
+                let selectedOption = dateSelect.options[dateSelect.selectedIndex];
+                if (selectedOption && selectedOption.dataset && selectedOption.dataset.date) {
+                    shipDate = selectedOption.dataset.date;
                 }
-
-                document.getElementById('createArchiveModal').style.display = 'flex';
-            };
+            }
+            
+            if (shipName) {
+                checkShipArchive(shipName, shipDate);
+            } else {
+                hideArchiveNotification();
+            }
         }
-
-        // ربط زر إضافة خط آخر
-        let addLineBtn = document.getElementById("addLineBtn");
-        if (addLineBtn) {
-            addLineBtn.onclick = function() {
-                let container = document.getElementById('linesContainer');
-                let newRow = document.createElement('div');
-                newRow.className = 'line-input-group';
-                newRow.style.cssText = 'display: flex; gap: 5px;';
-                newRow.innerHTML = `
-                    <input type="text" class="newArchiveLineInput" placeholder="مثال: MSC" style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px;">
-                    <button type="button" onclick="this.parentElement.remove()" style="background: #dc3545; color: white; border: none; padding: 0 12px; border-radius: 8px; cursor: pointer; font-weight: bold;">✖</button>
-                `;
-                container.appendChild(newRow);
-            };
+        
+        // ربط حدث السفينة
+        if (shipSelect) {
+            shipSelect.addEventListener('change', checkArchiveFromSelectors);
         }
-    }, 1000);
-
-    // 2. تنفيذ الإنشاء عند الضغط على زر "إنشاء المجلد"
-    setTimeout(() => {
-        let submitBtn = document.getElementById("submitCreateArchive");
-        if (submitBtn) {
-            submitBtn.onclick = async function() {
-                let shipName = document.getElementById('newArchiveShip').value;
-                let date = document.getElementById('newArchiveDate').value;
-                
-                // جمع الخطوط من كل الحقول
-                let lineInputs = document.querySelectorAll('.newArchiveLineInput');
-                let linesArray = [];
-                lineInputs.forEach(input => {
-                    let val = input.value.trim();
-                    if (val) {
-                        let cleaned = val.replace(/\s+/g, '_').replace(/[^\w\u0600-\u06FF\-]/g, "").substring(0, 50);
-                        if (cleaned && !linesArray.includes(cleaned)) {
-                            linesArray.push(cleaned);
-                        }
-                    }
-                });
-
-                if (!shipName || !date || linesArray.length === 0) {
-                    alert("⚠️ يرجى إدخال اسم السفينة، تاريخ الرحلة، وخط ملاحي واحد على الأقل.");
-                    return;
-                }
-
-                submitBtn.disabled = true;
-                submitBtn.textContent = "⏳ جاري الإنشاء...";
-
-                try {
-                    const clean = (str) => (str || "")
-                        .toString()
-                        .replace(/\s+/g, '_')
-                        .replace(/[^\w\u0600-\u06FF\-]/g, "")
-                        .substring(0, 50);
-
-                    let safeCarrier = clean(shipName);
-                    let safeDate = date.replace(/\//g, "-").replace(/[^\d\-]/g, "");
-
-                    let folderName = `${safeCarrier}_${safeDate}`;
-                    
-                    console.log("📁 جاري إنشاء مجلد أرشيف فارغ باسم:", folderName, "| الخطوط:", linesArray);
-
-                    const token = localStorage.getItem("github_token");
-                    if (!token) {
-                        alert("⚠️ يجب إعداد GitHub Token أولاً!");
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = "إنشاء المجلد";
-                        return;
-                    }
-
-                    let localSuccess = false;
-                    let githubSuccess = false;
-
-                    let infoData = {
-                        shipName: safeCarrier,
-                        date: safeDate,
-                        lines: linesArray,
-                        documents: [],
-                        lastUpdate: new Date().toISOString()
-                    };
-                    let base64Info = btoa(unescape(encodeURIComponent(JSON.stringify(infoData, null, 2))));
-
-                    // الرفع للخادم المحلي (NAS)
-                    if (typeof _localServerAvailable !== 'undefined' && _localServerAvailable) {
-                        try {
-                            let localResult = await uploadToLocalServer(folderName, "_info.json", base64Info);
-                            if (localResult.success) localSuccess = true;
-                        } catch (e) {
-                            console.warn("⚠️ فشل إنشاء المجلد محلياً:", e.message);
-                        }
-                    }
-
-                    // الرفع لـ GitHub
-                    try {
-                        const apiUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/archive/${folderName}/_info.json`;
-                        const body = {
-                            message: `Create empty archive folder: ${folderName}`,
-                            content: base64Info,
-                            branch: GH_BRANCH
-                        };
-
-                        const resp = await fetch(apiUrl, {
-                            method: "PUT",
-                            headers: {
-                                "Authorization": `Bearer ${token}`,
-                                "Accept": "application/vnd.github+json",
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify(body)
-                        });
-
-                        if (resp.ok) githubSuccess = true;
-                    } catch (e) {
-                        console.warn("⚠️ فشل إنشاء المجلد على GitHub:", e.message);
-                    }
-
-                    // عرض النتيجة
-                    if (localSuccess || githubSuccess) {
-                        alert(`✅ تم إنشاء المجلد بنجاح!\n\nاسم المجلد: ${folderName}\nالخطوط: ${linesArray.join(' ، ')}\n\nيمكنك الآن الذهاب إلى الأرشيف ورفع المستندات بداخله.`);
-                        document.getElementById('createArchiveModal').style.display = 'none';
-                        
-                        // تحديث القوائم المنسدلة
-                        if (typeof initGitHubFilesPanel === 'function') {
-                            await initGitHubFilesPanel();
-                        }
-                    } else {
-                        alert("❌ فشل إنشاء المجلد. تأكد من اتصالك بـ GitHub أو الخادم المحلي.");
-                    }
-
-                } catch (error) {
-                    console.error("❌ خطأ في إنشاء المجلد:", error);
-                    alert("❌ حدث خطأ: " + error.message);
-                } finally {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = "إنشاء المجلد";
-                }
-            };
+        
+        // 🆕 ربط حدث التاريخ
+        if (dateSelect) {
+            dateSelect.addEventListener('change', checkArchiveFromSelectors);
         }
-    }, 1000);
+        
+        console.log("✅ تم ربط تنبيه الأرشيف بـ ghShipSelect + ghDateSelect");
+    }, 2500);
 });
 
 // ============================================================
@@ -2569,181 +2444,3 @@ window.syncArchive = async function(targetWindow) {
         syncLog("❌ " + error.message, 'error');
     }
 }; 
-
-// ============================================================
-// ➕ دالة إنشاء مجلد أرشيف جديد فارغ (مع دعم خطوط متعددة)
-// ============================================================
-document.addEventListener("DOMContentLoaded", function() {
-    // 1. ربط زر الفتح وتعبئة قائمة السفن
-    setTimeout(() => {
-        let createBtn = document.getElementById("createArchiveBtn");
-        if (createBtn) {
-            createBtn.onclick = function() {
-                // تصفير الحقول
-                document.getElementById('newArchiveShip').value = '';
-                document.getElementById('newArchiveDate').value = '';
-                
-                // إعادة تعيين حقول الخطوط
-                document.getElementById('linesContainer').innerHTML = `
-                    <div class="line-input-group" style="display: flex; gap: 5px;">
-                        <input type="text" class="newArchiveLineInput" placeholder="مثال: YML" style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px;">
-                    </div>
-                `;
-
-                // 🆕 تعبئة قائمة السفن المتاحة من الأرشيف
-                let shipsList = document.getElementById('shipsList');
-                if (shipsList) {
-                    shipsList.innerHTML = ''; 
-                    if (typeof ghFilesList !== 'undefined' && ghFilesList.length > 0) {
-                        // استخراج أسماء السفن الفريدة
-                        let uniqueShips = [...new Set(ghFilesList.map(f => f.shipName))].sort();
-                        uniqueShips.forEach(ship => {
-                            let option = document.createElement('option');
-                            option.value = ship;
-                            shipsList.appendChild(option);
-                        });
-                    }
-                }
-
-                document.getElementById('createArchiveModal').style.display = 'flex';
-            };
-        }
-
-        // 2. ربط زر إضافة خط جديد
-        let addLineBtn = document.getElementById("addLineBtn");
-        if (addLineBtn) {
-            addLineBtn.onclick = function() {
-                let container = document.getElementById('linesContainer');
-                let newRow = document.createElement('div');
-                newRow.className = 'line-input-group';
-                newRow.style.cssText = 'display: flex; gap: 5px;';
-                newRow.innerHTML = `
-                    <input type="text" class="newArchiveLineInput" placeholder="مثال: MSC" style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px;">
-                    <button type="button" onclick="this.parentElement.remove()" style="background: #dc3545; color: white; border: none; padding: 0 12px; border-radius: 8px; cursor: pointer; font-weight: bold;">✖</button>
-                `;
-                container.appendChild(newRow);
-            };
-        }
-    }, 1000);
-
-    // 3. تنفيذ الإنشاء عند الضغط على الزر
-    setTimeout(() => {
-        let submitBtn = document.getElementById("submitCreateArchive");
-        if (submitBtn) {
-            submitBtn.onclick = async function() {
-                let shipName = document.getElementById('newArchiveShip').value;
-                let date = document.getElementById('newArchiveDate').value;
-                
-                // جمع الخطوط من كل الحقول
-                let lineInputs = document.querySelectorAll('.newArchiveLineInput');
-                let linesArray = [];
-                lineInputs.forEach(input => {
-                    let val = input.value.trim();
-                    if (val) {
-                        let cleaned = val.replace(/\s+/g, '_').replace(/[^\w\u0600-\u06FF\-]/g, "").substring(0, 50);
-                        if (cleaned && !linesArray.includes(cleaned)) {
-                            linesArray.push(cleaned);
-                        }
-                    }
-                });
-
-                if (!shipName || !date || linesArray.length === 0) {
-                    alert("⚠️ يرجى إدخال اسم السفينة، تاريخ الرحلة، وخط ملاحي واحد على الأقل.");
-                    return;
-                }
-
-                submitBtn.disabled = true;
-                submitBtn.textContent = "⏳ جاري الإنشاء...";
-
-                try {
-                    const clean = (str) => (str || "")
-                        .toString()
-                        .replace(/\s+/g, '_')
-                        .replace(/[^\w\u0600-\u06FF\-]/g, "")
-                        .substring(0, 50);
-
-                    let safeCarrier = clean(shipName);
-                    let safeDate = date.replace(/\//g, "-").replace(/[^\d\-]/g, "");
-
-                    let folderName = `${safeCarrier}_${safeDate}`;
-                    
-                    console.log("📁 جاري إنشاء مجلد أرشيف فارغ باسم:", folderName, "| الخطوط:", linesArray);
-
-                    const token = localStorage.getItem("github_token");
-                    if (!token) {
-                        alert("⚠️ يجب إعداد GitHub Token أولاً!");
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = "إنشاء المجلد";
-                        return;
-                    }
-
-                    let localSuccess = false;
-                    let githubSuccess = false;
-
-                    let infoData = {
-                        shipName: safeCarrier,
-                        date: safeDate,
-                        lines: linesArray,
-                        documents: [],
-                        lastUpdate: new Date().toISOString()
-                    };
-                    let base64Info = btoa(unescape(encodeURIComponent(JSON.stringify(infoData, null, 2))));
-
-                    // الرفع للخادم المحلي (NAS)
-                    if (typeof _localServerAvailable !== 'undefined' && _localServerAvailable) {
-                        try {
-                            let localResult = await uploadToLocalServer(folderName, "_info.json", base64Info);
-                            if (localResult.success) localSuccess = true;
-                        } catch (e) {
-                            console.warn("⚠️ فشل إنشاء المجلد محلياً:", e.message);
-                        }
-                    }
-
-                    // الرفع لـ GitHub
-                    try {
-                        const apiUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/archive/${folderName}/_info.json`;
-                        const body = {
-                            message: `Create empty archive folder: ${folderName}`,
-                            content: base64Info,
-                            branch: GH_BRANCH
-                        };
-
-                        const resp = await fetch(apiUrl, {
-                            method: "PUT",
-                            headers: {
-                                "Authorization": `Bearer ${token}`,
-                                "Accept": "application/vnd.github+json",
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify(body)
-                        });
-
-                        if (resp.ok) githubSuccess = true;
-                    } catch (e) {
-                        console.warn("⚠️ فشل إنشاء المجلد على GitHub:", e.message);
-                    }
-
-                    // عرض النتيجة
-                    if (localSuccess || githubSuccess) {
-                        alert(`✅ تم إنشاء المجلد بنجاح!\n\nاسم المجلد: ${folderName}\nالخطوط: ${linesArray.join(' ، ')}\n\nيمكنك الآن الذهاب إلى الأرشيف ورفع المستندات بداخله.`);
-                        document.getElementById('createArchiveModal').style.display = 'none';
-                        
-                        // 🆕 تحديث القوائم المنسدلة لتعكس السفينة الجديدة فوراً
-                        if (typeof initGitHubFilesPanel === 'function') {
-                            await initGitHubFilesPanel();
-                        }
-                    } else {
-                        alert("❌ فشل إنشاء المجلد. تأكد من اتصالك بـ GitHub أو الخادم المحلي.");
-                    }
-
-                } catch (error) {
-                    console.error("❌ خطأ في إنشاء المجلد:", error);
-                    alert("❌ حدث خطأ: " + error.message);
-                } finally {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = "إنشاء المجلد";
-                }
-            };
-        }
-    }, 1000);
-});
