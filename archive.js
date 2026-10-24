@@ -587,82 +587,105 @@ window.viewFileInArchive = async function(url, fileName) {
             if (!response.ok) throw new Error('HTTP ' + response.status);
             let arrayBuffer = await response.arrayBuffer();
             
-            // إعطاء المتصفح فرصة للتحديث
-            await new Promise(r => setTimeout(r, 50));
+            await new Promise(r => setTimeout(r, 50)); // ترك المتصفح يلتقط أنفاسه
 
             let workbook = XLSX.read(arrayBuffer, { type: 'array' });
             let sheet = workbook.Sheets[workbook.SheetNames[0]];
-
             let data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false, blankrows: false });
-            if (!data || data.length === 0) throw new Error('الورقة فارغة');
 
-            // 🆕 تثبيت السطر الرابع كصف للرؤوس (Index 3) بناءً على طلبك
-            let headerIdx = 3; 
-            if (data.length <= headerIdx) headerIdx = 0; // احتياطي لو الملف صغير
+            if (!data || data.length === 0) throw new Error('الملف فارغ');
 
-            let headers  = data[headerIdx] || [];
-            let dataRows = data.slice(headerIdx + 1);
-            
-            let maxCols = headers.length;
-            dataRows.forEach(r => { if (r.length > maxCols) maxCols = r.length; });
+            // إيجاد أقصى عدد أعمدة
+            let maxCols = 0;
+            data.forEach(r => { if (r.length > maxCols) maxCols = r.length; });
             if (maxCols === 0) throw new Error('لا أعمدة');
 
             function esc(v) {
-                return String(v == null ? '' : v)
-                    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+                return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
             }
 
-            // بناء الرؤوس فقط (البيانات سترسم عبر الجافاسكريبت)
-            let tHtml = '<table id="excelTable"><thead><tr class="header-row">';
-            for (let j = 0; j < maxCols; j++) {
-                tHtml += '<th>' + esc(headers[j]) + '</th>';
+            // 🆕 فصل الصفوف: الصف الأول والثاني (Sticky)، وباقي الصفوف (للبيانات)
+            let headerRowsCount = 2; 
+            let headerRows = data.slice(0, headerRowsCount);
+            let bodyRows = data.slice(headerRowsCount);
+
+            // بناء الرأس (الصفين الأول والثاني)
+            let theadHtml = '<thead>';
+            for (let i = 0; i < headerRows.length; i++) {
+                theadHtml += '<tr>';
+                for (let j = 0; j < maxCols; j++) {
+                    theadHtml += '<td class="sticky-header-cell row-' + i + '">' + esc(headerRows[i][j] || '') + '</td>';
+                }
+                theadHtml += '</tr>';
             }
-            tHtml += '</tr></thead><tbody id="excelTbody"></tbody></table>';
+            theadHtml += '</thead>';
 
             body.innerHTML =
                 '<style>' +
+                    // إعدادات CSS تمنع ضغط الأعمدة وإخفاء العمود الأخير
                     '#excelTable { border-collapse: collapse; width: max-content; min-width: 100%; table-layout: auto; }' +
-                    '#excelTable th, #excelTable td { box-sizing: border-box; border: 1px solid #ccc; padding: 6px 12px; text-align: center; white-space: nowrap; font-size: 12px; }' +
-                    '#excelTable thead th { position: sticky; top: 0; z-index: 10; background: #0a3d62; color: white; font-weight: bold; }' +
+                    '#excelTable td { border: 1px solid #ccc; padding: 6px 12px; text-align: center; white-space: nowrap; font-size: 12px; }' +
+                    
+                    // تثبيت الصفين الأول والثاني
+                    '.sticky-header-cell { position: sticky; z-index: 10; background: #0a3d62; color: white; font-weight: bold; border-color: #0a3d62; }' +
+                    '.row-0 { top: 0; }' +
+                    '.row-1 { top: 35px; /* سيتم تعديله بالجافاسكريبت لاحقاً */ }' +
+                    
                     '#excelTable tbody tr:nth-child(even) { background: #f9f9f9; }' +
                     '#excelTable tbody tr:hover { background: #fff9c4; }' +
-                    '.page-btn { background: #17a2b8; color: white; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 14px; margin: 0 10px; }' +
+                    '.page-btn { background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; }' +
                     '.page-btn:disabled { background: #6c757d; opacity: 0.5; cursor: not-allowed; }' +
                 '</style>' +
                 '<div style="width:100%;height:100%;display:flex;flex-direction:column;background:#525659;">' +
-                    '<div style="background:#0a3d62;color:white;padding:10px 15px;display:flex;gap:10px;align-items:center;box-shadow:0 2px 6px rgba(0,0,0,0.4);flex-shrink:0;">' +
+                    // شريط البحث
+                    '<div style="background:#0a3d62;color:white;padding:10px 15px;display:flex;gap:10px;align-items:center;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.4);">' +
                         '<span style="font-size:18px;">🔍</span>' +
-                        '<input type="text" id="excelSearchInput" placeholder="ابحث داخل كل المستند..." style="flex:1;padding:10px 15px;border-radius:20px;border:none;font-size:14px;direction:rtl;outline:none;">' +
-                        '<span id="excelSearchCount" style="font-size:13px;font-weight:bold;min-width:100px;text-align:center;"></span>' +
+                        '<input type="text" id="excelSearchInput" placeholder="ابحث في كل المستند..." style="flex:1;padding:10px 15px;border-radius:20px;border:none;font-size:14px;direction:rtl;outline:none;">' +
+                        '<span id="excelSearchCount" style="font-size:12px;font-weight:bold;min-width:90px;text-align:center;"></span>' +
                         '<button id="excelSearchClear" style="background:#dc3545;color:white;border:none;padding:8px 16px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:12px;">✖ مسح</button>' +
                     '</div>' +
-                    '<div style="flex:1;overflow:auto;background:white;padding:10px;">' +
-                        tHtml +
+                    // حاوية الجدول
+                    '<div id="excelTableContainer" style="flex:1;overflow:auto;background:white;padding:10px;">' +
+                        '<table id="excelTable">' + theadHtml + '<tbody id="excelTbody"></tbody></table>' +
                     '</div>' +
+                    // شريط الترقيم
                     '<div style="background:#f8f9fa;padding:10px;display:flex;justify-content:center;align-items:center;border-top:1px solid #ddd;flex-shrink:0;">' +
-                        '<button id="btnPrev" class="page-btn" disabled>⬅️ السابق</button>' +
-                        '<span id="pageInfo" style="font-weight:bold;color:#0a3d62;font-size:14px;margin:0 15px;"></span>' +
-                        '<button id="btnNext" class="page-btn" disabled>التالي ➡️</button>' +
+                        '<button id="btnPrevPage" class="page-btn" disabled>⬅️ السابق</button>' +
+                        '<span id="pageInfo" style="font-weight:bold;color:#0a3d62;margin:0 15px;font-size:14px;">صفحة 1</span>' +
+                        '<button id="btnNextPage" class="page-btn" disabled>التالي ➡️</button>' +
                     '</div>' +
                 '</div>';
 
             setTimeout(function() {
-                let tbody = document.getElementById('excelTbody');
-                let input = document.getElementById('excelSearchInput');
-                let counter = document.getElementById('excelSearchCount');
-                let btnPrev = document.getElementById('btnPrev');
-                let btnNext = document.getElementById('btnNext');
+                let input    = document.getElementById('excelSearchInput');
+                let counter  = document.getElementById('excelSearchCount');
+                let clearBtn = document.getElementById('excelSearchClear');
+                let tbody    = document.getElementById('excelTbody');
+                let tableEl  = document.getElementById('excelTable');
+                let btnPrev  = document.getElementById('btnPrevPage');
+                let btnNext  = document.getElementById('btnNextPage');
                 let pageInfo = document.getElementById('pageInfo');
+                
+                if (!input || !tbody) return;
+
+                // تعديل ارتفاع الصف الثاني ليكون أسفل الصف الأول بالضبط (للتثبيت)
+                let row0 = tableEl.querySelector('.row-0');
+                if (row0) {
+                    let row0Height = row0.offsetHeight;
+                    tableEl.querySelectorAll('.row-1').forEach(td => {
+                        td.style.top = row0Height + 'px';
+                    });
+                }
 
                 let currentPage = 1;
-                let rowsPerPage = 200; // عرض 200 صف في كل صفحة لمنع التجميد
-                let filteredData = dataRows;
+                let rowsPerPage = 100; // عرض 100 صف فقط في كل صفحة
+                let filteredData = bodyRows; // البيانات (بدون الصفين المثبتين)
 
-                function render() {
+                function renderPage() {
                     let totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
                     if (currentPage > totalPages) currentPage = totalPages;
                     if (currentPage < 1) currentPage = 1;
-                    
+
                     let start = (currentPage - 1) * rowsPerPage;
                     let end = Math.min(start + rowsPerPage, filteredData.length);
 
@@ -676,7 +699,7 @@ window.viewFileInArchive = async function(url, fileName) {
                         html += '</tr>';
                     }
                     tbody.innerHTML = html;
-                    
+
                     pageInfo.textContent = 'صفحة ' + currentPage + ' من ' + totalPages;
                     btnPrev.disabled = (currentPage === 1);
                     btnNext.disabled = (currentPage === totalPages);
@@ -684,44 +707,48 @@ window.viewFileInArchive = async function(url, fileName) {
 
                 function runSearch() {
                     let q = input.value.toLowerCase().trim();
+                    
                     if (q === '') {
-                        filteredData = dataRows;
+                        filteredData = bodyRows;
                         counter.textContent = '';
                     } else {
-                        filteredData = dataRows.filter(row => {
+                        // البحث في كل الصفوف
+                        filteredData = bodyRows.filter(row => {
                             return row.some(cell => String(cell || '').toLowerCase().includes(q));
                         });
                         counter.textContent = '👁️ ' + filteredData.length + ' نتيجة';
                         counter.style.color = filteredData.length > 0 ? '#4facfe' : '#ff6b6b';
                     }
-                    currentPage = 1; // العودة للصفحة الأولى عند البحث
-                    render();
+                    
+                    currentPage = 1; // العودة للصفحة 1 عند البحث
+                    renderPage();
                 }
 
+                // ربط الأزرار
+                btnPrev.addEventListener('click', function() { if (currentPage > 1) { currentPage--; renderPage(); } });
+                btnNext.addEventListener('click', function() { 
+                    let totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
+                    if (currentPage < totalPages) { currentPage++; renderPage(); } 
+                });
+
+                // ربط البحث مع تأخير بسيط
                 let debounceTimer;
                 input.addEventListener('input', function() {
                     clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(runSearch, 200); // تأخير بسيط لتسريع الكتابة
+                    debounceTimer = setTimeout(runSearch, 200);
                 });
 
                 input.addEventListener('keydown', function(e) {
                     if (e.key === 'Escape') { input.value = ''; runSearch(); }
                 });
 
-                document.getElementById('excelSearchClear').onclick = function() {
+                clearBtn.addEventListener('click', function() {
                     input.value = ''; runSearch(); input.focus();
-                };
-
-                btnPrev.onclick = function() { if (currentPage > 1) { currentPage--; render(); } };
-                btnNext.onclick = function() { 
-                    let totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
-                    if (currentPage < totalPages) { currentPage++; render(); } 
-                };
+                });
 
                 // التشغيل الأولي
-                render();
+                renderPage();
                 input.focus();
-
             }, 100);
 
         }
