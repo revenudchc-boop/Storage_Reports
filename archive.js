@@ -816,120 +816,155 @@ window.viewFileInArchive = async function(url, fileName) {
                     }
                 });
                 
-                window.deleteFileInArchive = async function(filePath, sha, folderName) {
-                    let fileName = filePath.split('/').pop();
-                    
-                    if (!confirm('هل أنت متأكد من حذف:\\n' + fileName + '؟')) return;
-                    
-                    let results = {
-                        local: { success: false, error: null },
-                        github: { success: false, error: null }
-                    };
-                    
-                    // ============================================================
-                    // 1️⃣ حذف من الخادم المحلي — دائماً
-                    // ============================================================
-                    console.log('🖥️ [1/2] حذف من المحلي:', fileName);
-                    try {
-                        let localResult = await window.archiveOpener.deleteFromLocalServer(folderName, fileName);
-                        if (localResult.success) {
-                            results.local.success = true;
-                            console.log('✅ [المحلي] تم الحذف');
-                        } else {
-                            results.local.error = localResult.error;
-                            console.warn('⚠️ [المحلي] فشل:', localResult.error);
-                        }
-                    } catch (e) {
-                        results.local.error = e.message;
-                        console.warn('⚠️ [المحلي] استثناء:', e.message);
-                    }
-                    
-                    // ============================================================
-                    // 2️⃣ حذف من GitHub
-                    // ============================================================
-                    const token = localStorage.getItem('github_token');
-                    if (token) {
-                        console.log('☁️ [2/2] حذف من GitHub:', fileName);
-                        try {
-                            let shaToUse = sha;
-                            
-                            // 🆕 إذا لم يوجد sha → اجلبه من GitHub
-                            if (!shaToUse) {
-                                console.log('🔍 لا يوجد SHA، جاري البحث...');
-                                const checkUrl = 'https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/' + filePath + '?ref=${GH_BRANCH}';
-                                const checkResp = await fetch(checkUrl, {
-                                    headers: {
-                                        'Authorization': 'Bearer ' + token,
-                                        'Accept': 'application/vnd.github+json'
-                                    }
-                                });
-                                if (checkResp.ok) {
-                                    const data = await checkResp.json();
-                                    shaToUse = data.sha;
-                                    console.log('✅ تم جلب SHA:', shaToUse);
-                                } else {
-                                    results.github.error = 'الملف غير موجود على GitHub';
-                                    console.log('⏭️ الملف غير موجود على GitHub');
-                                }
-                            }
-                            
-                            if (shaToUse) {
-                                const apiUrl = 'https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/' + filePath;
-                                const resp = await fetch(apiUrl, {
-                                    method: 'DELETE',
-                                    headers: {
-                                        'Authorization': 'Bearer ' + token,
-                                        'Accept': 'application/vnd.github+json',
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify({
-                                        message: 'Delete ' + fileName,
-                                        sha: shaToUse,
-                                        branch: '${GH_BRANCH}'
-                                    })
-                                });
-                                
-                                if (resp.ok) {
-                                    results.github.success = true;
-                                    console.log('✅ [GitHub] تم الحذف');
-                                } else {
-                                    const err = await resp.json();
-                                    results.github.error = err.message;
-                                    console.warn('⚠️ [GitHub] فشل:', err.message);
-                                }
-                            }
-                        } catch (e) {
-                            results.github.error = e.message;
-                            console.warn('⚠️ [GitHub] استثناء:', e.message);
-                        }
-                    } else {
-                        results.github.error = 'لا يوجد Token';
-                    }
-                    
-                    // ============================================================
-                    // 3️⃣ النتيجة النهائية
-                    // ============================================================
-                    let messages = [];
-                    
-                    if (results.local.success) {
-                        messages.push('✅ المحلي (NAS)');
-                    } else {
-                        messages.push('❌ المحلي: ' + (results.local.error || 'فشل'));
-                    }
-                    
-                    if (results.github.success) {
-                        messages.push('✅ السحابي (GitHub)');
-                    } else {
-                        messages.push('❌ السحابي: ' + (results.github.error || 'فشل'));
-                    }
-                    
-                    if (results.local.success || results.github.success) {
-                        alert('✅ تم الحذف:\\n\\n' + messages.join('\\n'));
-                        await window.refreshArchiveContent();
-                    } else {
-                        alert('❌ فشل الحذف:\\n\\n' + messages.join('\\n'));
-                    }
-                };
+				window.deleteFileInArchive = async function(filePath, sha, folderName) {
+					let fileName = filePath.split('/').pop();
+
+					if (!confirm('هل أنت متأكد من حذف:\\n' + fileName + '؟')) return;
+
+					// ⚠️ القيم مضمّنة هنا — لا حاجة لتعديل script.js
+					const ghOwner  = 'markingdchc';
+					const ghRepo   = 'marking.dchc';
+					const ghBranch = 'main';
+
+					let results = {
+						local: { success: false, error: null },
+						github: { success: false, error: null }
+					};
+
+					// ============================================================
+					// 1️⃣ حذف من الخادم المحلي
+					// ============================================================
+					try {
+						let localResult = await window.archiveOpener.deleteFromLocalServer(folderName, fileName);
+						if (localResult && localResult.success) {
+							results.local.success = true;
+							console.log('✅ [المحلي] تم الحذف');
+						} else {
+							results.local.error = (localResult && localResult.error) || 'فشل';
+							console.warn('⚠️ [المحلي] فشل:', results.local.error);
+						}
+					} catch (e) {
+						results.local.error = e.message;
+						console.warn('⚠️ [المحلي] استثناء:', e.message);
+					}
+
+					// ============================================================
+					// 2️⃣ حذف من GitHub
+					// ============================================================
+					const token = localStorage.getItem('github_token');
+					if (token) {
+						try {
+							let shaToUse = sha;
+
+							if (!shaToUse) {
+								const checkUrl = 'https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/' + filePath + '?ref=' + ghBranch;
+								const checkResp = await fetch(checkUrl, {
+									headers: {
+										'Authorization': 'Bearer ' + token,
+										'Accept': 'application/vnd.github+json'
+									}
+								});
+								if (checkResp.ok) {
+									const data = await checkResp.json();
+									shaToUse = data.sha;
+								} else if (checkResp.status === 404) {
+									results.github.error = 'الملف غير موجود على GitHub';
+								} else {
+									results.github.error = 'HTTP ' + checkResp.status;
+								}
+							}
+
+							if (shaToUse) {
+								const apiUrl = 'https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/' + filePath;
+								const resp = await fetch(apiUrl, {
+									method: 'DELETE',
+									headers: {
+										'Authorization': 'Bearer ' + token,
+										'Accept': 'application/vnd.github+json',
+										'Content-Type': 'application/json'
+									},
+									body: JSON.stringify({
+										message: 'Delete ' + fileName,
+										sha: shaToUse,
+										branch: ghBranch
+									})
+								});
+
+								if (resp.ok) {
+									results.github.success = true;
+									console.log('✅ [GitHub] تم الحذف');
+								} else {
+									let errMsg = 'HTTP ' + resp.status;
+									try {
+										const err = await resp.json();
+										errMsg = (err && err.message) || errMsg;
+									} catch (_) {}
+									results.github.error = errMsg;
+								}
+							}
+						} catch (e) {
+							results.github.error = e.message;
+							console.warn('⚠️ [GitHub] استثناء:', e.message);
+						}
+					} else {
+						results.github.error = 'لا يوجد Token';
+					}
+
+					// ============================================================
+					// 3️⃣ النتيجة
+					// ============================================================
+					let messages = [
+						results.local.success ? '✅ المحلي (NAS)' : '❌ المحلي: ' + (results.local.error || 'فشل'),
+						results.github.success ? '✅ السحابي (GitHub)' : '❌ السحابي: ' + (results.github.error || 'فشل')
+					];
+
+					if (!(results.local.success || results.github.success)) {
+						alert('❌ فشل الحذف:\\n\\n' + messages.join('\\n'));
+						return;
+					}
+
+					alert('✅ تم الحذف:\\n\\n' + messages.join('\\n'));
+
+					// 🧹 مسح الكاش
+					try {
+						localStorage.removeItem('archive_index_cache');
+						localStorage.removeItem('archive_index_time');
+					} catch (e) {}
+
+					// ============================================================
+					// 4️⃣ تحديث الواجهة (كل خطوة محمية على حدة)
+					// ============================================================
+					try {
+						if (window.archiveOpener) {
+							if (typeof window.archiveOpener.generateAndSaveIndexFromTree === 'function') {
+								try { await window.archiveOpener.generateAndSaveIndexFromTree(); } catch (e) {}
+							}
+							if (typeof window.archiveOpener.loadArchiveFolders === 'function') {
+								try { await window.archiveOpener.loadArchiveFolders(); } catch (e) {}
+							}
+						}
+					} catch (e) {
+						console.warn('تحديث الذاكرة:', e.message);
+					}
+
+					// 🔄 تحديث الواجهة (الأهم - يجب أن يعمل دائماً)
+					try {
+						if (typeof window.refreshArchiveContent === 'function') {
+							await window.refreshArchiveContent();
+						}
+					} catch (e) {
+						console.warn('تحديث الواجهة:', e.message);
+					}
+
+					// 🔄 تحديث القوائم المنسدلة في النافذة الرئيسية
+					try {
+						if (window.archiveOpener && typeof window.archiveOpener.initGitHubFilesPanel === 'function') {
+							try { await window.archiveOpener.initGitHubFilesPanel(true); } catch (e) {}
+						}
+					} catch (e) {
+						console.warn('تحديث القوائم:', e.message);
+					}
+				};
                 
                 window.handleArchiveUpload = function(folderName) {
                     console.log("📤 بدء رفع مستندات إلى:", folderName);
@@ -1317,6 +1352,14 @@ window.viewFileInArchive = async function(url, fileName) {
                             let msg = '✅ تم الرفع: ' + successCount + ' ملف';
                             if (failCount > 0) msg += '\\n❌ فشل: ' + failCount;
                             alert(msg);
+                            
+                            // 🆕 تحديث الفهرس في النافذة الرئيسية
+                            if (window.archiveOpener && typeof window.archiveOpener.generateAndSaveIndexFromTree === 'function') {
+                                window.archiveOpener.generateAndSaveIndexFromTree();
+                                window.archiveOpener.localStorage.removeItem('archive_index_cache');
+                                window.archiveOpener.localStorage.removeItem('archive_index_time');
+                            }
+
                             await window.refreshArchiveContent();
                         }, 2500);
                     };
@@ -1342,7 +1385,13 @@ window.viewFileInArchive = async function(url, fileName) {
 // ============================================================
 async function refreshArchiveWindow(archiveWindow, filterShip, filterDate) {
     try {
-        let folders = await loadArchiveFolders();
+        // 🆕 السر هنا: نقرأ من الذاكرة مباشرة (سرعة فورية بدون انتظار)
+        let folders = window.savedArchiveFolders || [];
+        
+        // إذا كانت الذاكرة فارغة (يحدث نادراً)، نجلبها من الشبكة
+        if (folders.length === 0) {
+            folders = await loadArchiveFolders();
+        }
 
         // 🔍 تنظيف المدخلات
         let cleanShip = (filterShip || "").trim().replace(/\s+/g, '_').toLowerCase();
@@ -1606,6 +1655,10 @@ function renderArchiveFolders(archiveWindow, folders) {
     let html = '';
     for (let folder of folders) {
         let displayName = folder.name.replace(/_/g, ' ');
+        
+        // 🆕 إصلاح undefined: نأخذ العدد من filesCount، وإذا لم يجده يحسبه من طول مصفوفة الملفات
+        let fileCount = (folder.filesCount !== undefined) ? folder.filesCount : (folder.files ? folder.files.length : 0);
+
         let uploadBtn = archiveWindow.isAdminUser 
             ? `<button class="btn-upload" onclick="event.stopPropagation(); window.handleArchiveUpload('${folder.name}')">📤 رفع مستندات</button>` 
             : '';
@@ -1614,7 +1667,7 @@ function renderArchiveFolders(archiveWindow, folders) {
             <div class="folder-card" data-folder-name="${folder.name}">
                 <div class="folder-header" data-folder="${folder.name}" onclick="window.toggleFolder(this.dataset.folder)">
                     <div><span class="folder-name">📁 ${displayName}</span></div>
-                    <span class="folder-count">${folder.filesCount} مستند</span>
+                    <span class="folder-count">${fileCount} مستند</span>
                 </div>
                 <div class="folder-body" id="folder_${folder.name}">
                     ${renderFolderFiles(folder, archiveWindow)}
@@ -1810,6 +1863,13 @@ async function uploadBase64ToArchive(folderName, fileName, base64Data) {
                 
                 // تحديث _info.json
                 await updateArchiveInfo(folderName, {});
+
+                // 🆕 تحديث الفهرس ومسح الذاكرة المؤقتة
+                if (typeof generateAndSaveIndexFromTree === 'function') {
+                    generateAndSaveIndexFromTree(); // بدون await لكي لا يتأخر الرد
+                    localStorage.removeItem('archive_index_cache');
+                    localStorage.removeItem('archive_index_time');
+                }
             } else {
                 const err = await resp.json();
                 result.github.error = err.message;
@@ -1868,8 +1928,11 @@ async function checkShipArchive(shipName, shipDate) {
     }
 
     try {
-        // تحميل قائمة المجلدات من (المحلي + GitHub)
-        let folders = await loadArchiveFolders();
+        // 🆕 السر هنا: نقرأ من الذاكرة أولاً (سرعة فورية)، وإذا كانت فارغة نجلب من الشبكة
+        let folders = window.savedArchiveFolders || [];
+        if (folders.length === 0) {
+            folders = await loadArchiveFolders();
+        }
         
         let cleanShip = shipName.toLowerCase().replace(/\s+/g, '_');
         let cleanDate = (shipDate || "").replace(/\//g, '-').trim();
@@ -1915,7 +1978,11 @@ function showArchiveNotification(shipName, shipDate, matches) {
 
     hideArchiveNotification();
     
-    let totalFiles = matches.reduce((sum, f) => sum + f.filesCount, 0);
+    // 🆕 إصلاح مشكلة NaN: حساب عدد المستندات بناءً على طول مصفوفة الملفات
+    let totalFiles = matches.reduce((sum, f) => {
+        let count = (f.filesCount !== undefined) ? f.filesCount : (f.files ? f.files.length : 0);
+        return sum + count;
+    }, 0);
     
     // 🆕 نص التاريخ
     let dateText = shipDate ? ` • ${shipDate}` : '';
@@ -2661,7 +2728,14 @@ window.syncArchive = async function(targetWindow) {
         // تحديث الوقت النهائي
         let remainingEl = doc.getElementById('syncRemaining');
         if (remainingEl) remainingEl.textContent = '00:00';
-        
+
+        // 🆕 تحديث الفهرس بعد المزامنة إذا تم نقل ملفات
+        if (totalSuccess > 0 && typeof generateAndSaveIndexFromTree === 'function') {
+            await generateAndSaveIndexFromTree();
+            localStorage.removeItem('archive_index_cache');
+            localStorage.removeItem('archive_index_time');
+        }
+
     } catch (error) {
         clearInterval(timerInterval);
         console.error("❌ خطأ في المزامنة:", error);
@@ -2848,6 +2922,13 @@ document.addEventListener("DOMContentLoaded", function() {
                         alert(`✅ تم إنشاء المجلد بنجاح!\n\nاسم المجلد: ${folderName}\nالخطوط: ${linesArray.join(' ، ')}\n\nيمكنك الآن الذهاب إلى الأرشيف ورفع المستندات بداخله.`);
                         document.getElementById('createArchiveModal').style.display = 'none';
                         
+                        // 🆕 تحديث الفهرس ومسح الذاكرة المؤقتة
+                        if (typeof generateAndSaveIndexFromTree === 'function') {
+                            await generateAndSaveIndexFromTree();
+                            localStorage.removeItem('archive_index_cache');
+                            localStorage.removeItem('archive_index_time');
+                        }
+
                         if (typeof initGitHubFilesPanel === 'function') {
                             await initGitHubFilesPanel();
                         }
@@ -2866,3 +2947,128 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }, 1000);
 });
+
+async function generateAndSaveIndexFromTree() {
+    const token = localStorage.getItem("github_token");
+    if (!token) return;
+
+    console.log("🔄 [الفهرس] جاري بناء archive_index.json وجلب الخطوط الحقيقية...");
+    try {
+        const url = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/git/trees/${GH_BRANCH}?recursive=1`;
+        const response = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
+        if (!response.ok) throw new Error("فشل الاتصال بالشجرة");
+
+        const data = await response.json();
+        let foldersMap = new Map();
+
+        // 1. تجميع الملفات من الشجرة
+        data.tree.forEach(item => {
+            if (item.path.startsWith('archive/') && item.path.split('/').length >= 2) {
+                let parts = item.path.split('/');
+                let folderName = parts[1];
+                
+                if (folderName === 'archive_index.json' || folderName.includes('.')) return;
+
+                if (!foldersMap.has(folderName)) {
+                    foldersMap.set(folderName, {
+                        name: folderName,
+                        path: `archive/${folderName}`,
+                        lines: [], // نبدأ بمصفوفة فارغة
+                        files: [],
+                        filesCount: 0 // 🆕 تهيئة العداد
+                    });
+                }
+
+                if (item.type === 'blob' && parts.length === 3 && parts[2] !== '_info.json') {
+                    let folderObj = foldersMap.get(folderName);
+                    folderObj.files.push({
+                        name: parts[2],
+                        path: item.path,
+                        size: item.size || 0,
+                        sha: item.sha,
+                        download_url: `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${item.path}`
+                    });
+                    
+                    // 🆕 تحديث عداد الملفات
+                    folderObj.filesCount = folderObj.files.length;
+                }
+            }
+        });
+
+        // 2. جلب الخطوط الحقيقية من _info.json أو الاستدلال من اسم الملف
+        const foldersArray = Array.from(foldersMap.values());
+        await Promise.all(foldersArray.map(async (folder) => {
+            let linesFound = false;
+            
+            // أ. محاولة القراءة من _info.json
+            try {
+                const infoUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/archive/${folder.name}/_info.json?ref=${GH_BRANCH}`;
+                const resp = await fetch(infoUrl, { headers: { "Authorization": `Bearer ${token}` } });
+                if (resp.ok) {
+                    const infoData = await resp.json();
+                    const info = JSON.parse(decodeURIComponent(escape(atob(infoData.content.replace(/\n/g, '')))));
+                    if (info.lines && info.lines.length > 0) {
+                        folder.lines = info.lines.map(l => String(l).trim().toUpperCase());
+                        linesFound = true;
+                    }
+                }
+            } catch (e) {
+                console.warn(`⚠️ فشل قراءة _info.json للمجلد ${folder.name}`);
+            }
+
+            // ب. إذا لم نجد في _info، نحاول استخراج الخط من أسماء الملفات
+            if (!linesFound) {
+                folder.files.forEach(file => {
+                    let parsed = typeof parseGitHubFileName === 'function' ? parseGitHubFileName(file.name) : null;
+                    if (parsed && parsed.line) {
+                        let l = String(parsed.line).trim().toUpperCase();
+                        if (!folder.lines.includes(l)) folder.lines.push(l);
+                    }
+                });
+            }
+
+            // ج. إذا فشل كل شيء، نضع ALL كخيار أخير
+            if (folder.lines.length === 0) {
+                folder.lines = ["ALL"];
+            }
+        }));
+
+        let indexData = {
+            lastUpdated: new Date().toISOString(),
+            folders: foldersArray
+        };
+
+        // 3. حفظ الملف على GitHub
+        const indexUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/archive/archive_index.json`;
+        let existingSha = null;
+        
+        const checkResp = await fetch(`${indexUrl}?ref=${GH_BRANCH}`, { headers: { "Authorization": `Bearer ${token}` } });
+        if (checkResp.ok) {
+            const d = await checkResp.json();
+            existingSha = d.sha;
+        }
+
+        const body = {
+            message: `Auto-Update Archive Index (Smart Lines)`,
+            content: btoa(unescape(encodeURIComponent(JSON.stringify(indexData, null, 2)))),
+            branch: GH_BRANCH
+        };
+        if (existingSha) body.sha = existingSha;
+
+        const uploadResp = await fetch(indexUrl, {
+            method: "PUT",
+            headers: { "Authorization": `Bearer ${token}`, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+
+		if (uploadResp.ok) {
+			console.log("✅ [الفهرس] تم تحديث archive_index.json بالخطوط الصحيحة وعدد الملفات");
+
+			// 🆕 تحديث الذاكرة فوراً بعد نجاح الكتابة
+			window.savedArchiveFolders = foldersArray;
+			console.log("✅ [الفهرس] تم تحديث savedArchiveFolders في الذاكرة:", foldersArray.length, "مجلد");
+		}
+    } catch (e) {
+        console.error("❌ [الفهرس] فشل:", e.message);
+    }
+}

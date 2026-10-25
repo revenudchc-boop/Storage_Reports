@@ -10839,6 +10839,14 @@ async function saveFileToGitHub() {
             }
         }
         
+		        // 🆕 تحديث الفهرس ومسح الذاكرة المؤقتة
+        if (typeof generateAndSaveIndexFromTree === 'function') {
+            await generateAndSaveIndexFromTree();
+            localStorage.removeItem('archive_index_cache');
+            localStorage.removeItem('archive_index_time');
+        }
+
+		
         // ===== 12. عرض النتيجة =====
         if (footer) {
             footer.innerHTML = `✅ تم حفظ الملف في الأرشيف: <a href="${fileUrl}" target="_blank" style="color:#28a745;font-weight:bold;">${newFileName}</a>`;
@@ -11047,111 +11055,175 @@ function parseGitHubFileName(fileName) {
 // ============================================================
 // 📋 ملء القوائم المنسدلة
 // ============================================================
-async function initGitHubFilesPanel() {
-    const folders = await loadArchiveFolders();
-    ghFilesList = [];
+async function initGitHubFilesPanel(forceRefresh = false) {
+    const shipSelect = document.getElementById("ghShipSelect");
+    if (!shipSelect) return;
 
-    for (let folder of folders) {
-        // 1. استخراج البيانات من اسم المجلد (المصدر الموثوق)
+    const token = localStorage.getItem("github_token");
+    if (!token) return;
+
+    // ⚡ 1. محاولة القراءة من الذاكرة المؤقتة (سريع جداً)
+    const cacheTime = localStorage.getItem('archive_index_time');
+    const cachedData = localStorage.getItem('archive_index_cache');
+    
+    // إذا كانت البيانات محفوظة وعمرها أقل من 5 دقائق، استخدمها فوراً
+    if (!forceRefresh && cachedData && cacheTime && (Date.now() - parseInt(cacheTime) < 300000)) {
+        console.log("⚡ [الفهرس] تم التحميل من الذاكرة المؤقتة للمتصفح (سرعة فائقة)");
+        processArchiveIndexData(JSON.parse(cachedData), shipSelect);
+        return;
+    }
+
+    // ⏳ 2. جلب ملف الفهرس من GitHub
+    console.log("⏳ [الفهرس] جاري جلب archive_index.json من GitHub...");
+    try {
+        const indexUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/archive/archive_index.json?ref=${GH_BRANCH}`;
+        const resp = await fetch(indexUrl, { headers: { "Authorization": `Bearer ${token}` } });
+
+        if (resp.ok) {
+            const data = await resp.json();
+            const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
+            const indexData = JSON.parse(content);
+                        // 🆕 حفظ المجلدات في الذاكرة ليعمل الإشعار الأخضر فوراً
+            window.savedArchiveFolders = indexData.folders; 
+			
+            // حفظ في الذاكرة المؤقتة
+            localStorage.setItem('archive_index_cache', JSON.stringify(indexData));
+            localStorage.setItem('archive_index_time', Date.now().toString());
+            
+            console.log(`⚡ [الفهرس] تم جلب الفهرس بنجاح (آخر تحديث: ${new Date(indexData.lastUpdated).toLocaleString()})`);
+            processArchiveIndexData(indexData, shipSelect);
+        } 
+        else if (resp.status === 404) {
+            console.log("⚠️ [الفهرس] غير موجود! جاري إنشائه من Git Trees API لأول مرة...");
+            if (typeof generateAndSaveIndexFromTree === 'function') {
+                await generateAndSaveIndexFromTree(); // استدعاء دالة البناء (موجودة في archive.js)
+                initGitHubFilesPanel(true); // إعادة المحاولة بعد الإنشاء
+            } else {
+                console.error("❌ دالة generateAndSaveIndexFromTree غير معرفة!");
+            }
+        } 
+        else {
+            throw new Error(`HTTP ${resp.status}`);
+        }
+    } catch (e) {
+        console.error("❌ [الفهرس] فشل التحميل:", e.message);
+        // كحل أخير، استخدم البيانات القديمة إن وجدت
+        if (cachedData) {
+            processArchiveIndexData(JSON.parse(cachedData), shipSelect);
+        }
+    }
+}
+
+// 🆕 دالة مساعدة لمعالجة البيانات وعرضها
+function processArchiveIndexData(indexData, shipSelect) {
+    ghFilesList = [];
+    
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    const isAdmin = user && (user.role === 'admin' || user.lineIds.includes('*'));
+    const allowedLinesUpper = isAdmin ? [] : (user ? user.lineIds.map(l => String(l).trim().toUpperCase()) : []);
+
+    for (let folder of indexData.folders) {
         const isDatedFolder = /^(.*?)_(\d{4}-\d{2}-\d{2})$/.test(folder.name);
-        
-        let folderShipName = "";
+        let folderShipName = folder.name;
         let folderDate = "";
         
         if (isDatedFolder) {
             const match = folder.name.match(/^(.*?)_(\d{4}-\d{2}-\d{2})$/);
-            folderShipName = match[1].replace(/_/g, " "); // YM_WORLD تصبح YM WORLD
-            folderDate = match[2];                        // 2026-10-08
-        } else {
-            folderShipName = folder.name;                 // NNSALP أو FINALOUT
-            folderDate = "";                              // بدون تاريخ
+            folderShipName = match[1].replace(/_/g, " ").trim();
+            folderDate = match[2];
         }
 
-        // 2. المرور على ملفات الإكسيل (الطريقة الأصلية)
+        let folderLines = folder.lines || ["ALL"];
+        if (folderLines.length === 0) folderLines = ["ALL"];
+
         let hasExcelFiles = false;
         for (let file of folder.files) {
-            // تجاهل الملفات التي ليست إكسيل
             if (!/\.(xlsx|xls)$/i.test(file.name)) continue;
-
-            let parsed = parseGitHubFileName(file.name);
-            if (!parsed) continue;
-
-            // الفلتر الحاسم: منع المستندات العشوائية التي لا تطابق نوع المجلد
+            
+            // 1. فلتر الحماية: منع الملفات التي لا تطابق نوع المجلد (مثل DISH_984)
+            let parsed = typeof parseGitHubFileName === 'function' ? parseGitHubFileName(file.name) : {};
+            if (!parsed) parsed = {};
+            
             if (isDatedFolder && parsed.isFinalout === true) continue;
             if (!isDatedFolder && parsed.isFinalout === false) continue;
 
             hasExcelFiles = true;
 
-            // إضافة الملف للقائمة النهائية
-            ghFilesList.push({
-                shipName: folderShipName,
-                line: parsed.line || "ALL",
-                date: folderDate,
-                isFinalout: !isDatedFolder,
-                fullFileName: file.name,
-                path: file.path,
-                name: file.name,
-                download_url: file.download_url,
-                sha: file.sha,
-                folderName: folder.name
-            });
+            // 🆕 2. السر هنا: نأخذ الخط من اسم الملف أولاً (مثل ZIM في ZIM_VIETNAM_ZIM...)
+            let fileLine = parsed.line ? String(parsed.line).trim().toUpperCase() : null;
+
+            if (fileLine) {
+                // إذا كان اسم الملف يحتوي على الخط، نربطه بهذا الخط فقط ونتجاهل _info.json
+                if (!isAdmin && user) {
+                    let hasAccess = allowedLinesUpper.includes(fileLine) || fileLine === "ALL";
+                    if (!hasAccess) continue;
+                }
+                ghFilesList.push({
+                    shipName: folderShipName,
+                    line: fileLine,
+                    date: folderDate,
+                    isFinalout: !isDatedFolder,
+                    fullFileName: file.name,
+                    path: file.path,
+                    name: file.name,
+                    download_url: file.download_url,
+                    sha: file.sha,
+                    folderName: folder.name
+                });
+            } else {
+                // إذا لم يحتوي اسم الملف على خط، نستخدم الخطوط من _info.json (كاحتياط)
+                for (let line of folderLines) {
+                    let lineUpper = String(line).trim().toUpperCase();
+                    if (!isAdmin && user) {
+                        let nameToCheck = (file.name + " " + folder.name).toUpperCase();
+                        let hasAccess = allowedLinesUpper.includes(lineUpper) || lineUpper === "ALL" || allowedLinesUpper.some(allowed => nameToCheck.includes(allowed));
+                        if (!hasAccess) continue;
+                    }
+                    ghFilesList.push({
+                        shipName: folderShipName,
+                        line: lineUpper,
+                        date: folderDate,
+                        isFinalout: !isDatedFolder,
+                        fullFileName: file.name,
+                        path: file.path,
+                        name: file.name,
+                        download_url: file.download_url,
+                        sha: file.sha,
+                        folderName: folder.name
+                    });
+                }
+            }
         }
 
-        // 🆕 3. إذا لم يوجد أي ملف إكسيل (مجلد فارغ جديد)، نقرأ _info.json لكي تظهر السفينة
+        // 3. إذا كان المجلد فارغاً من ملفات الإكسيل المطابقة، نضيفه كسفينة متاحة
         if (!hasExcelFiles) {
-            try {
-                const token = localStorage.getItem("github_token");
-                const GH_OWNER = "markingdchc";
-                const GH_REPO = "marking.dchc";
-                const GH_BRANCH = "main";
-                
-                const infoUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/archive/${folder.name}/_info.json?ref=${GH_BRANCH}`;
-                const resp = await fetch(infoUrl, {
-                    headers: token ? { "Authorization": `Bearer ${token}` } : {}
-                });
+            for (let line of folderLines) {
+                let lineUpper = String(line).trim().toUpperCase();
 
-                if (resp.ok) {
-                    const data = await resp.json();
-                    const info = JSON.parse(decodeURIComponent(escape(atob(data.content.replace(/\n/g, '')))));
-
-                    let lines = info.lines || [];
-                    if (lines.length === 0) lines = ["ALL"];
-
-                    for (let line of lines) {
-                        ghFilesList.push({
-                            shipName: folderShipName,
-                            line: line,
-                            date: folderDate,
-                            isFinalout: !isDatedFolder,
-                            fullFileName: folder.name,
-                            path: folder.path,
-                            name: folder.name,
-                            download_url: "",
-                            sha: folder.sha,
-                            folderName: folder.name
-                        });
-                    }
+                if (!isAdmin && user) {
+                    let nameToCheck = folder.name.toUpperCase();
+                    let hasAccess = allowedLinesUpper.includes(lineUpper) || lineUpper === "ALL" || allowedLinesUpper.some(allowed => nameToCheck.includes(allowed));
+                    if (!hasAccess) continue; 
                 }
-            } catch (e) {
-                console.warn(`⚠️ لم يتم العثور على _info.json للمجلد ${folder.name}`);
+
+                ghFilesList.push({
+                    shipName: folderShipName,
+                    line: lineUpper, 
+                    date: folderDate,
+                    isFinalout: !isDatedFolder,
+                    fullFileName: folder.name,
+                    path: folder.path,
+                    name: folder.name,
+                    download_url: "",
+                    sha: "",
+                    folderName: folder.name
+                });
             }
         }
     }
     
-    // 🔐 فلترة الملفات حسب خطوط المستخدم
-    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-    if (user && user.role !== 'admin' && !user.lineIds.includes('*')) {
-        const before = ghFilesList.length;
-        ghFilesList = ghFilesList.filter(f => user.lineIds.includes(f.line));
-        console.log(`🔐 فلترة الأرشيف: ${before} → ${ghFilesList.length} (الخطوط المسموحة: ${user.lineIds.join(', ')})`);
-    }
-    
-    const shipSelect = document.getElementById("ghShipSelect");
-    if (!shipSelect) return;
-    
+    // تعبئة القائمة المنسدلة
     shipSelect.innerHTML = '<option value="">-- اختر السفينة --</option>';
-    
-    // جمع القيم الفريدة من shipName
     const ships = [...new Set(ghFilesList.map(f => f.shipName))].sort();
     ships.forEach(ship => {
         const opt = document.createElement("option");
@@ -11163,7 +11235,7 @@ async function initGitHubFilesPanel() {
     document.getElementById("ghLineSelect").innerHTML = '<option value="">-- اختر الخط --</option>';
     document.getElementById("ghDateSelect").innerHTML = '<option value="">-- اختر التاريخ --</option>';
     
-    console.log(`📋 تم تحميل ${ships.length} سفينة`, ships);
+    console.log(`📋 تم تحميل ${ships.length} سفينة من الفهرس بنجاح`, ships);
 }
 
 function updateLineDropdown() {
@@ -11383,12 +11455,47 @@ document.addEventListener("DOMContentLoaded", function() {
         const downloadBtn = document.getElementById("ghDownloadBtn");
         const refreshBtn = document.getElementById("ghRefreshBtn");
         
+        // ربط القوائم المنسدلة
         if (shipSelect) shipSelect.addEventListener("change", updateLineDropdown);
         if (lineSelect) lineSelect.addEventListener("change", updateDateDropdown);
         if (downloadBtn) downloadBtn.addEventListener("click", downloadSelectedGitHubFile);
-        if (refreshBtn) refreshBtn.addEventListener("click", async function() {
-            await initGitHubFilesPanel();
-        });
+        
+        // 🆕 ربط زر تحديث القائمة (النسخة الشاملة)
+        if (refreshBtn) {
+            refreshBtn.addEventListener("click", async function() {
+                console.log("🔄 جاري التحديث الشامل (بناء الفهرس + تحديث القائمة)...");
+                
+                // تغيير نص الزر مؤقتاً لإعلام المستخدم
+                const originalText = refreshBtn.innerHTML;
+                refreshBtn.innerHTML = "⏳ جاري التحديث...";
+                refreshBtn.disabled = true;
+
+                try {
+                    // 1. مسح الذاكرة المؤقتة للمتصفح
+                    localStorage.removeItem('archive_index_cache');
+                    localStorage.removeItem('archive_index_time');
+                    
+                    // 2. إعادة بناء ملف الفهرس (archive_index.json) من Git Trees API
+                    if (typeof generateAndSaveIndexFromTree === 'function') {
+                        await generateAndSaveIndexFromTree();
+                    } else {
+                        console.warn("⚠️ دالة generateAndSaveIndexFromTree غير موجودة في archive.js");
+                    }
+                    
+                    // 3. إعادة قراءة الفهرس الجديد وتعبئة القوائم المنسدلة
+                    await initGitHubFilesPanel(true); 
+                    
+                    console.log("✅ اكتمل التحديث بنجاح!");
+                } catch (error) {
+                    console.error("❌ حدث خطأ أثناء التحديث:", error);
+                    alert("حدث خطأ أثناء تحديث القائمة. يرجى المحاولة مرة أخرى.");
+                } finally {
+                    // إعادة الزر إلى حالته الطبيعية
+                    refreshBtn.innerHTML = originalText;
+                    refreshBtn.disabled = false;
+                }
+            });
+        }
     }, 100);
 });
 
