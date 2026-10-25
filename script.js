@@ -11228,6 +11228,7 @@ function updateDateDropdown() {
     
     const seen = new Set();
     let addedCount = 0;
+    let singleOption = null; // 🆕 لتخزين الخيار الوحيد
 
     matchingFiles.forEach(f => {
         let key = (f.date || "") + "|" + (f.orderNumber || "") + "|" + (f.lineOp || "");
@@ -11255,11 +11256,14 @@ function updateDateDropdown() {
         
         dateSelect.appendChild(opt);
         addedCount++;
+        singleOption = opt; // نحفظ الخيار
     });
 
-    // 🆕 اختيار تلقائي للملف إذا كان هناك ملف واحد فقط
-    if (addedCount === 1) {
-        dateSelect.selectedIndex = 1;
+    // 🆕 اختيار تلقائي للملف إذا كان هناك ملف واحد فقط + تحديث الأحداث
+    if (addedCount === 1 && singleOption) {
+        dateSelect.value = singleOption.value;
+        // إجبار المتصفح على تحديث واجهة القائمة
+        dateSelect.dispatchEvent(new Event('change'));
     }
 }
 

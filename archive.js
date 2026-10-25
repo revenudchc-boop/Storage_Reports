@@ -314,19 +314,29 @@ async function openArchiveWindow() {
         console.log("🔍 السفينة:", filterShip);
     }
     
-    // 🔍 اقرأ التاريخ المحدد + نوع الملف
+    // 🔍 اقرأ التاريخ المحدد + نوع الملف (بطريقة آمنة جداً)
     let dateSelect = document.getElementById('ghDateSelect');
     if (dateSelect && dateSelect.value) {
         let selectedOption = dateSelect.options[dateSelect.selectedIndex];
-        if (selectedOption && selectedOption.dataset) {
-            if (selectedOption.dataset.date) {
+        
+        if (selectedOption) {
+            // 1. حاول القراءة من dataset
+            if (selectedOption.dataset && selectedOption.dataset.date) {
                 filterDate = selectedOption.dataset.date;
             }
-            if (selectedOption.dataset.isFinalout === "true") {
+            if (selectedOption.dataset && selectedOption.dataset.isFinalout === "true") {
                 isFinaloutFile = true;
             }
+            
+            // 2. 🆕 إذا كان التاريخ فارغاً، استخرجه من اسم الملف مباشرة
+            if (!filterDate && !isFinaloutFile && selectedOption.value) {
+                let match = selectedOption.value.match(/(\d{4}-\d{2}-\d{2})/);
+                if (match && match[1]) {
+                    filterDate = match[1];
+                }
+            }
         }
-        console.log("🔍 التاريخ:", filterDate, "| FINALOUT:", isFinaloutFile);
+        console.log("🔍 التاريخ المستخرج:", filterDate, "| FINALOUT:", isFinaloutFile);
     }
     
     // 🆕 إذا كانت السفينة محددة، يجب تحديد التاريخ — إلا إذا كان الملف FINALOUT
@@ -335,11 +345,7 @@ async function openArchiveWindow() {
         return;
     }
     
-    // إذا لم تكن السفينة محددة، اعرض الأرشيف كاملاً (اختياري)
-    // إذا أردت اشتراط تحديد السفينة أيضاً، فعّل السطر التالي:
-    // if (!filterShip) { alert('⚠️ يرجى اختيار السفينة أولاً'); return; }
-    
-    // افتح الأرشيف مع الفلتر (اسم السفينة + التاريخ أو بدونهما لـ FINALOUT)
+    // افتح الأرشيف مع الفلتر
     await openArchiveInternal(filterShip, filterDate);
 }
 
@@ -1338,18 +1344,19 @@ async function refreshArchiveWindow(archiveWindow, filterShip, filterDate) {
     try {
         let folders = await loadArchiveFolders();
 
-        // 🔍 فلترة باسم السفينة
-        if (filterShip && filterShip.trim() !== "") {
-            let cleanShip = filterShip.toLowerCase().replace(/\s+/g, '_');
-            folders = folders.filter(f => f.name.toLowerCase().includes(cleanShip));
-        }
+        // 🔍 تنظيف المدخلات
+        let cleanShip = (filterShip || "").trim().replace(/\s+/g, '_').toLowerCase();
+        let cleanDate = (filterDate || "").replace(/\//g, '-').trim();
 
-        // 🔍 فلترة بالتاريخ (إن وُجد)
-        if (filterDate && filterDate.trim() !== "") {
-            // التاريخ بصيغة YYYY-MM-DD
-            let cleanDate = filterDate.replace(/\//g, '-').trim();
-            folders = folders.filter(f => f.name.includes(cleanDate));
-            console.log(`🔍 بعد فلترة التاريخ ${cleanDate}: ${folders.length} مجلد`);
+        // 🔍 الفلترة الصارمة
+        if (cleanShip !== "" || cleanDate !== "") {
+            folders = folders.filter(f => {
+                let folderName = f.name.toLowerCase();
+                let shipMatch = cleanShip === "" || folderName.includes(cleanShip);
+                let dateMatch = cleanDate === "" || folderName.includes(cleanDate);
+                return shipMatch && dateMatch;
+            });
+            console.log(`🔍 بعد الفلترة (السفينة: ${cleanShip} | التاريخ: ${cleanDate}): ${folders.length} مجلد`);
         }
 
         archiveWindow.archiveFolders = folders;
