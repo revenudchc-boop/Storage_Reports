@@ -1447,18 +1447,11 @@ async function loadArchiveFolders() {
     let merged = mergeArchiveFolders(localFolders, githubFolders);
     console.log(`🎉 [الأرشيف] ${merged.length} مجلد بعد الدمج`);
     
-    // فلترة حسب الصلاحيات
-    let user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-    if (user && user.role !== 'admin' && !user.lineIds.includes('*')) {
-        merged = merged.filter(f => {
-            let parts = f.name.split('_');
-            if (parts.length >= 2) {
-                let line = parts[parts.length - 2];
-                return user.lineIds.includes(line);
-            }
-            return true;
-        });
-    }
+    // 🆕 حفظ المجلدات في متغير عام للاستخدام في الواجهة (script.js)
+    window.savedArchiveFolders = merged;
+    
+    // 🆕 تم إزالة فلترة الصلاحيات الخاطئة من هنا
+    // الفلترة الآن تتم بدقة في دالة initGitHubFilesPanel بناءً على _info.json
     
     return merged;
 }
@@ -1913,6 +1906,13 @@ async function checkShipArchive(shipName, shipDate) {
 }
 
 function showArchiveNotification(shipName, shipDate, matches) {
+    // 🆕 إخفاء الإشعار إذا كان المستخدم ليس مديراً (Viewer)
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user || user.role !== 'admin') {
+        hideArchiveNotification();
+        return;
+    }
+
     hideArchiveNotification();
     
     let totalFiles = matches.reduce((sum, f) => sum + f.filesCount, 0);
