@@ -3064,9 +3064,23 @@ async function generateAndSaveIndexFromTree() {
 		if (uploadResp.ok) {
 			console.log("✅ [الفهرس] تم تحديث archive_index.json بالخطوط الصحيحة وعدد الملفات");
 
-			// 🆕 تحديث الذاكرة فوراً بعد نجاح الكتابة
+			// 🆕 1) تحديث الذاكرة
 			window.savedArchiveFolders = foldersArray;
-			console.log("✅ [الفهرس] تم تحديث savedArchiveFolders في الذاكرة:", foldersArray.length, "مجلد");
+
+			// 🆕 2) مسح الكاش القديم
+			localStorage.removeItem('archive_index_cache');
+			localStorage.removeItem('archive_index_time');
+
+			// 🆕 3) تحديث القوائم المنسدلة في الصفحة الرئيسية
+			//     هذا هو التعديل الجوهري — يمنع تكرار المشكلة
+			if (typeof window.initGitHubFilesPanel === 'function') {
+				try {
+					await window.initGitHubFilesPanel(true);
+					console.log("✅ [القوائم] تم تحديث القوائم المنسدلة بعد بناء الفهرس");
+				} catch (e) {
+					console.warn("⚠️ [القوائم] فشل التحديث:", e.message);
+				}
+			}
 		}
     } catch (e) {
         console.error("❌ [الفهرس] فشل:", e.message);
