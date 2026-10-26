@@ -11060,7 +11060,10 @@ async function initGitHubFilesPanel(forceRefresh = false) {
     if (!shipSelect) return;
 
     const token = localStorage.getItem("github_token");
-    if (!token) return;
+    // 🆕 لا نعود إذا لم يوجد توكن — القراءة تعمل على المستودع العام
+    if (!token) {
+        console.warn("⚠️ [الفهرس] لا يوجد توكن — القراءة ستتم بدون مصادقة (حد 60 طلب/ساعة)");
+    }
 
     // ⚡ 1. محاولة القراءة من الذاكرة المؤقتة (سريع جداً)
     const cacheTime = localStorage.getItem('archive_index_time');
@@ -11077,13 +11080,18 @@ async function initGitHubFilesPanel(forceRefresh = false) {
     console.log("⏳ [الفهرس] جاري جلب archive_index.json من GitHub...");
     try {
         const indexUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/archive/archive_index.json?ref=${GH_BRANCH}`;
-        const resp = await fetch(indexUrl, { headers: { "Authorization": `Bearer ${token}` } });
+
+        // 🆕 Authorization يُضاف فقط إن وُجد توكن (المشاهد يقرأ بدون توكن)
+        const headers = { "Accept": "application/vnd.github+json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const resp = await fetch(indexUrl, { headers });
 
         if (resp.ok) {
             const data = await resp.json();
             const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
             const indexData = JSON.parse(content);
-                        // 🆕 حفظ المجلدات في الذاكرة ليعمل الإشعار الأخضر فوراً
+            // 🆕 حفظ المجلدات في الذاكرة ليعمل الإشعار الأخضر فوراً
             window.savedArchiveFolders = indexData.folders; 
 			
             // حفظ في الذاكرة المؤقتة
@@ -11095,9 +11103,13 @@ async function initGitHubFilesPanel(forceRefresh = false) {
         } 
         else if (resp.status === 404) {
             console.log("⚠️ [الفهرس] غير موجود! جاري إنشائه من Git Trees API لأول مرة...");
-            if (typeof generateAndSaveIndexFromTree === 'function') {
+            // 🆕 البناء يتطلب توكن (لأنه يكتب على GitHub) — المشاهد لا يستطيع
+            if (token && typeof generateAndSaveIndexFromTree === 'function') {
                 await generateAndSaveIndexFromTree(); // استدعاء دالة البناء (موجودة في archive.js)
                 initGitHubFilesPanel(true); // إعادة المحاولة بعد الإنشاء
+            } else if (!token) {
+                console.warn("⚠️ [الفهرس] لا يوجد توكن — لا يمكن إنشاء الفهرس. تواصل مع المدير.");
+                shipSelect.innerHTML = '<option value="">⚠️ الفهرس غير موجود — تواصل مع المدير</option>';
             } else {
                 console.error("❌ دالة generateAndSaveIndexFromTree غير معرفة!");
             }
@@ -11147,7 +11159,7 @@ function processArchiveIndexData(indexData, shipSelect) {
             if (isDatedFolder && parsed.isFinalout === true) continue;
             if (!isDatedFolder && parsed.isFinalout === false) continue;
 
-            hasExcelFiles = true;
+            // 🆕 التعديل: حُذف hasExcelFiles = true من هنا (كان قبل فحص الصلاحيات)
 
             // 🆕 2. السر هنا: نأخذ الخط من اسم الملف أولاً (مثل ZIM في ZIM_VIETNAM_ZIM...)
             let fileLine = parsed.line ? String(parsed.line).trim().toUpperCase() : null;
@@ -11158,6 +11170,8 @@ function processArchiveIndexData(indexData, shipSelect) {
                     let hasAccess = allowedLinesUpper.includes(fileLine) || fileLine === "ALL";
                     if (!hasAccess) continue;
                 }
+                // 🆕 التعديل: يُنفَّذ فقط بعد نجاح فحص الصلاحيات
+                hasExcelFiles = true;
                 ghFilesList.push({
                     shipName: folderShipName,
                     line: fileLine,
@@ -11179,6 +11193,8 @@ function processArchiveIndexData(indexData, shipSelect) {
                         let hasAccess = allowedLinesUpper.includes(lineUpper) || lineUpper === "ALL" || allowedLinesUpper.some(allowed => nameToCheck.includes(allowed));
                         if (!hasAccess) continue;
                     }
+                    // 🆕 التعديل: يُنفَّذ فقط بعد نجاح فحص الصلاحيات
+                    hasExcelFiles = true;
                     ghFilesList.push({
                         shipName: folderShipName,
                         line: lineUpper,
@@ -11443,9 +11459,18 @@ async function downloadSelectedGitHubFile() {
 // 🎯 تهيئة اللوحة عند فتح الصفحة
 // ============================================================
 document.addEventListener("DOMContentLoaded", function() {
-    // تهيئة اللوحة بعد 2 ثانية (حتى يتم تحميل الـ Token)
+    // تهيئة اللوحة بعد 2 ثانية (تعمل مع أو بدون توكن)
     setTimeout(async () => {
-        await initGitHubFilesPanel();
+        // 🆕 فحص عمر الكاش — إذا كان قديماً (> 5 دقائق)، جلب جديد
+        const cacheTime = localStorage.getItem('archive_index_time');
+        const cacheAge = cacheTime ? (Date.now() - parseInt(cacheTime)) : Infinity;
+        
+        if (cacheAge > 300000) {
+            console.log('🔄 [الفهرس] الكاش قديم — جلب جديد من GitHub');
+            await initGitHubFilesPanel(true);
+        } else {
+            await initGitHubFilesPanel();
+        }
     }, 2000);
     
     // ربط الأحداث
