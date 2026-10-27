@@ -2450,6 +2450,19 @@ function processAndDisplay2() {
                         if (sDays < 0) sDays = 0;
                     }
                     
+					                    // 🆕 استبعاد اليوم المشترك بين نهاية فترة EXPRT RETURN وبداية STRGE
+                    let returnExprtEnd = "";
+                    for (let exTemp of exprtList) {
+                        if ((exTemp["Dray Status"] || "").trim().toUpperCase() === "RETURN") {
+                            returnExprtEnd = convertDate(exTemp["End Time"] || "");
+                            break;
+                        }
+                    }
+                    if (returnExprtEnd && sStart && returnExprtEnd === sStart) {
+                        sDays = sDays - 1;
+                        if (sDays < 0) sDays = 0;
+                    }
+					
                     strgePeriods.push({
                         start: sStart,
                         end: sEnd,
