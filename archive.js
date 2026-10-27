@@ -575,11 +575,39 @@ window.viewFileInArchive = async function(url, fileName) {
     }
     // ---------- PDF ----------
     else if (ext === 'pdf') {
-        let gv = 'https://docs.google.com/viewer?embedded=true&url=' + encodeURIComponent(url);
-        body.innerHTML =
-            '<iframe src="' + gv + '" style="width:100%;height:100%;border:none;background:white;" allowfullscreen></iframe>' +
-            '<div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:white;padding:6px 12px;border-radius:20px;font-size:11px;">' +
-            'إذا لم يظهر، <a href="#" onclick="window.downloadPreviewFile();return false;" style="color:#4facfe;text-decoration:underline;">اضغط هنا للتنزيل</a></div>';
+        modal.classList.add('active');
+        body.innerHTML = '<div style="color:white;text-align:center;padding:40px;font-size:18px;font-weight:bold;">⏳ جاري تجهيز الملف...</div>';
+        
+        setTimeout(function() {
+            // 🆕 فحص ذكي: هل الرابط محلي (NAS) أم خارجي (GitHub)؟
+            let isLocalUrl = 
+                url.includes("192.168.") || 
+                url.includes("10.") || 
+                url.includes("172.") || 
+                url.includes("localhost") || 
+                url.includes(":3000") ||
+                url.includes("127.0.0.1");
+
+            if (isLocalUrl) {
+                // 🟢 حالة عدم وجود إنترنت (السيرفر المحلي NAS):
+                // نعرض الملف مباشرة باستخدام قارئ المتصفح (لأنه على نفس الشبكة)
+                body.innerHTML =
+                    '<iframe src="' + url + '#view=FitH&toolbar=0" style="width:100%;height:100%;border:none;background:white;" allowfullscreen></iframe>' +
+                    '<div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:white;padding:8px 16px;border-radius:20px;font-size:12px;z-index:10;">' +
+                    'إذا لم يظهر الملف، <a href="#" onclick="window.downloadPreviewFile();return false;" style="color:#4facfe;text-decoration:underline;font-weight:bold;">اضغط هنا للتنزيل</a>' +
+                    '</div>';
+            } else {
+                // 🌐 حالة وجود إنترنت (GitHub):
+                // نستخدم عارض Mozilla لضمان الفتح داخل الشاشة بدون أخطاء
+                let embedUrl = 'https://mozilla.github.io/pdf.js/web/viewer.html?file=' + encodeURIComponent(url);
+                
+                body.innerHTML =
+                    '<iframe src="' + embedUrl + '" style="width:100%;height:100%;border:none;background:white;" allowfullscreen></iframe>' +
+                    '<div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:white;padding:8px 16px;border-radius:20px;font-size:12px;z-index:10;">' +
+                    'إذا لم يظهر الملف، <a href="#" onclick="window.downloadPreviewFile();return false;" style="color:#4facfe;text-decoration:underline;font-weight:bold;">اضغط هنا للتنزيل</a>' +
+                    '</div>';
+            }
+        }, 500);
     }
     // ---------- Excel ----------
     else if (ext === 'xls' || ext === 'xlsx') {
