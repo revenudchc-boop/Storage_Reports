@@ -2449,6 +2449,13 @@ function processAndDisplay2() {
                         sDays = sDays - 1;
                         if (sDays < 0) sDays = 0;
                     }
+					
+					                    // 🆕 استبعاد اليوم المشترك بين نهاية STRGE وبداية EXPRT (من STRGE)
+                    // نتحقق فقط للفترات التي تنتهي في نفس يوم بداية EXPRT
+                    if (exStart && sEnd && sEnd === exStart) {
+                        sDays = sDays - 1;
+                        if (sDays < 0) sDays = 0;
+                    }
                     
 					                    // 🆕 استبعاد اليوم المشترك بين نهاية فترة EXPRT RETURN وبداية STRGE
                     let returnExprtEnd = "";
