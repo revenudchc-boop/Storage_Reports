@@ -2271,11 +2271,12 @@ function processAndDisplay1() {
             periodsData.push({ tr: tr, start: trStart, end: trEnd, days: trDays, overlap: overlap });
         }
 
-        let netTrshpTotal = totalTrshpDays - totalOverlap - totalFreeDays;
+        // 🆕 استخدام remainingFreeForTrshp بدلاً من totalFreeDays
+        let netTrshpTotal = totalTrshpDays - totalOverlap - remainingFreeForTrshp;
         if (netTrshpTotal < 0) netTrshpTotal = 0;
 
         let remainingNet = netTrshpTotal;
-        let remainingFreeForDisplay = totalFreeDays;
+        let remainingFreeForDisplay = remainingFreeForTrshp; // 🆕 استخدام السماح المتبقي
 
         // ===================================================
         // 🆕 حلقة العرض وتوزيع الصافي الإجمالي
@@ -2300,7 +2301,6 @@ function processAndDisplay1() {
             let exStart = matchedExprt ? convertDate(matchedExprt["Rule Start Time"] || "") : "—";
             let exEnd = matchedExprt ? convertDate(matchedExprt["Rule End Time"] || "") : "—";
             
-            // 🆕 استخدام أيام EXPRT كاملة (بدون خصم التداخل منها) بناءً على طلبك
             let exDays = matchedExprt ? diffDays(exStart, exEnd) : 0;
 
             let obLocType = matchedExprt ? (matchedExprt["O/B Loc Type"] || "").trim().toUpperCase() : "";
@@ -2327,9 +2327,8 @@ function processAndDisplay1() {
             }
             let vesselName = p.tr["I/B Carrier Name"] || "";
             
-            // 🆕 إصلاح حالة التبريد (يقرأ من EXPRT كما في كودك الأصلي لضمان ظهور ✅)
             let isRefrigerated = matchedExprt ? (matchedExprt["Is Refrigerated"] || "") : "";
-            let type = (isRefrigerated === "true" || equipType.includes("R1")) ? "RF" : "GP";
+            let type = (isRefrigerated === "true" || isRefrigerated === true || equipType.includes("R1")) ? "RF" : "GP";
             
             let isOOG = matchedExprt ? (matchedExprt["Is OOG"] || "") : "";
             let isBundled = matchedExprt ? (matchedExprt["Is Bundled"] || "") : "";
@@ -2339,16 +2338,16 @@ function processAndDisplay1() {
             result.push({
                 "Container No.": id,
                 "Size": size,
-                "Is OOG": matchedExprt ? (matchedExprt["Is OOG"] || "") : "",
-                "Is Refrigerated": matchedExprt ? (matchedExprt["Is Refrigerated"] || "") : "",
+                "Is OOG": isOOG,
+                "Is Refrigerated": isRefrigerated,
                 "flex_04": matchedExprt ? (matchedExprt["Flex String 04"] || "") : "",
-                "Is Bundled": matchedExprt ? (matchedExprt["Is Bundled"] || "") : "",
-                "Is Hazardous": matchedExprt ? (matchedExprt["Is Hazardous"] || "") : "",
-                "IMDG Class": matchedExprt ? (matchedExprt["IMDG Class"] || "") : "",
-				"Type": (isRefrigerated === "true" || isRefrigerated === true || container.equipmentType.includes("R1")) ? "RF" : "GP",
+                "Is Bundled": isBundled,
+                "Is Hazardous": isHazardous,
+                "IMDG Class": imdgClass,
+                "Type": type,
                 "Line ID": matchedExprt ? (matchedExprt["Line ID"] || lineId) : lineId,
                 "طريقة الحساب": isExcl ? "🚫 سماح مستقل" : "🔄 تداخل سماح",
-                "Flex String 01": matchedExprt ? (matchedExprt["Flex String 01"] || p.tr["Flex String 01"] || "") : (p.tr["Flex String 01"] || ""),
+                "Flex String 01": flexString01,
                 "O/B Loc Type": matchedExprt ? (matchedExprt["O/B Loc Type"] || "") : "",
                 "Vessel Name": vesselName,
                 "TRSHP Start": p.start,
@@ -2380,7 +2379,6 @@ function processAndDisplay1() {
                 else if (sizeRaw.startsWith("L2")) size = "20";
             }
             
-            // 🆕 إظهار حالة التبريد لسطر RETURN
             let isRefrigeratedReturn = exprtReturn["Is Refrigerated"] || "";
             let typeReturn = (isRefrigeratedReturn === "true" || equipType.includes("R1")) ? "RF" : "GP";
 
