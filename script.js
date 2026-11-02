@@ -368,10 +368,19 @@ console.log("✅ فحص جميع الحقول نجح، بدء المعالجة..
 						console.log("⏭️ تم تخطي الرفع (الملف قادم من GitHub)");
 						return;
 					}
-					let result = await saveFileToGitHub();
-					if (result && result.success) {
-						console.log("✅ [FINALOUT] تم الرفع + إنشاء الأرشيف");
-					}
+let result = await saveFileToGitHub();
+if (result && result.success) {
+    console.log("✅ [FINALOUT] تم الرفع + إنشاء الأرشيف");
+    
+    // 🆕 إنشاء PDF (كان مفقوداً هنا)
+    setTimeout(async function() {
+        try {
+            await autoGenerateAndArchiveFullPDF();
+        } catch (e) {
+            console.error("❌ [FINALOUT] فشل PDF:", e.message);
+        }
+    }, 1000);
+}
 				}, 1500);
 
 				return;
