@@ -1074,7 +1074,7 @@ window.viewFileInArchive = async function(url, fileName) {
                 window.openScannerForFolder = function(folderName) {
                     if (!window.canScan) { alert('⛔ ليس لديك صلاحية المسح'); return; }
                     if (window.archiveOpener && window.archiveOpener.Scanner && window.archiveOpener.Scanner.openForFolder) window.archiveOpener.Scanner.openForFolder(window, folderName);
-                    else alert("⚠️ وحدة المسح (scanner.js) غير محمّلة في الصفحة الرئيسية");
+                    else alert("⚠️ وحدة المسح (scanner.js) غير محمّلة في الصفحة الرئيسية\n" + (window.archiveOpener && window.archiveOpener.__scannerWhy ? window.archiveOpener.__scannerWhy() : ""));
                 };
                 window.handleArchiveUpload = function(folderName) {
                     if (!window.canUpload) { alert('⛔ ليس لديك صلاحية الرفع'); return; }
@@ -1767,10 +1767,17 @@ function normSearch(t) {
         .replace(/[ً-ْـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
         .replace(/[_\-.\/\\]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
+// سبب عدم جاهزية وحدة المسح (للتشخيص في رسالة التنبيه)
+window.__scannerWhy = function () {
+    if (window.__scErr) return window.__scErr;
+    if (!window.Scanner) return 'الملف لم يُنفَّذ: تأكد أن web/js/scanner.js مرفوع على GitHub بجانب index.html، ثم حدّث الصفحة بـ Ctrl+F5.';
+    if (!window.Scanner.loadTextIndex) return 'نسخة قديمة من scanner.js (ينقصها loadTextIndex): استبدل web/js/scanner.js بالنسخة الجديدة ثم Ctrl+F5.';
+    return '';
+};
 // تحميل فهرس نص المستندات (مرة واحدة ثم يُخزَّن مؤقتاً) عند تفعيل «بحث في المحتوى»
 async function ensureTextIndex(archiveWindow, folders, force) {
-    const S = window.archiveOpener && window.archiveOpener.Scanner, content = archiveWindow.document.getElementById('archiveContent');
-    if (!S || !S.loadTextIndex) { archiveWindow.alert('⚠️ وحدة المسح (scanner.js) غير محمّلة في الصفحة الرئيسية'); return false; }
+    const S = window.Scanner || (window.archiveOpener && window.archiveOpener.Scanner), content = archiveWindow.document.getElementById('archiveContent');
+    if (!S || !S.loadTextIndex) { archiveWindow.alert('⚠️ وحدة المسح (scanner.js) غير محمّلة في الصفحة الرئيسية\n' + window.__scannerWhy()); return false; }
     try {
         const raw = await S.loadTextIndex(folders.map(f => f.name), (i, n) => { const b = archiveWindow.document.getElementById('archiveSummaryTmp') || (content.insertAdjacentHTML('afterbegin', '<div class="search-summary" id="archiveSummaryTmp"></div>'), archiveWindow.document.getElementById('archiveSummaryTmp')); b.textContent = '⏳ تحميل فهرس المحتوى… ' + i + ' / ' + n; }, force);
         const norm = {}; Object.keys(raw).forEach(f => { norm[f] = {}; Object.keys(raw[f] || {}).forEach(n => norm[f][n] = normSearch(raw[f][n])); });
@@ -1946,7 +1953,7 @@ function renderFolderFiles(folder, archiveWindow) {
             <div class="file-row" data-fname="${ea(file.name)}">
                 <div class="file-name">
                     <span>${icon}</span>
-                    <span title="${nameTitle}"${nameStyle}>${file.name}</span>
+                    <span title="${nameTitle}"${nameStyle}>${ea(file.name)}</span>
                     <span style="color:#6c757d;font-size:12px;flex-shrink:0;">(${sizeText})</span>
                 </div>
                 <div class="file-actions">
