@@ -1074,7 +1074,7 @@ window.viewFileInArchive = async function(url, fileName) {
                 window.openScannerForFolder = function(folderName) {
                     if (!window.canScan) { alert('⛔ ليس لديك صلاحية المسح'); return; }
                     if (window.archiveOpener && window.archiveOpener.Scanner && window.archiveOpener.Scanner.openForFolder) window.archiveOpener.Scanner.openForFolder(window, folderName);
-                    else alert("⚠️ وحدة المسح (scanner.js) غير محمّلة في الصفحة الرئيسية\n" + (window.archiveOpener && window.archiveOpener.__scannerWhy ? window.archiveOpener.__scannerWhy() : ""));
+                    else alert("⚠️ وحدة المسح (scanner.js) غير محمّلة في الصفحة الرئيسية\\n" + (window.archiveOpener && window.archiveOpener.__scannerWhy ? window.archiveOpener.__scannerWhy() : ""));
                 };
                 window.handleArchiveUpload = function(folderName) {
                     if (!window.canUpload) { alert('⛔ ليس لديك صلاحية الرفع'); return; }
