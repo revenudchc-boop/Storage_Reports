@@ -357,6 +357,7 @@ console.log("✅ فحص جميع الحقول نجح، بدء المعالجة..
 					if (result && result.success) {
 						console.log("✅ [FINALOUT] تم الرفع + إنشاء الأرشيف");
 					}
+					await finaloutAfterUpload(result);
 				}, 1500);
 
 				return;
@@ -586,7 +587,7 @@ function processExcelFromBytes(bytes, fileName) {
 					console.log("⏭️ تم تخطي الرفع (الملف قادم من GitHub)");
 					return;
 				}
-				await saveFileToGitHub();
+				await finaloutAfterUpload(await saveFileToGitHub());
 			}, 1500);
 
 			return;
@@ -12051,6 +12052,17 @@ function applyUserLineFilter() {
 // ============================================================
 // 📥 دالة أتمتة إنشاء ملف PDF شامل (حجم صغير + جودة عالية)
 // ============================================================
+// 📕 بعد رفع ملف FINALOUT: أنشئ بيان التخزين PDF في نفس المجلد/النسخة (أو إن كان ناقصاً عند التطابق)
+async function finaloutAfterUpload(result) {
+    try {
+        if (result && result.success && (!result.unchanged || !result.hasPdf)) {
+            await new Promise(r => setTimeout(r, 800));
+            await autoGenerateAndArchiveFullPDF();
+        }
+    } catch (e) { console.warn("⚠️ تعذّر إنشاء PDF لملف FINALOUT:", e.message); }
+    window._archiveTarget = null;
+}
+
 async function autoGenerateAndArchiveFullPDF() {
     if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
         console.warn("⏳ جاري تحميل مكتبات PDF...");
@@ -12068,7 +12080,7 @@ async function autoGenerateAndArchiveFullPDF() {
     }
 
     const folderName = names.folderName;
-    const fileName = `Storage_Report_${names.shipName}_${names.lineId}_${names.date}.pdf`.replace(/\s+/g, '_');
+    const fileName = `Storage_Report_${names.shipName}_${names.lineId}_${names.date}.pdf`.replace(/\s+/g, '_').replace(/_+\.pdf$/, '.pdf');
 
     let tabsToPrint = [
         { id: 'tab1', title: 'TRSHP + EXPRT' },
