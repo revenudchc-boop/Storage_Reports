@@ -2005,7 +2005,29 @@ window.markModifiedFiles = async function(folder, root) {
         }
         const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/'/g, '&#39;');
         root.querySelectorAll('.file-row.ver-row').forEach(r => r.remove());
-        root.querySelectorAll('.file-row').forEach(row => {
+        // ملفات موجودة في _versions فقط (الأصل غير موجود في المجلد الرئيسي): تُعرض كصفوف مستقلة
+        const rootNames = new Set([...root.querySelectorAll('.file-row')].map(r => r.dataset.fname));
+        const orphans = [];
+        (c.v || []).slice().sort((x, y) => y.n - x.n).forEach(v => (v.files || []).forEach(f => { if (!rootNames.has(f)) orphans.push({ v, f }); }));
+        if (orphans.length) {
+            const first = root.querySelector('.file-row');
+            const host = first ? first.parentNode : root;
+            const emp = host.querySelector('.empty'); if (emp) emp.remove();
+            orphans.forEach(({ v, f }) => {
+                const url = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${encodeURI(ARCHIVE_FOLDER + '/' + folder + '/_versions/v' + v.n + '/' + f)}`;
+                const d = document.createElement('div');
+                d.className = 'file-row ver-row';
+                d.dataset.fname = f;
+                d.style.cssText = 'background:#fff8f0;border-right:3px solid #e8590c;';
+                d.innerHTML = `<div class="file-name"><span>${/\.pdf$/i.test(f) ? '📕' : '📊'}</span><span style="color:#e8590c;font-weight:700;" title="${esc(f)}">${esc(f)}</span><span style="color:#6c757d;font-size:12px;">✏️ نسخة معدّلة ${v.n}${v.t ? ' — ' + new Date(v.t).toLocaleString('ar-EG') : ''}${v.u ? ' — ' + esc(v.u) : ''}</span></div>
+                    <div class="file-actions">
+                        <button class="btn-small btn-view" onclick="event.stopPropagation(); window.viewFileInArchive('${esc(url)}', '${esc(f)}')">👁️ عرض</button>
+                        <button class="btn-small btn-download" onclick="event.stopPropagation(); window.downloadFileInArchive('${esc(url)}', '${esc(f)}')">📥</button>
+                    </div>`;
+                host.appendChild(d);
+            });
+        }
+        root.querySelectorAll('.file-row:not(.ver-row)').forEach(row => {
             const fname = row.dataset.fname;
             const rep = (c.h[fname] || []).filter(e => e.a === 'replace').pop();
             const vers = (c.v || []).filter(v => (v.files || []).includes(fname)).sort((a, b) => b.n - a.n);

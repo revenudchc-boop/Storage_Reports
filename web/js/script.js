@@ -355,7 +355,7 @@ console.log("✅ فحص جميع الحقول نجح، بدء المعالجة..
 					}
 					let result = await saveFileToGitHub();
 					if (result && result.success) {
-						console.log("✅ [FINALOUT] تم الرفع + إنشاء الأرشيف");
+						console.log("✅ [FINALOUT] تم رفع ملف Excel (جاري إنشاء PDF)");
 					}
 					await finaloutAfterUpload(result);
 				}, 1500);
@@ -10911,11 +10911,14 @@ async function saveFileToGitHub() {
         window._archiveTarget = { folder: names.folderName, sub: target.sub || '' };
         if (target.unchanged) {
             const which = target.sub ? `النسخة المعدّلة ${target.n}` : 'النسخة الأصلية';
-            const hasPdf = (target.dirFiles || []).some(n => /\.pdf$/i.test(n));
+            // FINALOUT: يلزم PDF بنفس اسم الـ Excel تماماً؛ غيره: أي PDF في المجلد
+            const hasPdf = names.isFinalout
+                ? (target.dirFiles || []).includes(`${names.reportBaseName}.pdf`.replace(/\s+/g, '_'))
+                : (target.dirFiles || []).some(n => /\.pdf$/i.test(n));
             console.log(`⏭️ الملف مطابق لـ ${which} المحفوظة — لن تُنشأ نسخة جديدة`);
             const f0 = document.getElementById("footerMsg");
             if (f0) { f0.innerHTML = `ℹ️ الملف مطابق لـ<strong>${which}</strong> المحفوظة في الأرشيف — لم تُنشأ نسخة جديدة`; f0.style.color = "#17a2b8"; }
-            return { success: true, unchanged: true, sub: target.sub || '', hasPdf };
+            return { success: true, unchanged: true, sub: target.sub || '', hasPdf, dirFiles: target.dirFiles || [] };
         }
         const verSub = target.sub || '';
 
@@ -12055,7 +12058,10 @@ function applyUserLineFilter() {
 // 📕 بعد رفع ملف FINALOUT: أنشئ بيان التخزين PDF في نفس المجلد/النسخة (أو إن كان ناقصاً عند التطابق)
 async function finaloutAfterUpload(result) {
     try {
+        if (result && result.success && result.unchanged && result.hasPdf) console.log("ℹ️ [FINALOUT] الـ PDF موجود مسبقاً في " + (result.sub || "المجلد الرئيسي") + " — لن يُنشأ من جديد");
+        else if (!result || !result.success) console.log("⏭️ [FINALOUT] لن يُنشأ PDF: فشل الرفع", result && result.error);
         if (result && result.success && (!result.unchanged || !result.hasPdf)) {
+            console.log("📕 [FINALOUT] جاري إنشاء PDF...");
             await new Promise(r => setTimeout(r, 800));
             await autoGenerateAndArchiveFullPDF();
         }
@@ -12080,7 +12086,7 @@ async function autoGenerateAndArchiveFullPDF() {
     }
 
     const folderName = names.folderName;
-    const fileName = `Storage_Report_${names.shipName}_${names.lineId}_${names.date}.pdf`.replace(/\s+/g, '_').replace(/_+\.pdf$/, '.pdf');
+    const fileName = `Storage_Report_${names.shipName}_${names.lineId}_${names.date}.pdf`.replace(/\s+/g, '_');
 
     let tabsToPrint = [
         { id: 'tab1', title: 'TRSHP + EXPRT' },
