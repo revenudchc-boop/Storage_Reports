@@ -246,6 +246,8 @@
         <option value="">-- اختر التاريخ --</option>
     </select>
     
+    <select id="ghVersionSelect" style="display:none;padding:8px 12px;border-radius:8px;border:1px solid #ced4da;width:150px;max-width:150px;font-size:13px;" title="اختر النسخة الأصلية أو إحدى النسخ المعدّلة"></select>
+
     <button id="ghDownloadBtn" style="background:#17a2b8;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-weight:bold;font-size:14px;">📥 تحميل الملف</button>
     
     <button id="ghRefreshBtn" style="background:#6c757d;color:white;border:none;padding:10px 20px;border-radius:30px;cursor:pointer;font-weight:bold;font-size:14px;">🔄 تحديث القائمة</button>
@@ -957,15 +959,17 @@
 </div>
 
 <link rel="stylesheet" href="web/css/dashboard.css?v=4.3">
-<script src="web/js/auth.js"></script>
+<script>/* يلتقط سبب عدم تحميل scanner.js (ملف مفقود 404 أو خطأ برمجي) لعرضه في رسالة التنبيه */
+window.addEventListener("error", function (e) { try { var t = e.target; if (t && t.tagName === "SCRIPT" && /scanner\.js/.test(t.src)) window.__scErr = "تعذّر تنزيل الملف (غير موجود أو محجوب): " + t.src; else if (e.filename && /scanner\.js/.test(e.filename)) window.__scErr = "خطأ برمجي: " + e.message; } catch (x) { } }, true);</script>
+<script src="web/js/auth.js?v=2"></script>
 <script src="web/js/users-admin.js?v=1"></script>
-<script src="web/js/local-server.js"></script>
-<script src="web/js/offline.js?v=1"></script>
-<script src="web/js/archive.js"></script>
-<script src="web/js/script.js"></script>
+<script src="web/js/local-server.js?v=3"></script>
+<script src="web/js/offline.js?v=2"></script>
+<script src="web/js/archive.js?v=5"></script>
+<script src="web/js/script.js?v=6"></script>
 <script src="web/js/pdf-font.js?v=5.1"></script>
-<script src="web/js/pdf-text.js?v=5.1"></script>
-<script src="web/js/scanner.js?v=3.7"></script>
-<script src="web/js/dashboard.js?v=4.3"></script>
+<script src="web/js/pdf-text.js?v=5.2"></script>
+<script src="web/js/scanner.js?v=3.8"></script>
+<script src="web/js/dashboard.js?v=4.4"></script>
 </body>
 </html>

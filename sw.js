@@ -3,7 +3,7 @@
 // استراتيجية: الشبكة أولاً (دائماً أحدث نسخة)، وعند انقطاعها تُقدَّم النسخة المحفوظة.
 // لا يتعامل مع طلبات الخادم المحلي /api ولا مع GitHub.
 // ============================================================
-const CACHE = 'archive-app-v1';
+const CACHE = 'archive-app-v2';
 const CDN_HOSTS = /(^|\.)(cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|tessdata\.projectnaptha\.com)$/;
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(
@@ -16,7 +16,7 @@ self.addEventListener('fetch', e => {
     if (!same && !CDN_HOSTS.test(u.hostname)) return;
     if (same && /^\/api\//.test(u.pathname)) return;
     e.respondWith(
-        fetch(r).then(res => {
+        fetch(r, same ? { cache: 'no-cache' } : undefined).then(res => {
             if (res && (res.ok || res.type === 'opaque')) { const c = res.clone(); caches.open(CACHE).then(ca => ca.put(r, c)).catch(() => { }); }
             return res;
         }).catch(() => caches.match(r).then(m => m || caches.match(r, { ignoreSearch: true })).then(m => {
