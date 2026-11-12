@@ -230,10 +230,40 @@ function auditUser(req) {
 }
 function audit(action, folder, file, req) {
     try {
+        if (String(file).split('/').pop().startsWith('_')) return;   // ملفات النظام (_info.json) لا تُسجَّل
+        try { if (require('fs').statSync(AUDIT_FILE).size > 10 * 1024 * 1024) require('fs').renameSync(AUDIT_FILE, AUDIT_FILE + '.old'); } catch (e) { }   // تدوير السجل عند 10MB
         const line = JSON.stringify({ t: new Date().toISOString(), a: action, folder, file, u: auditUser(req), ip: req.ip || '' }) + '\n';
         require('fs').appendFile(AUDIT_FILE, line, () => { });
     } catch (e) { }
 }
+
+// حالة ملفات مجلد: الملفات في جذره وفي _versions/vN مع sha (صيغة git blob) لملفات الإكسل
+app.get('/api/archive/state/:folder', async (req, res) => {
+    try {
+        const folder = decodeURIComponent(req.params.folder);
+        if (folder.includes('..') || folder.includes('/') || folder.includes('\\')) return res.status(400).json({ success: false, error: 'مجلد غير صالح' });
+        const base = path.join(CONFIG.ARCHIVE_PATH, folder);
+        const crypto = require('crypto'), files = [];
+        const addDir = async (dir, rel) => {
+            let ents = []; try { ents = await fs.readdir(dir, { withFileTypes: true }); } catch (e) { return; }
+            for (const e of ents) {
+                if (!e.isFile() || e.name === '_info.json') continue;
+                let sha = '';
+                if (/\.(xlsx|xls)$/i.test(e.name)) {
+                    const buf = await fs.readFile(path.join(dir, e.name));
+                    sha = crypto.createHash('sha1').update('blob ' + buf.length + '\0').update(buf).digest('hex');
+                }
+                files.push({ path: (rel ? rel + '/' : '') + e.name, sha });
+            }
+        };
+        await addDir(base, '');
+        let vs = []; try { vs = await fs.readdir(path.join(base, '_versions'), { withFileTypes: true }); } catch (e) { }
+        for (const v of vs) if (v.isDirectory() && /^v\d{1,4}$/.test(v.name)) await addDir(path.join(base, '_versions', v.name), '_versions/' + v.name);
+        res.json({ success: true, files });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 app.get('/api/archive/history/:folder/:file', async (req, res) => {
     try {
@@ -272,6 +302,7 @@ app.get('/api/archive/file/:folder/:file', async (req, res) => {
         res.setHeader('Content-Disposition', 'inline; filename="' + encodeURIComponent(fileName) + '"');
         
         const fileStream = require('fs').createReadStream(filePath);
+        fileStream.on('error', () => { try { res.destroy(); } catch (e) { } });   // حتى لا يتوقف الخادم إن اختفى الملف أثناء التحميل
         fileStream.pipe(res);
         
     } catch (error) {
@@ -284,7 +315,7 @@ app.get('/api/archive/file/:folder/:file', async (req, res) => {
 // ============================================================
 app.post('/api/archive/upload', async (req, res) => {
     try {
-        const { folderName, fileName, base64Data } = req.body;
+        const { folderName, fileName, base64Data, subPath } = req.body;
         
         if (!folderName || !fileName || !base64Data) {
             return res.status(400).json({ error: 'بيانات ناقصة' });
@@ -303,7 +334,10 @@ app.post('/api/archive/upload', async (req, res) => {
         const safeFolder = sanitizeName(folderName);
         const safeFile = sanitizeName(fileName);
         
-        const folderPath = path.join(CONFIG.ARCHIVE_PATH, safeFolder);
+        // نسخة معدّلة: مجلد فرعي بصيغة صارمة _versions/vN فقط
+        const sub = subPath ? String(subPath) : '';
+        if (sub && !/^_versions\/v\d{1,4}$/.test(sub)) return res.status(400).json({ error: 'مسار فرعي غير مسموح' });
+        const folderPath = path.join(CONFIG.ARCHIVE_PATH, safeFolder, sub);
         const filePath = path.join(folderPath, safeFile);
         
         await fs.mkdir(folderPath, { recursive: true });
@@ -311,7 +345,7 @@ app.post('/api/archive/upload', async (req, res) => {
         
         const buffer = Buffer.from(base64Data, 'base64');
         await fs.writeFile(filePath, buffer);
-        audit(existed ? 'replace' : 'add', safeFolder, safeFile, req);
+        audit(existed ? 'replace' : 'add', safeFolder, (sub ? sub + '/' : '') + safeFile, req);
         
         console.log('✅ تم حفظ:', filePath, '(' + (size / 1024).toFixed(1) + ' KB)');
         
