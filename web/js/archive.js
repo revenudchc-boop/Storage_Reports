@@ -230,8 +230,80 @@ if (!names.isFinalout &&
 }
 
 // ============================================================
-// 🆕 تحديث _info.json
+// 🗂️ نسخ الملف المعدَّل: الأصل يبقى كما هو، وكل تعديل يُحفظ في archive/<المجلد>/_versions/vN/
+//    (بنفس اسم الملف، فلا يتأثر استخراج الخط والتاريخ من الاسم). كل نسخة معها PDF خاص بها.
 // ============================================================
+function _sha1Hex(u8) {
+    const rol = (n, b) => (n << b) | (n >>> (32 - b));
+    const l = u8.length, nb = ((l + 8) >> 6) + 1, w = new Int32Array(nb * 16);
+    for (let i = 0; i < l; i++) w[i >> 2] |= u8[i] << (24 - (i % 4) * 8);
+    w[l >> 2] |= 0x80 << (24 - (l % 4) * 8);
+    w[nb * 16 - 1] = l * 8;
+    let h0 = 0x67452301, h1 = 0xEFCDAB89 | 0, h2 = 0x98BADCFE | 0, h3 = 0x10325476, h4 = 0xC3D2E1F0 | 0;
+    const W = new Int32Array(80);
+    for (let b = 0; b < nb * 16; b += 16) {
+        for (let t = 0; t < 16; t++) W[t] = w[b + t];
+        for (let t = 16; t < 80; t++) W[t] = rol(W[t - 3] ^ W[t - 8] ^ W[t - 14] ^ W[t - 16], 1);
+        let a = h0, bb = h1, c = h2, d = h3, e = h4;
+        for (let t = 0; t < 80; t++) {
+            let f, k;
+            if (t < 20) { f = (bb & c) | (~bb & d); k = 0x5A827999; }
+            else if (t < 40) { f = bb ^ c ^ d; k = 0x6ED9EBA1; }
+            else if (t < 60) { f = (bb & c) | (bb & d) | (c & d); k = 0x8F1BBCDC | 0; }
+            else { f = bb ^ c ^ d; k = 0xCA62C1D6 | 0; }
+            const tmp = (rol(a, 5) + f + e + k + W[t]) | 0;
+            e = d; d = c; c = rol(bb, 30); bb = a; a = tmp;
+        }
+        h0 = (h0 + a) | 0; h1 = (h1 + bb) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0; h4 = (h4 + e) | 0;
+    }
+    return [h0, h1, h2, h3, h4].map(x => (x >>> 0).toString(16).padStart(8, '0')).join('');
+}
+// نفس صيغة sha الذي يعطيه GitHub لأي ملف (git blob) — يُحسب من base64 دون مكتبات
+function gitBlobShaOfBase64(b64) {
+    const bin = atob(b64), n = bin.length, head = 'blob ' + n + '\0', u8 = new Uint8Array(head.length + n);
+    for (let i = 0; i < head.length; i++) u8[i] = head.charCodeAt(i);
+    for (let i = 0; i < n; i++) u8[head.length + i] = bin.charCodeAt(i);
+    return _sha1Hex(u8);
+}
+// حالة ملفات المجلد (المسار النسبي + sha) من الخادم المحلي وGitHub معاً
+async function readArchiveFolderState(folder) {
+    const out = [];
+    try { if (typeof fetchLocalVersionState === 'function') (await fetchLocalVersionState(folder)).forEach(f => out.push({ path: f.path, sha: f.sha || '', src: 'local' })); } catch (e) { }
+    const token = localStorage.getItem('github_token');
+    if (token) {
+        try {
+            const r = await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/git/trees/${encodeURI(GH_BRANCH + ':' + ARCHIVE_FOLDER + '/' + folder)}?recursive=1&t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' } });
+            if (r.ok) ((await r.json()).tree || []).forEach(t => { if (t.type === 'blob') out.push({ path: t.path, sha: t.sha, src: 'github' }); });
+        } catch (e) { }
+    }
+    return out;
+}
+// يقرر أين يُحفظ الملف: الأصل (جديد) | نسخة معدلة vN | لا شيء (مطابق لنسخة محفوظة)
+async function resolveArchiveTarget(folder, fileName, base64Data) {
+    const state = await readArchiveFolderState(folder);
+    const sha = gitBlobShaOfBase64(base64Data);
+    const vRe = /^_versions\/v(\d+)\/(.+)$/;
+    let maxN = 1, hasRoot = false, match = null;
+    state.forEach(e => {
+        const m = vRe.exec(e.path);
+        if (m) { maxN = Math.max(maxN, parseInt(m[1], 10)); if (m[2] === fileName && e.sha && e.sha === sha) match = e; }
+        else if (e.path === fileName) { hasRoot = true; if (e.sha && e.sha === sha) match = e; }
+    });
+    const dirOf = p => (vRe.exec(p) ? p.replace(/\/[^\/]+$/, '') : '');
+    if (match) {
+        const sub = dirOf(match.path), vm = /v(\d+)$/.exec(sub);
+        const names = state.filter(e => dirOf(e.path) === sub && (sub ? e.path.startsWith(sub + '/') : !e.path.includes('/'))).map(e => e.path.split('/').pop());
+        return { unchanged: true, sub, n: vm ? parseInt(vm[1], 10) : 1, dirFiles: names };
+    }
+    if (!hasRoot) return { unchanged: false, sub: '', n: 1, isNew: true };
+    const n = maxN + 1;
+    return { unchanged: false, sub: `_versions/v${n}`, n };
+}
+window.resolveArchiveTarget = resolveArchiveTarget;
+window.gitBlobShaOfBase64 = gitBlobShaOfBase64;
+// الوجهة الحالية للحفظ (يضبطها رفع الإكسل ويقرؤها حفظ الـ PDF ليذهب إلى نفس المجلد)
+window.archiveSubFor = f => (window._archiveTarget && window._archiveTarget.folder === f) ? (window._archiveTarget.sub || '') : '';
+
 // ============================================================
 // 🆕 تحديث _info.json
 // ============================================================
@@ -272,6 +344,18 @@ async function updateArchiveInfo(folderName, newData, lineId) {
                 lines: existingLines,
                 documents: existingInfo.documents || []
             };
+            // نسخ الملف المعدّل: versions = [{n, t, u, files:[...]}] (تُدمج مع ما كتبه غيرنا)
+            delete mergedInfo._version;
+            const vr = newData && newData._version;
+            if (vr && vr.n) {
+                const cu0 = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+                const vs = (existingInfo.versions || []).map(v => ({ ...v, files: [...(v.files || [])] }));
+                let cur = vs.find(v => v.n === vr.n);
+                if (!cur) { cur = { n: vr.n, t: new Date().toISOString(), u: (cu0 && (cu0.fullName || cu0.username)) || '', files: [] }; vs.push(cur); }
+                if (vr.file && !cur.files.includes(vr.file)) cur.files.push(vr.file);
+                vs.sort((a, b) => a.n - b.n);
+                mergedInfo.versions = vs;
+            } else if (existingInfo.versions) mergedInfo.versions = existingInfo.versions;
             // سجل تواريخ المستند: يُضاف حدث (add/replace/delete) إلى history[الملف] مع اسم المستخدم
             delete mergedInfo._event;
             const ev = newData && newData._event;
@@ -1872,6 +1956,9 @@ window.getArchiveFileHistory = async function(folder, name, localModified, local
         else if (token && window.Scanner && Scanner.folderInfo) info = await Scanner.folderInfo(folder);
         if (info) {
             ((info.history || {})[name] || []).forEach(h => ev.push({ t: h.t, label: lbl[h.a] || h.a, who: h.u, src: 'سجل الأرشيف' }));
+            // نسخ معدّلة محفوظة لهذا الملف: كل نسخة تظهر كتعديل
+            Object.keys(info.history || {}).forEach(k => { const m = /^_versions\/v(\d+)\/(.+)$/.exec(k); if (m && m[2] === name) (info.history[k] || []).filter((h, i) => i === 0).forEach(h => ev.push({ t: h.t, label: 'تعديل: حُفظت نسخة معدّلة (النسخة ' + m[1] + ')', who: h.u, src: 'سجل الأرشيف' })); });
+            notes.push.apply(notes, (info.versions || []).filter(v => (v.files || []).includes(name)).map(v => '📎 النسخة ' + v.n + ' محفوظة: ' + new Date(v.t).toLocaleString('ar-EG') + (v.u ? ' — ' + v.u : '')));
             (info.scanLog || []).filter(e => (e.files || []).includes(name)).forEach(e =>
                 ev.push({ t: e.t, label: 'مسح ضوئي' + (e.pages ? ' (' + e.pages + ' صفحة)' : '') + (e.type ? ' · ' + e.type : ''), who: e.user, src: 'سجل المسح' }));
             if (info.textIndex && info.textIndex[name]) notes.push('✓ المستند مفهرس للبحث بمحتواه');
@@ -1914,14 +2001,34 @@ window.markModifiedFiles = async function(folder, root) {
         let c = _modInfoCache[folder];
         if (!c || Date.now() - c.t > 300000) {
             const r = await fetch(`https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${encodeURI(ARCHIVE_FOLDER + '/' + folder)}/_info.json?t=${Date.now()}`);
-            c = _modInfoCache[folder] = { t: Date.now(), h: r.ok ? ((await r.json()).history || {}) : {} };
+            const j = r.ok ? await r.json() : {}; c = _modInfoCache[folder] = { t: Date.now(), h: j.history || {}, v: j.versions || [] };
         }
+        const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/'/g, '&#39;');
+        root.querySelectorAll('.file-row.ver-row').forEach(r => r.remove());
         root.querySelectorAll('.file-row').forEach(row => {
-            const rep = (c.h[row.dataset.fname] || []).filter(e => e.a === 'replace').pop();
+            const fname = row.dataset.fname;
+            const rep = (c.h[fname] || []).filter(e => e.a === 'replace').pop();
+            const vers = (c.v || []).filter(v => (v.files || []).includes(fname)).sort((a, b) => b.n - a.n);
             const sp = row.querySelector('.file-name span[title]');
-            if (!rep || !sp) return;
-            sp.style.color = '#e8590c'; sp.style.fontWeight = '700';
-            if (!/✏️/.test(sp.title)) sp.title += ' — ✏️ تم تعديله ' + new Date(rep.t).toLocaleString('ar-EG') + (rep.u ? ' بواسطة ' + rep.u : '');
+            if (sp && (rep || vers.length)) {
+                sp.style.color = '#e8590c'; sp.style.fontWeight = '700';
+                const when = rep ? rep.t : vers[0].t, who = rep ? rep.u : vers[0].u;
+                if (!/✏️/.test(sp.title)) sp.title += ' — ✏️ تم تعديله ' + (when ? new Date(when).toLocaleString('ar-EG') : '') + (who ? ' بواسطة ' + who : '');
+            }
+            // سطر لكل نسخة معدّلة تحت الملف (الأحدث أولاً)
+            let anchor = row;
+            vers.forEach((v, i) => {
+                const url = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${encodeURI(ARCHIVE_FOLDER + '/' + folder + '/_versions/v' + v.n + '/' + fname)}`;
+                const d = document.createElement('div');
+                d.className = 'file-row ver-row';
+                d.style.cssText = 'background:#fff8f0;border-right:3px solid #e8590c;margin-right:18px;font-size:13px;';
+                d.innerHTML = `<div class="file-name"><span>↳ ✏️</span><span style="color:#e8590c;font-weight:600;">نسخة معدّلة ${v.n}${i === 0 ? ' (الأحدث)' : ''}</span><span style="color:#6c757d;font-size:12px;">${v.t ? new Date(v.t).toLocaleString('ar-EG') : ''}${v.u ? ' — ' + esc(v.u) : ''}</span></div>
+                    <div class="file-actions">
+                        <button class="btn-small btn-view" onclick="event.stopPropagation(); window.viewFileInArchive('${esc(url)}', '${esc(fname)}')">👁️ عرض</button>
+                        <button class="btn-small btn-download" onclick="event.stopPropagation(); window.downloadFileInArchive('${esc(url)}', '${esc(fname)}')">📥</button>
+                    </div>`;
+                anchor.after(d); anchor = d;
+            });
         });
     } catch (e) { }
 };
@@ -2038,10 +2145,10 @@ window.uploadFilesToArchive = async function(folderName, fileDataList) {
 // ☁️ رفع ملف واحد إلى GitHub فقط (يُستخدم من الرفع العادي ومن طابور offline.js)
 // يرجع { success, path, error, network } — network=true عند انقطاع الاتصال
 // ============================================================
-async function _ghPutFile(folderName, cleanName, base64Data) {
+async function _ghPutFile(folderName, cleanName, base64Data, sub) {
     const token = localStorage.getItem("github_token");
     if (!token) return { success: false, error: 'لا يوجد Token', network: false };
-    const filePath = `${ARCHIVE_FOLDER}/${folderName}/${cleanName}`;
+    const filePath = `${ARCHIVE_FOLDER}/${folderName}/${sub ? sub + '/' : ''}${cleanName}`;
     try {
         const apiUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${filePath}`;
         let existingSha = null;
@@ -2066,7 +2173,8 @@ async function _ghPutFile(folderName, cleanName, base64Data) {
         }
         console.log(`✅ [GitHub] تم: ${filePath}`);
         // تحديث _info.json
-        await updateArchiveInfo(folderName, { _event: { file: cleanName, a: existingSha ? 'replace' : 'add' } });
+        { const vm = sub && /v(\d+)$/.exec(sub);
+          await updateArchiveInfo(folderName, { _event: { file: (sub ? sub + '/' : '') + cleanName, a: existingSha ? 'replace' : 'add' }, ...(vm ? { _version: { n: parseInt(vm[1], 10), file: cleanName } } : {}) }); }
         // تحديث الفهرس ومسح الذاكرة المؤقتة
         if (typeof generateAndSaveIndexFromTree === 'function') {
             generateAndSaveIndexFromTree(); // بدون await لكي لا يتأخر الرد
@@ -2083,9 +2191,10 @@ async function _ghPutFile(folderName, cleanName, base64Data) {
 // ============================================================
 // 📤 رفع ملف واحد كـ base64 (المحلي + GitHub معاً)
 // ============================================================
-async function uploadBase64ToArchive(folderName, fileName, base64Data) {
+async function uploadBase64ToArchive(folderName, fileName, base64Data, opts) {
     let cleanName = fileName.replace(/[^\w\u0600-\u06FF.\-]/g, '_');
-    const filePath = `${ARCHIVE_FOLDER}/${folderName}/${cleanName}`;
+    const sub = (opts && opts.sub) || '';   // مثال: _versions/v2 (نسخة معدّلة)
+    const filePath = `${ARCHIVE_FOLDER}/${folderName}/${sub ? sub + '/' : ''}${cleanName}`;
     
     let result = {
         success: false,
@@ -2099,7 +2208,7 @@ async function uploadBase64ToArchive(folderName, fileName, base64Data) {
     if (typeof _localServerAvailable !== 'undefined' && _localServerAvailable) {
         console.log("🖥️ [1/2] رفع إلى الخادم المحلي:", cleanName);
         try {
-            let localResult = await uploadToLocalServer(folderName, cleanName, base64Data);
+            let localResult = await uploadToLocalServer(folderName, cleanName, base64Data, sub);
             if (localResult.success) {
                 result.local.success = true;
                 result.local.path = localResult.path;
@@ -2123,7 +2232,7 @@ async function uploadBase64ToArchive(folderName, fileName, base64Data) {
     const token = localStorage.getItem("github_token");
     if (token) {
         console.log("☁️ [2/2] رفع إلى GitHub:", cleanName);
-        const g = await _ghPutFile(folderName, cleanName, base64Data);
+        const g = await _ghPutFile(folderName, cleanName, base64Data, sub);
         if (g.success) {
             result.github.success = true;
             result.github.path = g.path;
@@ -2136,7 +2245,7 @@ async function uploadBase64ToArchive(folderName, fileName, base64Data) {
                 result.github.error = 'لا يوجد إنترنت والخادم المحلي غير متاح — الملف لم يُحفظ. شغّل الخادم المحلي أو انتظر عودة الإنترنت.';
             } else if (g.network && window.ArchiveSync) {
                 try {
-                    await window.ArchiveSync.add(folderName, cleanName, base64Data);
+                    await window.ArchiveSync.add(folderName, cleanName, base64Data, sub);
                     result.github.pending = true;
                     result.github.error = 'لا يوجد اتصال — سيُرفع إلى GitHub تلقائياً عند عودة الإنترنت';
                     console.log("⏳ [GitHub] أُجِّل الرفع حتى عودة الإنترنت:", cleanName);
@@ -3244,6 +3353,14 @@ async function generateAndSaveIndexFromTree() {
                     });
                 }
 
+                // نسخ معدلة: archive/<مجلد>/_versions/vN/<ملف>
+                if (item.type === 'blob' && parts.length === 5 && parts[2] === '_versions' && /^v\d+$/.test(parts[3])) {
+                    const fo = foldersMap.get(folderName), n = parseInt(parts[3].slice(1), 10);
+                    fo.versions = fo.versions || [];
+                    let ver = fo.versions.find(v => v.n === n);
+                    if (!ver) { ver = { n, files: [] }; fo.versions.push(ver); }
+                    ver.files.push({ name: parts[4], path: item.path, size: item.size || 0, sha: item.sha, download_url: `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${item.path}` });
+                }
                 if (item.type === 'blob' && parts.length === 3 && parts[2] !== '_info.json') {
                     let folderObj = foldersMap.get(folderName);
                     folderObj.files.push({
@@ -3262,6 +3379,7 @@ async function generateAndSaveIndexFromTree() {
 
         // 2. جلب الخطوط الحقيقية من _info.json أو الاستدلال من اسم الملف
         const foldersArray = Array.from(foldersMap.values());
+        foldersArray.forEach(f => { if (f.versions) f.versions.sort((a, b) => a.n - b.n); });
         await Promise.all(foldersArray.map(async (folder) => {
             let linesFound = false;
             
@@ -3272,6 +3390,8 @@ async function generateAndSaveIndexFromTree() {
                 if (resp.ok) {
                     const infoData = await resp.json();
                     const info = JSON.parse(decodeURIComponent(escape(atob(infoData.content.replace(/\n/g, '')))));
+                    // وقت ومنفّذ كل نسخة معدّلة (من _info.json) يُدمجان في الفهرس
+                    (folder.versions || []).forEach(v => { const m = (info.versions || []).find(x => x.n === v.n); if (m) { v.t = m.t; v.u = m.u; } });
                     if (info.lines && info.lines.length > 0) {
                         folder.lines = info.lines.map(l => String(l).trim().toUpperCase());
                         linesFound = true;

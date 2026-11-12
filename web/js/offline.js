@@ -14,7 +14,7 @@
     const tx = async (mode, fn) => { const d = await open(); return new Promise((res, rej) => { const t = d.transaction(ST, mode), q = fn(t.objectStore(ST)); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); }); };
     const list = () => tx('readonly', s => s.getAll()).then(a => a || []);
     const count = async () => { try { return (await list()).length; } catch (e) { return 0; } };
-    const add = (folder, name, b64) => tx('readwrite', s => s.put({ key: folder + '/' + name, folder, name, b64, tries: 0, t: Date.now() })).then(() => { changed(); });
+    const add = (folder, name, b64, sub) => tx('readwrite', s => s.put({ key: folder + '/' + (sub ? sub + '/' : '') + name, folder, name, sub: sub || '', b64, tries: 0, t: Date.now() })).then(() => { changed(); });
     const del = (key) => tx('readwrite', s => s.delete(key));
     const upd = (item) => tx('readwrite', s => s.put(item));
 
@@ -26,7 +26,7 @@
         try {
             for (const it of await list()) {
                 if (!manual && it.tries >= MAX_AUTO_TRIES) continue;
-                const r = await _ghPutFile(it.folder, it.name, it.b64);
+                const r = await _ghPutFile(it.folder, it.name, it.b64, it.sub || '');
                 if (r.success) { await del(it.key); done++; }
                 else { it.tries = (it.tries || 0) + 1; it.err = r.error; await upd(it); if (r.network) break; }
             }

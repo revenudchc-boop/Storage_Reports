@@ -111,7 +111,7 @@ async function loadLocalArchiveFolders() {
 // ============================================================
 // 📤 رفع ملف إلى الخادم المحلي
 // ============================================================
-async function uploadToLocalServer(folderName, fileName, base64Data) {
+async function uploadToLocalServer(folderName, fileName, base64Data, subPath) {
     if (!_localServerAvailable) {
         return { success: false, error: 'الخادم المحلي غير متاح' };
     }
@@ -127,6 +127,7 @@ async function uploadToLocalServer(folderName, fileName, base64Data) {
             body: JSON.stringify({
                 folderName: folderName,
                 fileName: fileName,
+                subPath: subPath || '',
                 base64Data: base64Data
             })
         });
@@ -160,6 +161,18 @@ async function fetchLocalHistory(folderName, fileName) {
     } catch (e) { return []; }
 }
 window.fetchLocalHistory = fetchLocalHistory;
+
+// حالة ملفات مجلد (المسار النسبي + sha لملفات الإكسل) لتحديد نسخ الملف المعدّل
+async function fetchLocalVersionState(folderName) {
+    if (!_localServerAvailable) return [];
+    try {
+        const r = await fetch(`${_activeServerUrl}/api/archive/state/${encodeURIComponent(folderName)}?apiKey=${LOCAL_SERVER_CONFIG.API_KEY}`);
+        if (!r.ok) return [];
+        const d = await r.json();
+        return d && d.success ? d.files || [] : [];
+    } catch (e) { return []; }
+}
+window.fetchLocalVersionState = fetchLocalVersionState;
 
 // ============================================================
 // 🗑️ حذف ملف من الخادم المحلي

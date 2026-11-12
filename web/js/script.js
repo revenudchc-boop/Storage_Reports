@@ -512,11 +512,16 @@ setTimeout(() => {
                 }
                 
                 let result = await saveFileToGitHub();
-                if (result && result.success) {
+                if (result && result.success && result.unchanged) {
+                    // الملف مطابق لنسخة محفوظة: لا نسخة جديدة؛ نُنشئ الـ PDF فقط إن كان ناقصاً في تلك النسخة
+                    if (!result.hasPdf) await autoGenerateAndArchiveFullPDF();
+                    window._archiveTarget = null;
+                } else if (result && result.success) {
                     console.log("✅ الملف مرفوع على GitHub");
-					 // 🆕 إضافة هذا السطر لتشغيل إنشاء الـ PDF آلياً
+					 // 🆕 إضافة هذا السطر لتشغيل إنشاء الـ PDF آلياً (يُحفظ في نفس مجلد النسخة)
         await autoGenerateAndArchiveFullPDF(); 
-                }
+                    window._archiveTarget = null;
+                } else { window._archiveTarget = null; }
             }, 2500);
             
         } catch(err) {
@@ -10434,7 +10439,7 @@ function generateInteractiveConsolidatedReport() {
                     innerDocHtml += '<button class="btn-reset" id="resetBtn">🔄 إعادة تعيين</button>';
                     innerDocHtml += '</div>';
                     innerDocHtml += '<div id="compareResults" style="display:none">';
-                    innerDocHtml += '<div class="section-title">📊 نتائج المقارنة (الحاويات التي بها فرق فقط)</div>';
+                    innerDocHtml += '<div class="section-title">📊 نتائج المقارنة (الحاويات التي بها فرق فقط) <button id="exportDiffBtn" style="float:left;padding:6px 16px;border:none;border-radius:8px;background:#198754;color:white;font-weight:bold;cursor:pointer;font-size:13px">📥 تصدير الفروق Excel</button></div>';
                     innerDocHtml += '<div class="summary" id="compareSummary"></div>';
                     innerDocHtml += '<div id="compareTableContainer"></div>';
                     innerDocHtml += '</div>';
@@ -10454,6 +10459,53 @@ function generateInteractiveConsolidatedReport() {
                     
                     // ===== ربط الأحداث =====
                     let billingData = null;
+                    let lastCompare = null;
+                    let billingFileName = '';
+
+                    // ===== تصدير الفروق إلى Excel (ورقة الفروق + ورقة ملخص) =====
+                    detailWin.document.getElementById('exportDiffBtn').onclick = function() {
+                        if (!lastCompare || !lastCompare.diffResults.length) { alert('لا توجد فروق للتصدير'); return; }
+                        let XL = (window.opener && window.opener.XLSX) || detailWin.XLSX;
+                        if (!XL) { alert('⏳ مكتبة Excel غير جاهزة بعد'); return; }
+                        let diffRows = lastCompare.diffResults.map(function(r, i) {
+                            return {
+                                '#': i + 1,
+                                'Container No.': r['Container No.'],
+                                'Line': r['Line ID'],
+                                'Size': r['Size'],
+                                'Type': r['Type'],
+                                'Reefer': r['Is Reefer'] ? 'نعم' : 'لا',
+                                'أيام البرنامج': r['Program Days'],
+                                'أيام الملف': r['Billing Days'],
+                                'الفرق': r['Difference'],
+                                'الحالة': r['Status']
+                            };
+                        });
+                        let wb = XL.utils.book_new();
+                        let ws = XL.utils.json_to_sheet(diffRows);
+                        ws['!cols'] = [{wch:5},{wch:16},{wch:8},{wch:7},{wch:8},{wch:8},{wch:13},{wch:12},{wch:9},{wch:22}];
+                        XL.utils.book_append_sheet(wb, ws, 'الفروق');
+                        let sum = [
+                            ['التقرير', row.label],
+                            ['العمود', colLabel],
+                            ['ملف المقارنة', billingFileName],
+                            ['تاريخ التصدير', new Date().toLocaleString('ar-EG')],
+                            [],
+                            ['متطابقة', lastCompare.matchCount],
+                            ['مختلفة', lastCompare.diffCount],
+                            ['في البرنامج فقط', lastCompare.missingInBilling],
+                            ['إجمالي المقارنة', lastCompare.totalCompared]
+                        ];
+                        XL.utils.book_append_sheet(wb, XL.utils.aoa_to_sheet(sum), 'ملخص');
+                        let out = XL.write(wb, { bookType: 'xlsx', type: 'array', compression: true });
+                        let blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                        let a = detailWin.document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = ('فروق_الحاويات_' + String(row.label).replace(/[^\w\u0600-\u06FF.\-]+/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+                        detailWin.document.body.appendChild(a);
+                        a.click();
+                        setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+                    };
                     
                     detailWin.document.getElementById('printBtn').onclick = function() { detailWin.print(); };
                     detailWin.document.getElementById('closeBtn').onclick = function() { detailWin.close(); };
@@ -10465,8 +10517,8 @@ function generateInteractiveConsolidatedReport() {
                         let file = e.target.files[0];
                         if (!file) return;
                         
-                        // التحقق من تحميل XLSX
-                        if (typeof detailWin.XLSX === 'undefined') {
+                        // التحقق من تحميل XLSX (نفضّل مكتبة النافذة الرئيسية: تعمل دون إنترنت)
+                        if (typeof ((window.opener && window.opener.XLSX) || detailWin.XLSX) === 'undefined') {
                             alert('⏳ جاري تحميل مكتبة XLSX، يرجى المحاولة بعد لحظات');
                             return;
                         }
@@ -10475,13 +10527,15 @@ function generateInteractiveConsolidatedReport() {
                         reader.onload = function(evt) {
                             try {
                                 let data = new Uint8Array(evt.target.result);
-                                let wb = detailWin.XLSX.read(data, { type: 'array' });
+                                let XL = (window.opener && window.opener.XLSX) || detailWin.XLSX;
+                                let wb = XL.read(data, { type: 'array' });
                                 let sheet = wb.Sheets[wb.SheetNames[0]];
-                                let fileRows = detailWin.XLSX.utils.sheet_to_json(sheet, { defval: '', range: 4 });
+                                let fileRows = XL.utils.sheet_to_json(sheet, { defval: '', range: 4 });
                                 billingData = window.opener.buildBillingMap(fileRows, '');  // ← يقرأ STORAGE + REEFER
                                 
                                 let fi = detailWin.document.getElementById('fileInfo');
                                 fi.style.display = 'inline-block';
+                                billingFileName = file.name;
                                 fi.textContent = '📄 ' + file.name + ' (' + Object.keys(billingData).length + ' حاوية)';
                                 detailWin.document.getElementById('compareBtn').disabled = false;
                             } catch(err) {
@@ -10494,6 +10548,8 @@ function generateInteractiveConsolidatedReport() {
                     detailWin.document.getElementById('compareBtn').onclick = function() {
                         if (!billingData) return;
                         let result = window.opener.compareWithBillingFile(containers, billingData);
+                        lastCompare = result;
+                        detailWin.document.getElementById('exportDiffBtn').style.display = result.diffResults.length ? '' : 'none';
                         
                         let s = '';
                         s += '<div class="summary-card" style="background:linear-gradient(135deg,#43e97b,#38f9d7)"><div class="lbl">✅ متطابقة</div><div class="num">' + result.matchCount + '</div></div>';
@@ -10847,8 +10903,23 @@ async function saveFileToGitHub() {
         const newFileName = `${names.reportBaseName}.${extension}`;
 
         
+        // 🗂️ نسخ الملف المعدّل: أصل جديد | نسخة معدّلة vN في _versions | مطابق لنسخة محفوظة (لا يُحفظ شيء)
+        let target = { unchanged: false, sub: '', n: 1, isNew: true };
+        try { if (typeof resolveArchiveTarget === 'function') target = await resolveArchiveTarget(names.folderName, newFileName, fileData); }
+        catch (e) { console.warn("⚠️ تعذّر تحديد النسخة:", e.message); }
+        window._archiveTarget = { folder: names.folderName, sub: target.sub || '' };
+        if (target.unchanged) {
+            const which = target.sub ? `النسخة المعدّلة ${target.n}` : 'النسخة الأصلية';
+            const hasPdf = (target.dirFiles || []).some(n => /\.pdf$/i.test(n));
+            console.log(`⏭️ الملف مطابق لـ ${which} المحفوظة — لن تُنشأ نسخة جديدة`);
+            const f0 = document.getElementById("footerMsg");
+            if (f0) { f0.innerHTML = `ℹ️ الملف مطابق لـ<strong>${which}</strong> المحفوظة في الأرشيف — لم تُنشأ نسخة جديدة`; f0.style.color = "#17a2b8"; }
+            return { success: true, unchanged: true, sub: target.sub || '', hasPdf };
+        }
+        const verSub = target.sub || '';
+
         // 🆕 المسار الجديد: الأرشيف فقط
-        const filePath = `archive/${names.folderName}/${newFileName}`;
+        const filePath = `archive/${names.folderName}/${verSub ? verSub + '/' : ''}${newFileName}`;
         
         console.log("📤 جاري رفع الملف إلى الأرشيف:", filePath);
         
@@ -10862,7 +10933,7 @@ async function saveFileToGitHub() {
         let localSuccess = false;
         if (typeof _localServerAvailable !== 'undefined' && _localServerAvailable && typeof uploadToLocalServer === 'function') {
             try {
-                let localResult = await uploadToLocalServer(names.folderName, newFileName, fileData);
+                let localResult = await uploadToLocalServer(names.folderName, newFileName, fileData, verSub);
                 if (localResult.success) {
                     localSuccess = true;
                     console.log("✅ [المحلي] تم النسخ إلى:", localResult.path);
@@ -10932,7 +11003,9 @@ async function saveFileToGitHub() {
                 await updateArchiveInfo(names.folderName, {
                     shipName: names.shipName,
                     date: names.date,
-                    lastUpdate: new Date().toISOString()
+                    lastUpdate: new Date().toISOString(),
+                    _event: { file: (verSub ? verSub + '/' : '') + newFileName, a: existingSha ? 'replace' : 'add' },
+                    ...(verSub ? { _version: { n: target.n, file: newFileName } } : {})
                 }, names.lineId);
             } catch (e) {
                 console.warn("⚠️ فشل تحديث _info.json:", e.message);
@@ -10956,11 +11029,11 @@ async function saveFileToGitHub() {
         showUploadNotification(
             "success",
             "تم الحفظ في الأرشيف بنجاح",
-            `تم حفظ الملف:\n${newFileName}\nفي مجلد: ${names.folderName}\n(المحلي: ${localSuccess ? '✅' : '❌'} | GitHub: ✅)`,
+            `تم حفظ الملف:\n${newFileName}\nفي مجلد: ${names.folderName}${verSub ? `\n🗂️ حُفظ كنسخة معدّلة (النسخة ${target.n}) — النسخة الأصلية باقية` : ''}\n(المحلي: ${localSuccess ? '✅' : '❌'} | GitHub: ✅)`,
             fileUrl
         );
         
-        return { success: true, url: fileUrl, fileName: newFileName };
+        return { success: true, url: fileUrl, fileName: newFileName, sub: verSub, n: target.n };
         
     } catch (error) {
         console.error("❌ خطأ في الرفع للأرشيف:", error);
@@ -11234,6 +11307,9 @@ function processArchiveIndexData(indexData, shipSelect) {
     const isAdmin = user && (user.role === 'admin' || user.lineIds.includes('*'));
     const allowedLinesUpper = isAdmin ? [] : (user ? user.lineIds.map(l => String(l).trim().toUpperCase()) : []);
 
+    // النسخ المعدّلة لملف معيّن داخل مجلد (من فهرس الأرشيف): [{n, t, u, file}] مرتبة تصاعدياً
+    const verOf = (folder, fname) => (folder.versions || []).filter(v => (v.files || []).some(f => f.name === fname))
+        .map(v => ({ n: v.n, t: v.t || '', u: v.u || '', file: v.files.find(f => f.name === fname) })).sort((a, b) => a.n - b.n);
     for (let folder of indexData.folders) {
         const isDatedFolder = /^(.*?)_(\d{4}-\d{2}-\d{2})$/.test(folder.name);
         let folderShipName = folder.name;
@@ -11282,7 +11358,8 @@ function processArchiveIndexData(indexData, shipSelect) {
                     name: file.name,
                     download_url: file.download_url,
                     sha: file.sha,
-                    folderName: folder.name
+                    folderName: folder.name,
+                    versions: verOf(folder, file.name)
                 });
             } else {
                 // إذا لم يحتوي اسم الملف على خط، نستخدم الخطوط من _info.json (كاحتياط)
@@ -11305,7 +11382,8 @@ function processArchiveIndexData(indexData, shipSelect) {
                         name: file.name,
                         download_url: file.download_url,
                         sha: file.sha,
-                        folderName: folder.name
+                        folderName: folder.name,
+                        versions: verOf(folder, file.name)
                     });
                 }
             }
@@ -11361,6 +11439,7 @@ function updateLineDropdown() {
     
     lineSelect.innerHTML = '<option value="">-- اختر الخط --</option>';
     dateSelect.innerHTML = '<option value="">-- اختر التاريخ --</option>';
+    if (typeof updateVersionDropdown === 'function') updateVersionDropdown();
     
     if (!ship) return;
     
@@ -11394,6 +11473,7 @@ function updateDateDropdown() {
     const dateSelect = document.getElementById("ghDateSelect");
     
     dateSelect.innerHTML = '<option value="">-- اختر التاريخ --</option>';
+    if (typeof updateVersionDropdown === 'function') updateVersionDropdown();
     
     if (!ship || !line) return;
     
@@ -11456,6 +11536,41 @@ function updateDateDropdown() {
 }
 
 // ============================================================
+// 🗂️ اختيار النسخة: تظهر القائمة فقط إن كان للملف نسخ معدّلة؛ الافتراضي آخر نسخة
+// ============================================================
+function updateVersionDropdown() {
+    const vs = document.getElementById("ghVersionSelect");
+    if (!vs) return;
+    const dateSelect = document.getElementById("ghDateSelect");
+    const fname = dateSelect && dateSelect.selectedIndex >= 0 && dateSelect.options[dateSelect.selectedIndex] ? (dateSelect.options[dateSelect.selectedIndex].dataset.fullFileName || "") : "";
+    const m = fname ? ghFilesList.find(f => f.fullFileName === fname) : null;
+    let versions = (m && m.versions) || [];
+    vs.innerHTML = "";
+    if (!versions.length && m && m.folderName && !m._verChecked) {
+        // احتياط: الفهرس قد يكون قديماً → اقرأ النسخ مباشرة من _info.json ثم أعد البناء
+        m._verChecked = true;
+        vs.style.display = "none";
+        const fo = m.folderName;
+        fetch("https://raw.githubusercontent.com/" + GH_OWNER + "/" + GH_REPO + "/" + GH_BRANCH + "/" + encodeURI("archive/" + fo) + "/_info.json?t=" + Date.now())
+            .then(r => r.ok ? r.json() : null).then(info => {
+                if (!info || !info.versions) return;
+                const vv = info.versions.filter(v => (v.files || []).includes(m.fullFileName))
+                    .map(v => ({ n: v.n, t: v.t || "", u: v.u || "", file: { name: m.fullFileName, download_url: "https://raw.githubusercontent.com/" + GH_OWNER + "/" + GH_REPO + "/" + GH_BRANCH + "/" + encodeURI("archive/" + fo + "/_versions/v" + v.n + "/" + m.fullFileName) } }))
+                    .sort((x, y) => x.n - y.n);
+                if (vv.length) { m.versions = vv; updateVersionDropdown(); }
+            }).catch(() => {});
+        return;
+    }
+    if (!versions.length) { vs.style.display = "none"; return; }
+    const fmt = (t) => t ? new Date(t).toLocaleString("ar-EG", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+    const add = (value, text) => { const o = document.createElement("option"); o.value = value; o.textContent = text; vs.appendChild(o); };
+    [...versions].reverse().forEach((v, i) => { const t = v.t ? new Date(v.t).toLocaleString("ar-EG", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }) : ""; add("v" + v.n, (i === 0 ? "🆕 " : "✏️ ") + "نسخة " + v.n + (t ? " · " + t : "")); vs.options[vs.options.length-1].title = (v.t ? fmt(v.t) : "") + (v.u ? " — " + v.u : ""); });
+    add("orig", "📄 الأصلية");
+    vs.value = "v" + versions[versions.length - 1].n;   // الافتراضي: آخر نسخة
+    vs.style.display = "";
+}
+
+// ============================================================
 // 📥 تحميل الملف المختار من GitHub
 // ============================================================
 let _downloadingFromGitHub = false; // ← لمنع رفع تلقائي مرة أخرى
@@ -11489,8 +11604,16 @@ async function downloadSelectedGitHubFile() {
     }
     
     try {
-        // ===== 🆕 استخدام download_url مباشرة (يدعم الملفات الكبيرة) =====
-        const downloadUrl = match.download_url;
+        // ===== 🗂️ النسخة المختارة (الأصلية أو معدّلة) =====
+        let downloadUrl = match.download_url;
+        const vsel = document.getElementById("ghVersionSelect");
+        if (vsel && vsel.style.display !== "none" && vsel.value && vsel.value !== "orig") {
+            const pick = (match.versions || []).find(v => "v" + v.n === vsel.value);
+            if (pick && pick.file && pick.file.download_url) {
+                downloadUrl = pick.file.download_url;
+                if (footer) footer.innerHTML = `⏳ جاري تحميل النسخة المعدّلة ${pick.n}: <strong>${match.name}</strong>...`;
+            }
+        }
         
         if (!downloadUrl) {
             throw new Error("لا يوجد رابط تحميل للملف");
@@ -11583,6 +11706,7 @@ document.addEventListener("DOMContentLoaded", function() {
         // ربط القوائم المنسدلة
         if (shipSelect) shipSelect.addEventListener("change", updateLineDropdown);
         if (lineSelect) lineSelect.addEventListener("change", updateDateDropdown);
+        { const ds = document.getElementById("ghDateSelect"); if (ds) ds.addEventListener("change", updateVersionDropdown); }
         if (downloadBtn) downloadBtn.addEventListener("click", downloadSelectedGitHubFile);
         
         // 🆕 ربط زر تحديث القائمة (النسخة الشاملة)
@@ -12186,7 +12310,7 @@ async function autoGenerateAndArchiveFullPDF() {
         const pdfBase64 = pdf.output('datauristring');
         const base64Data = pdfBase64.split(',')[1].replace(/\s/g, '');
 
-        const result = await uploadBase64ToArchive(folderName, fileName, base64Data);
+        const result = await uploadBase64ToArchive(folderName, fileName, base64Data, { sub: typeof archiveSubFor === 'function' ? archiveSubFor(folderName) : '' });
 
         if (result.success) {
             let footer = document.getElementById("footerMsg");

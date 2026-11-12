@@ -431,7 +431,7 @@
         try {
             const doc = await buildDocument(tabs, { carrier: ctx.headerCarrierName, shipDate: ctx.headerShippingDate, lineId: ctx.headerLineId });
             const b64 = doc.output('datauristring').split(',')[1].replace(/\s/g, '');
-            const result = await uploadBase64ToArchive(ctx.folderName, ctx.fileName, b64);
+            const result = await uploadBase64ToArchive(ctx.folderName, ctx.fileName, b64, { sub: typeof archiveSubFor === 'function' ? archiveSubFor(ctx.folderName) : '' });
             if (!result.success) throw new Error(result.error || 'فشل الرفع');
             const footer = document.getElementById('footerMsg');
             if (footer) { footer.innerHTML = `✅ تم حفظ تقرير PDF الشامل في الأرشيف: <strong>${ctx.fileName}</strong>`; footer.style.color = '#28a745'; }
