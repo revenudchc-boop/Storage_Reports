@@ -441,9 +441,14 @@ html[data-theme=dark][data-theme=dark][data-theme=dark][data-theme=dark] #ghStat
 #ghbar{display:flex;align-items:center;gap:12px;background:#e8f4f8;border:1px solid #b8daff;border-radius:16px;padding:10px 14px;margin:0 0 16px;box-shadow:0 6px 18px rgba(15,39,64,.07);backdrop-filter:none;overflow:hidden}
 #ghbar #ghbBody{flex:1;min-width:0}
 #ghbar #githubFilesPanel{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;overflow-y:hidden;align-items:center!important;gap:10px!important;padding:2px 2px 6px!important;margin:0!important;background:transparent!important;border:0!important;width:100%}
-#ghbar #githubFilesPanel select{flex:0 0 auto!important;min-width:140px;background:#fff}
+#ghbar #githubFilesPanel select{flex:1 1 90px!important;min-width:125px!important;max-width:230px;width:auto!important;background:#fff;text-overflow:ellipsis}
+#ghbar #githubFilesPanel #ghVersionSelect{flex:0 1 135px!important;min-width:105px!important;max-width:150px!important}
+#ghbar #archiveNotification{flex:0 1 auto!important;min-width:250px;padding:8px 12px!important;gap:8px!important}
+#ghbar #archiveNotification>div:first-child{min-width:0;overflow:hidden}
+#ghbar #archiveNotification>div:first-child *{overflow:hidden;text-overflow:ellipsis}
+#ghbar #archiveNotification button{flex:0 0 auto;padding:7px 14px!important}
 #ghbar #githubFilesPanel button{flex:0 0 auto;white-space:nowrap}
-#ghbar #archiveNotification{flex:0 0 auto!important;margin:0!important;white-space:nowrap;flex-wrap:nowrap!important}
+#ghbar #archiveNotification{margin:0!important;white-space:nowrap;flex-wrap:nowrap!important}
 #ghbar #ghStatus{flex:0 0 auto}
 #ghbar .ghb-head{display:none;flex:1;align-items:center;cursor:pointer;min-width:0}
 #ghbar .tb-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
