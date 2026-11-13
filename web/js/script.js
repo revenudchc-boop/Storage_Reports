@@ -10911,11 +10911,13 @@ async function saveFileToGitHub() {
         window._archiveTarget = { folder: names.folderName, sub: target.sub || '' };
         if (target.unchanged) {
             const which = target.sub ? `النسخة المعدّلة ${target.n}` : 'النسخة الأصلية';
-            // FINALOUT: يلزم PDF بنفس اسم الـ Excel تماماً؛ غيره: أي PDF في المجلد
-            const hasPdf = names.isFinalout
-                ? (target.dirFiles || []).includes(`${names.reportBaseName}.pdf`.replace(/\s+/g, '_'))
-                : (target.dirFiles || []).some(n => /\.pdf$/i.test(n));
+            const hasPdf = (target.dirFiles || []).some(n => /\.pdf$/i.test(n));
             console.log(`⏭️ الملف مطابق لـ ${which} المحفوظة — لن تُنشأ نسخة جديدة`);
+            try {
+                showUploadNotification("info", "الملف موجود بالفعل",
+                    `الملف «${newFileName}» موجود في الأرشيف بنفس البيانات تماماً (مطابق لـ ${which}). لم يُرفع شيء ولم تُنشأ نسخة جديدة.`);
+                setTimeout(() => { const n = document.getElementById("uploadNotification"); if (n && /موجود بالفعل/.test(n.textContent)) n.remove(); }, 15000);
+            } catch (e) { }
             const f0 = document.getElementById("footerMsg");
             if (f0) { f0.innerHTML = `ℹ️ الملف مطابق لـ<strong>${which}</strong> المحفوظة في الأرشيف — لم تُنشأ نسخة جديدة`; f0.style.color = "#17a2b8"; }
             return { success: true, unchanged: true, sub: target.sub || '', hasPdf, dirFiles: target.dirFiles || [] };
