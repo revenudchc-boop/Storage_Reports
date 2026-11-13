@@ -177,14 +177,14 @@ window.fetchLocalVersionState = fetchLocalVersionState;
 // ============================================================
 // 🗑️ حذف ملف من الخادم المحلي
 // ============================================================
-async function deleteFromLocalServer(folderName, fileName) {
+async function deleteFromLocalServer(folderName, fileName, subPath) {
     if (!_localServerAvailable) {
         return { success: false, error: 'الخادم المحلي غير متاح' };
     }
     
     try {
         const response = await fetch(
-            `${_activeServerUrl}/api/archive/file/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}?apiKey=${LOCAL_SERVER_CONFIG.API_KEY}`,
+            `${_activeServerUrl}/api/archive/file/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}?apiKey=${LOCAL_SERVER_CONFIG.API_KEY}${subPath ? '&subPath=' + encodeURIComponent(subPath) : ''}`,
             { method: 'DELETE', headers: { 'X-User': _auditUser() } }
         );
         

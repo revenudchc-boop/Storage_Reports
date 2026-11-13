@@ -308,6 +308,10 @@ window.archiveSubFor = f => (window._archiveTarget && window._archiveTarget.fold
 // 🆕 تحديث _info.json
 // ============================================================
 async function updateArchiveInfo(folderName, newData, lineId) {
+    try { return await _updateArchiveInfoCore(folderName, newData, lineId); }
+    finally { try { window._modInfoClear(folderName); } catch (e) { } }
+}
+async function _updateArchiveInfoCore(folderName, newData, lineId) {
     const token = localStorage.getItem("github_token");
     if (!token) return false;
 
@@ -346,6 +350,7 @@ async function updateArchiveInfo(folderName, newData, lineId) {
             };
             // نسخ الملف المعدّل: versions = [{n, t, u, files:[...]}] (تُدمج مع ما كتبه غيرنا)
             delete mergedInfo._version;
+            delete mergedInfo._versionRemove;
             const vr = newData && newData._version;
             if (vr && vr.n) {
                 const cu0 = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
@@ -356,6 +361,13 @@ async function updateArchiveInfo(folderName, newData, lineId) {
                 vs.sort((a, b) => a.n - b.n);
                 mergedInfo.versions = vs;
             } else if (existingInfo.versions) mergedInfo.versions = existingInfo.versions;
+            // حذف ملف من نسخة معدّلة: يُزال من files، وتُزال النسخة إن فرغت
+            const vrm = newData && newData._versionRemove;
+            if (vrm && vrm.n && mergedInfo.versions) {
+                mergedInfo.versions = mergedInfo.versions
+                    .map(v => v.n === vrm.n ? { ...v, files: (v.files || []).filter(f => f !== vrm.file) } : v)
+                    .filter(v => (v.files || []).length > 0);
+            }
             // سجل تواريخ المستند: يُضاف حدث (add/replace/delete) إلى history[الملف] مع اسم المستخدم
             delete mergedInfo._event;
             const ev = newData && newData._event;
@@ -1002,6 +1014,37 @@ window.viewFileInArchive = async function(url, fileName) {
                     }
                 });
                 
+				// 🗑️ حذف ملف نسخة معدّلة (_versions/vN): GitHub + الخادم المحلي + تنظيف _info.json
+				window.deleteVersionFile = async function(folderName, n, fileName) {
+					if (!window.canDelete) { alert('⛔ ليس لديك صلاحية الحذف'); return; }
+					if (!confirm('حذف النسخة المعدّلة ' + n + ' من الملف:\\n' + fileName + '؟')) return;
+					const sub = '_versions/v' + n;
+					const path = 'archive/' + folderName + '/' + sub + '/' + fileName;
+					let okLocal = false, okGh = false, errs = [];
+					try { const r = await window.archiveOpener.deleteFromLocalServer(folderName, fileName, sub); okLocal = !!(r && r.success); if (!okLocal) errs.push('المحلي: ' + ((r && r.error) || 'فشل')); } catch (e) { errs.push('المحلي: ' + e.message); }
+					const token = localStorage.getItem('github_token');
+					if (token) {
+						try {
+							const api = 'https://api.github.com/repos/markingdchc/marking.dchc/contents/' + encodeURI(path);
+							const H = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' };
+							const g = await fetch(api + '?ref=main&t=' + Date.now(), { headers: H });
+							if (g.status === 404) { okGh = true; }
+							else if (g.ok) {
+								const d = await g.json();
+								const r = await fetch(api, { method: 'DELETE', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'Delete version ' + n + ': ' + fileName, sha: d.sha, branch: 'main' }) });
+								okGh = r.ok; if (!r.ok) errs.push('GitHub: HTTP ' + r.status);
+							} else errs.push('GitHub: HTTP ' + g.status);
+						} catch (e) { errs.push('GitHub: ' + e.message); }
+					} else errs.push('GitHub: لا يوجد Token');
+					if (!(okLocal || okGh)) { alert('❌ فشل الحذف:\\n' + errs.join('\\n')); return; }
+					try { await window.archiveOpener.updateArchiveInfo(folderName, { _versionRemove: { n: n, file: fileName }, _event: { file: fileName, a: 'delete' } }); } catch (e) { }
+					try { localStorage.removeItem('archive_index_cache'); localStorage.removeItem('archive_index_time'); } catch (e) { }
+					alert('✅ تم حذف النسخة ' + n + (errs.length ? '\\n⚠️ ' + errs.join('\\n') : ''));
+					try { window.archiveOpener._modInfoRemove(folderName, n, fileName); } catch (e) { }
+					try { if (typeof window.archiveOpener.generateAndSaveIndexFromTree === 'function') await window.archiveOpener.generateAndSaveIndexFromTree(); } catch (e) { }
+					try { if (typeof window.refreshArchiveContent === 'function') await window.refreshArchiveContent(); } catch (e) { }
+				};
+
 				window.deleteFileInArchive = async function(filePath, sha, folderName) {
 					if (!window.canDelete) { alert('⛔ ليس لديك صلاحية الحذف'); return; }
 					let fileName = filePath.split('/').pop();
@@ -1995,13 +2038,59 @@ window.getArchiveFileHistory = async function(folder, name, localModified, local
 
 // تلوين أسماء المستندات التي عُدِّلت (استُبدلت) حسب history في _info.json؛ تُستدعى عند فتح مجلد في شاشة الأرشيف
 const _modInfoCache = {};
-window.markModifiedFiles = async function(folder, root) {
+// بعد حذف ملف نسخة: أزله من الكاش المحلي فلا يعود السطر (raw.githubusercontent قد يتأخر)
+// بعد أي حفظ لـ _info.json: امسح الكاش ليُقرأ الجديد فوراً
+window._modInfoClear = function(folder) { if (folder) delete _modInfoCache[folder]; else Object.keys(_modInfoCache).forEach(k => delete _modInfoCache[k]); };
+window._modInfoRemove = function(folder, n, file) {
+    try { const ix = window._verIndex && window._verIndex[folder]; if (ix) window._verIndex[folder] = ix.map(v => v.n === n ? { ...v, files: (v.files || []).filter(f => f !== file) } : v).filter(v => (v.files || []).length); } catch (e) { }
+    const c = _modInfoCache[folder]; if (!c) return;
+    c.v = (c.v || []).map(v => v.n === n ? { ...v, files: (v.files || []).filter(f => f !== file) } : v).filter(v => (v.files || []).length);
+    c.t = Date.now();
+};
+// خريطة النسخ المعدّلة من archive_index.json (محمّل أصلاً في الذاكرة) → عرض فوري بلا طلبات شبكة
+window._verIndex = window._verIndex || {};
+window._setVerIndex = function(folders) {
+    try {
+        const m = {};
+        (folders || []).forEach(f => { if (f && f.name && f.versions && f.versions.length) m[f.name] = f.versions.map(v => ({ n: v.n, t: v.t || '', u: v.u || '', files: (v.files || []).map(x => (x && x.name) || x) })); });
+        window._verIndex = m;
+    } catch (e) { }
+};
+async function _fetchInfoJson(folder) {
+    let j = null;
+    try {
+        const tk = localStorage.getItem('github_token');
+        const hd = { 'Accept': 'application/vnd.github.raw+json' };
+        if (tk) hd['Authorization'] = 'Bearer ' + tk;
+        const r1 = await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURI(ARCHIVE_FOLDER + '/' + folder)}/_info.json?ref=${GH_BRANCH}&t=${Date.now()}`, { headers: hd, cache: 'no-store' });
+        if (r1.ok) j = await r1.json();
+    } catch (e) { }
+    if (!j) {
+        try {
+            const r = await fetch(`https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${encodeURI(ARCHIVE_FOLDER + '/' + folder)}/_info.json?t=${Date.now()}`, { cache: 'no-store' });
+            j = r.ok ? await r.json() : {};
+        } catch (e) { j = {}; }
+    }
+    return j;
+}
+window.markModifiedFiles = async function(folder, root, _second) {
     try {
         if (!root) return;
+        const idx = window._verIndex && window._verIndex[folder];
         let c = _modInfoCache[folder];
-        if (!c || Date.now() - c.t > 300000) {
-            const r = await fetch(`https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${encodeURI(ARCHIVE_FOLDER + '/' + folder)}/_info.json?t=${Date.now()}`);
-            const j = r.ok ? await r.json() : {}; c = _modInfoCache[folder] = { t: Date.now(), h: j.history || {}, v: j.versions || [] };
+        const stale = !c || Date.now() - c.t > 15000;
+        if (idx) {
+            // 1) رسم فوري من الفهرس   2) في الخلفية: اقرأ _info.json (للسجل/التلوين) وأعد الرسم مرة واحدة
+            if (stale && !_second) {
+                _fetchInfoJson(folder).then(j => {
+                    _modInfoCache[folder] = { t: Date.now(), h: j.history || {}, v: j.versions || [] };
+                    window.markModifiedFiles(folder, root, true);
+                }).catch(() => { });
+            }
+            c = { h: (c && c.h) || {}, v: (c && c.v && c.v.length) ? c.v : idx };
+        } else if (stale) {
+            const j = await _fetchInfoJson(folder);
+            c = _modInfoCache[folder] = { t: Date.now(), h: j.history || {}, v: j.versions || [] };
         }
         const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/'/g, '&#39;');
         root.querySelectorAll('.file-row.ver-row').forEach(r => r.remove());
@@ -2022,7 +2111,7 @@ window.markModifiedFiles = async function(folder, root) {
                 d.innerHTML = `<div class="file-name"><span>${/\.pdf$/i.test(f) ? '📕' : '📊'}</span><span style="color:#e8590c;font-weight:700;" title="${esc(f)}">${esc(f)}</span><span style="color:#6c757d;font-size:12px;">✏️ نسخة معدّلة ${v.n}${v.t ? ' — ' + new Date(v.t).toLocaleString('ar-EG') : ''}${v.u ? ' — ' + esc(v.u) : ''}</span></div>
                     <div class="file-actions">
                         <button class="btn-small btn-view" onclick="event.stopPropagation(); window.viewFileInArchive('${esc(url)}', '${esc(f)}')">👁️ عرض</button>
-                        <button class="btn-small btn-download" onclick="event.stopPropagation(); window.downloadFileInArchive('${esc(url)}', '${esc(f)}')">📥</button>
+                        <button class="btn-small btn-download" onclick="event.stopPropagation(); window.downloadFileInArchive('${esc(url)}', '${esc(f)}')">📥</button>${(root.ownerDocument.defaultView && root.ownerDocument.defaultView.canDelete) ? `<button class="btn-small btn-delete" onclick="event.stopPropagation(); window.deleteVersionFile('${esc(folder)}', ${v.n}, '${esc(f)}')">🗑️</button>` : ''}
                     </div>`;
                 host.appendChild(d);
             });
@@ -2047,7 +2136,7 @@ window.markModifiedFiles = async function(folder, root) {
                 d.innerHTML = `<div class="file-name"><span>↳ ✏️</span><span style="color:#e8590c;font-weight:600;">نسخة معدّلة ${v.n}${i === 0 ? ' (الأحدث)' : ''}</span><span style="color:#6c757d;font-size:12px;">${v.t ? new Date(v.t).toLocaleString('ar-EG') : ''}${v.u ? ' — ' + esc(v.u) : ''}</span></div>
                     <div class="file-actions">
                         <button class="btn-small btn-view" onclick="event.stopPropagation(); window.viewFileInArchive('${esc(url)}', '${esc(fname)}')">👁️ عرض</button>
-                        <button class="btn-small btn-download" onclick="event.stopPropagation(); window.downloadFileInArchive('${esc(url)}', '${esc(fname)}')">📥</button>
+                        <button class="btn-small btn-download" onclick="event.stopPropagation(); window.downloadFileInArchive('${esc(url)}', '${esc(fname)}')">📥</button>${(root.ownerDocument.defaultView && root.ownerDocument.defaultView.canDelete) ? `<button class="btn-small btn-delete" onclick="event.stopPropagation(); window.deleteVersionFile('${esc(folder)}', ${v.n}, '${esc(fname)}')">🗑️</button>` : ''}
                     </div>`;
                 anchor.after(d); anchor = d;
             });
@@ -3473,6 +3562,7 @@ async function generateAndSaveIndexFromTree() {
 
 			// 🆕 1) تحديث الذاكرة
 			window.savedArchiveFolders = foldersArray;
+			try { window._setVerIndex(foldersArray); } catch (e) { }
 
 			// 🆕 2) مسح الكاش القديم
 			localStorage.removeItem('archive_index_cache');

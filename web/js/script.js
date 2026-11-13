@@ -11305,6 +11305,7 @@ async function initGitHubFilesPanel(forceRefresh = false) {
 
 // 🆕 دالة مساعدة لمعالجة البيانات وعرضها
 function processArchiveIndexData(indexData, shipSelect) {
+    try { if (window._setVerIndex) window._setVerIndex(indexData && indexData.folders); } catch (e) { }
     ghFilesList = [];
     
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
