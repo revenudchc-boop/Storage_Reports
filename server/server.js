@@ -375,9 +375,12 @@ app.delete('/api/archive/file/:folder/:file', async (req, res) => {
             return res.status(400).json({ error: 'مسار غير صالح' });
         }
         
-        const filePath = path.join(CONFIG.ARCHIVE_PATH, folderName, fileName);
+        // حذف ملف نسخة معدّلة: ?subPath=_versions/vN فقط
+        const sp = req.query.subPath ? String(req.query.subPath) : '';
+        if (sp && !/^_versions\/v\d{1,4}$/.test(sp)) return res.status(400).json({ error: 'مسار فرعي غير صالح' });
+        const filePath = path.join(CONFIG.ARCHIVE_PATH, folderName, sp, fileName);
         await fs.unlink(filePath);
-        audit('delete', folderName, fileName, req);
+        audit('delete', folderName, sp ? sp + '/' + fileName : fileName, req);
         
         console.log('🗑️ تم حذف:', filePath);
         res.json({ success: true });
